@@ -12,8 +12,27 @@ export default {
         "2xl": "1400px",
       },
     },
+    fontFamily: {
+      poppins: ['Poppins', 'sans-serif'],
+    },
     extend: {
       colors: {
+        nav: {
+          DEFAULT: "hsl(var(--nav-bg))",
+          foreground: "hsl(var(--nav-foreground))",
+          active: "hsl(var(--nav-active))",
+        },
+        hero: {
+          title: "hsl(var(--hero-title))",
+          role: "hsl(var(--hero-role))",
+          desc: "hsl(var(--hero-desc))",
+        },
+        story: {
+          border: "hsl(var(--story-border))",
+        },
+        hire: {
+          DEFAULT: "hsl(var(--hire-bg))",
+        },
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
