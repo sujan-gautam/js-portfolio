@@ -74,7 +74,7 @@ export function CrudTable<T extends { id: string }>({
 
   const handleSave = () => {
     if (editItem) {
-      onUpdate(editItem.id, formData);
+      onUpdate(editItem.id, formData as Partial<T>);
     } else {
       onAdd({ ...formData, id: generateId() } as T);
     }
