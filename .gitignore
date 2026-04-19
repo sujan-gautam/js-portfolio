@@ -29,7 +29,6 @@ dist-ssr
 .env.production.local
 backend/node_modules
 backend/.env
-.github/
 .vercel/
 .npm/
 brain/
