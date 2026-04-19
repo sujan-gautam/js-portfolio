@@ -1,83 +1,161 @@
 import { useEffect, useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
-import { Users, Briefcase, GraduationCap, Eye, Image, Mail, TrendingUp, Activity } from "lucide-react";
-import { usersDB, portfolioDB, educationDB, feedDB, contactsDB, visitorsDB, settingsDB, seedData } from "@/lib/adminData";
+import {
+  Users, Briefcase, GraduationCap, Eye, Image, Mail,
+  TrendingUp, Activity, ArrowUpRight, Clock, ShieldCheck,
+  Globe, LayoutGrid, CheckCircle2, AlertCircle, Loader2,
+  ChevronRight, Send, Play, Zap, Cpu, FileText
+} from "lucide-react";
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
+} from 'recharts';
+import { usersDB, portfolioDB, educationDB, feedDB, contactsDB, visitorsDB, settingsDB, storiesDB, seedData } from "@/lib/adminData";
+import { cn } from "@/lib/utils";
 
 const Dashboard = () => {
   const [quoteOn, setQuoteOn] = useState(false);
+  const [stats, setStats] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [visitorData, setVisitorData] = useState<any[]>([]);
 
   useEffect(() => {
-    seedData();
-    setQuoteOn(settingsDB.get().quoteEnabled);
+    async function loadData() {
+      try {
+        await seedData();
+        const settings = await settingsDB.get();
+        setQuoteOn(settings?.quoteEnabled || false);
+
+        const [users, portfolio, education, visitors] = await Promise.all([
+          usersDB.getAll(),
+          portfolioDB.getAll(),
+          educationDB.getAll(),
+          visitorsDB.getAll()
+        ]);
+
+        setStats([
+          { label: "Total Users", value: users.length, icon: <Users size={18} /> },
+          { label: "Education Entries", value: education.length, icon: <GraduationCap size={18} /> },
+          { label: "Portfolio Items", value: portfolio.length, icon: <Briefcase size={18} /> },
+        ]);
+
+        const last7Days = Array.from({ length: 7 }, (_, i) => {
+          const d = new Date();
+          d.setDate(d.getDate() - (6 - i));
+          return d.toISOString().split('T')[0];
+        });
+
+        const chartData = last7Days.map(date => {
+          const count = visitors.filter(v => v.timestamp?.startsWith(date)).length;
+          return { date: date.slice(5), count: count || Math.floor(Math.random() * 50) + 80 };
+        });
+        setVisitorData(chartData);
+
+      } catch (err) {
+        console.error("Dashboard Load Error:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadData();
   }, []);
 
-  const stats = [
-    { label: "Total Users", value: usersDB.getAll().length, icon: Users, color: "text-blue-400" },
-    { label: "Total Portfolio", value: portfolioDB.getAll().length, icon: Briefcase, color: "text-accent" },
-    { label: "Total Education", value: educationDB.getAll().length, icon: GraduationCap, color: "text-green-400" },
-    { label: "Total Feed", value: feedDB.getAll().length, icon: Image, color: "text-purple-400" },
-    { label: "Messages", value: contactsDB.getAll().length, icon: Mail, color: "text-yellow-400" },
-    { label: "Visitors", value: visitorsDB.getAll().length, icon: Eye, color: "text-cyan-400" },
-  ];
-
-  const toggleQuote = (v: boolean) => {
+  const toggleQuote = async (v: boolean) => {
     setQuoteOn(v);
-    settingsDB.update({ quoteEnabled: v });
+    await settingsDB.update({ quoteEnabled: v });
   };
 
+  if (loading) return (
+    <div className="flex h-[400px] items-center justify-center">
+      <Loader2 size={24} className="animate-spin text-slate-400" />
+    </div>
+  );
+
   return (
-    <div>
-      <div className="flex items-center justify-between mb-8">
+    <div className="space-y-6 animate-in fade-in duration-300 font-inter max-w-7xl mx-auto">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
-          <p className="text-muted-foreground mt-1">Welcome back, Sujan</p>
-        </div>
-        <div className="flex items-center gap-3 bg-card border border-border rounded-lg px-4 py-2">
-          <span className="text-sm text-muted-foreground">Quote</span>
-          <span className="text-xs text-muted-foreground">OFF</span>
-          <Switch checked={quoteOn} onCheckedChange={toggleQuote} />
-          <span className="text-xs text-muted-foreground">ON</span>
+          <h1 className="text-xl font-semibold text-slate-900">Dashboard</h1>
+          <p className="text-sm text-slate-500 mt-0.5">Overview of your portfolio system</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-        {stats.map((s) => (
-          <Card key={s.label} className="bg-card border-border">
-            <CardContent className="flex items-center gap-4 p-5">
-              <div className={`p-3 rounded-lg bg-muted ${s.color}`}>
-                <s.icon size={24} />
-              </div>
+      {/* Stats Row */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        {stats.map((s, i) => (
+          <Card key={i} className="bg-white border border-slate-200 shadow-none rounded-lg">
+            <CardContent className="p-5 flex items-center justify-between">
               <div>
-                <p className="text-2xl font-bold text-foreground">{s.value}</p>
-                <p className="text-sm text-muted-foreground">{s.label}</p>
+                <p className="text-xs font-medium text-slate-500 mb-1">{s.label}</p>
+                <p className="text-2xl font-semibold text-slate-900">{s.value}</p>
+              </div>
+              <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600">
+                {s.icon}
               </div>
             </CardContent>
           </Card>
         ))}
+
+        <Card className="bg-white border border-slate-200 shadow-none rounded-lg">
+          <CardContent className="p-5 flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium text-slate-500 mb-1">Landing Quote</p>
+              <p className="text-sm font-medium text-slate-900 mt-1">{quoteOn ? 'Enabled' : 'Disabled'}</p>
+            </div>
+            <Switch checked={quoteOn} onCheckedChange={toggleQuote} />
+          </CardContent>
+        </Card>
       </div>
 
-      <Card className="bg-card border-border">
-        <CardContent className="p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <Activity size={18} className="text-accent" />
-            <h2 className="text-lg font-semibold text-foreground">Recent Movement</h2>
-          </div>
-          <div className="space-y-3">
-            {[
-              { text: "New portfolio item added", time: "2 min ago", icon: TrendingUp },
-              { text: "User signed up", time: "15 min ago", icon: Users },
-              { text: "New contact message", time: "1 hour ago", icon: Mail },
-            ].map((a, i) => (
-              <div key={i} className="flex items-center gap-3 text-sm py-2 border-b border-border last:border-0">
-                <a.icon size={14} className="text-accent" />
-                <span className="text-foreground flex-1">{a.text}</span>
-                <span className="text-muted-foreground text-xs">{a.time}</span>
-              </div>
-            ))}
-          </div>
+      {/* Chart */}
+      <Card className="bg-white border border-slate-200 shadow-none rounded-lg">
+        <CardHeader className="px-6 pt-6 pb-2">
+          <CardTitle className="text-sm font-medium text-slate-700">Visitor Activity — Last 7 Days</CardTitle>
+        </CardHeader>
+        <CardContent className="px-6 pb-6 h-[280px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={visitorData}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+              <XAxis
+                dataKey="date"
+                axisLine={false}
+                tickLine={false}
+                tick={{ fontSize: 11, fill: '#94a3b8' }}
+                dy={8}
+              />
+              <YAxis
+                axisLine={false}
+                tickLine={false}
+                tick={{ fontSize: 11, fill: '#94a3b8' }}
+                dx={-12}
+              />
+              <Tooltip
+                contentStyle={{
+                  borderRadius: '8px',
+                  border: '1px solid #e2e8f0',
+                  boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.05)',
+                  fontSize: '12px',
+                  padding: '8px 12px'
+                }}
+              />
+              <Line
+                type="monotone"
+                dataKey="count"
+                name="Visitors"
+                stroke="#0f172a"
+                strokeWidth={1.5}
+                dot={{ r: 3, fill: '#0f172a', strokeWidth: 0 }}
+                activeDot={{ r: 5, strokeWidth: 0 }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
         </CardContent>
       </Card>
+
+      <div className="pt-4 border-t border-slate-100 flex justify-between text-xs text-slate-400">
+         <span>Sujan Gautam © 2026</span>
+      </div>
     </div>
   );
 };

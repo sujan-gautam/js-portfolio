@@ -1,117 +1,284 @@
-import { MapPin, Mail, Phone, Facebook, Linkedin, Instagram, Github, Heart } from "lucide-react";
+import { useState, useEffect } from "react";
+import { 
+  MapPin, Mail, Phone, Facebook, Linkedin, Instagram, Github, Twitter, Youtube, 
+  Heart, Send, Loader2, Globe, MessageSquare, PhoneCall, X, CheckCircle2
+} from "lucide-react";
+import { aboutDB, settingsDB, courtesyDB, contactsDB, AboutData, AdminSettings, CourtesyItem } from "@/lib/adminData";
+import { toast } from "sonner";
+import { SmartText } from "@/components/ui/SmartText";
 
-const socialLinks = [
-  { icon: Facebook, href: "#" },
-  { icon: Linkedin, href: "#" },
-  { icon: Instagram, href: "#" },
-  { icon: Github, href: "#" },
-];
+const IconMap: Record<string, any> = {
+  facebook: Facebook,
+  linkedin: Linkedin,
+  instagram: Instagram,
+  github: Github,
+  twitter: Twitter,
+  youtube: Youtube,
+};
 
 const Contact = () => {
+  const [about, setAbout] = useState<AboutData | null>(null);
+  const [settings, setSettings] = useState<AdminSettings | null>(null);
+  const [courtesy, setCourtesy] = useState<CourtesyItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Modal State
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [formData, setFormData] = useState({ name: "", email: "", phone: "", message: "" });
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+
+  useEffect(() => {
+    Promise.all([
+      aboutDB.get(),
+      settingsDB.get(),
+      courtesyDB.getAll()
+    ]).then(([aboutData, settingsData, courtesyData]) => {
+      setAbout(aboutData);
+      setSettings(settingsData);
+      setCourtesy(courtesyData.filter(c => c.active));
+      setLoading(false);
+    });
+  }, []);
+
+  const handleSendEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.message || (!formData.email && !formData.phone)) {
+       return toast.error("Please provide your details and a message.");
+    }
+
+    setSubmitting(true);
+    try {
+      await contactsDB.sendEmail(formData);
+      setSubmitted(true);
+      toast.success("Message sent successfully.");
+      setFormData({ name: "", email: "", phone: "", message: "" });
+      setTimeout(() => {
+        setSubmitted(false);
+        setIsModalOpen(false);
+      }, 3000);
+    } catch (error: any) {
+       toast.error(error.message || "Failed to send message. Please try again.");
+    }
+    setSubmitting(false);
+  };
+
+  if (loading) return <div className="min-h-screen flex items-center justify-center font-poppins"><Loader2 className="animate-spin text-[#CB2729]" /></div>;
+
   return (
-    <div className="min-h-screen bg-background pb-20">
-      {/* Red gradient top */}
-      <div
-        className="h-2 w-full"
-        style={{
-          background:
-            "linear-gradient(90deg, transparent, hsl(0 80% 30%), transparent)",
-        }}
-      />
-
-      {/* Title */}
-      <div className="text-center py-12">
-        <h1 className="text-5xl md:text-6xl font-black tracking-tight">
-          <span className="text-foreground">CONTACT </span>
-          <span className="text-accent">ME</span>
-        </h1>
-      </div>
-
-      <div className="max-w-6xl mx-auto px-6">
-        {/* Get in Touch */}
-        <div className="mb-12">
-          <h2 className="text-xl font-bold text-foreground mb-3">
-            GET IN TOUCH
-          </h2>
-          <p className="text-muted-foreground text-sm mb-5">
-            You Can Contact Us Via Email, Calls Or Through Social Medias .✨
-          </p>
-          <div className="flex gap-3">
-            {socialLinks.map(({ icon: Icon, href }, i) => (
-              <a
-                key={i}
-                href={href}
-                className="w-11 h-11 rounded-full bg-card border border-border flex items-center justify-center text-foreground hover:text-accent transition-colors"
-              >
-                <Icon size={20} />
-              </a>
-            ))}
-          </div>
+    <div className="min-h-[100dvh] text-white selection:bg-red-500/30 font-poppins flex flex-col justify-center pt-8 pb-32">
+      
+      {/* Dynamic Contact Page Content */}
+      <div className="max-w-7xl mx-auto px-6 md:px-10 w-full animate-in fade-in duration-1000">
+        
+        {/* Main Header */}
+        <div className="text-center mb-6 md:mb-16">
+          <h1 className="text-[36px] md:text-[75px] font-black uppercase tracking-tighter leading-none">
+            CONTACT <span className="text-[#CB2729]">Me</span>
+          </h1>
         </div>
 
-        {/* Contact Info + Courtesy */}
-        <div className="flex flex-col lg:flex-row gap-16">
-          {/* Contact Me */}
-          <div className="flex-1">
-            <h2 className="text-xl font-bold text-foreground mb-8">
-              CONTACT ME
-            </h2>
-
-            <div className="space-y-8">
-              <div className="flex items-start gap-4">
-                <MapPin size={24} className="text-accent flex-shrink-0 mt-1" />
-                <div>
-                  <p className="font-bold text-foreground text-sm">Address :</p>
-                  <p className="text-muted-foreground text-sm">Gorkha,Nepal</p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-4">
-                <Mail size={24} className="text-accent flex-shrink-0 mt-1" />
-                <div>
-                  <p className="font-bold text-foreground text-sm">Email :</p>
-                  <p className="text-muted-foreground text-sm">
-                    Admin@Sujan1919.Com.Np
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-4">
-                <Phone size={24} className="text-accent flex-shrink-0 mt-1" />
-                <div>
-                  <p className="font-bold text-foreground text-sm">Number :</p>
-                  <p className="text-muted-foreground text-sm">
-                    +977-9824186158
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Courtesy */}
-          <div className="flex-1">
-            <h2 className="text-xl font-bold text-foreground mb-4">
-              COURTESY
-            </h2>
-            <p className="text-muted-foreground text-sm leading-relaxed mb-6">
-              Thanks To Shreya And Swostika, And Special Thanks To Sujit, For
-              Their Help Throughout The Journey.❤️
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-16 mb-8 md:mb-16 items-start">
+          
+          {/* Column 1: Get in Touch */}
+          <div>
+            <h2 className="text-[20px] font-black uppercase mb-8 tracking-tight">GET IN TOUCH</h2>
+            <p className="text-white/60 text-[13px] leading-relaxed mb-8 max-w-[280px] font-medium tracking-wide">
+              You Can Contact Us Via Email, Calls Or Through Social Medias. ✨
             </p>
-            <div className="flex gap-3">
-              {[0, 1, 2].map((i) => (
-                <div
-                  key={i}
-                  className="w-11 h-11 rounded-full bg-card border border-border flex items-center justify-center text-foreground"
-                >
-                  <Heart size={18} />
-                </div>
-              ))}
+            <div className="flex gap-4">
+              {settings?.socialLinks?.map((link, i) => {
+                const Icon = IconMap[link.platform.toLowerCase()] || Globe;
+                return (
+                  <a 
+                    key={i} 
+                    href={link.url} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="w-10 h-10 rounded-full border border-white/10 flex items-center justify-center text-white/30 hover:text-white hover:border-[#CB2729] transition-all bg-white/[0.02]"
+                  >
+                    <Icon size={16} />
+                  </a>
+                );
+              })}
             </div>
           </div>
+
+          {/* Column 2: Contact Info */}
+          <div className="space-y-10">
+            <h2 className="text-[20px] font-black uppercase mb-8 tracking-tight">CONTACT ME</h2>
+            <div className="space-y-8">
+               <ContactItem label="ADDRESS :" value={about?.address || "604 N 31st Ave"} icon={<MapPin size={20} className="text-red-500" />} />
+               <ContactItem label="EMAIL :" value={about?.email || "sujaan1919@gmail.com"} icon={<Mail size={20} className="text-red-500" />} />
+               <ContactItem label="NUMBER :" value={about?.phone || "+18179707616"} icon={<Phone size={20} className="text-red-500" />} />
+            </div>
+          </div>
+
+          {/* Column 3: Courtesy */}
+          <div className="flex flex-col">
+            <h2 className="text-[20px] font-black uppercase mb-8 tracking-tight">COURTESY</h2>
+            <div>
+               <div className="text-white/60 text-[13px] leading-relaxed font-medium tracking-wide opacity-80 mb-6">
+                 <SmartText text={settings?.courtesyDescription || "Thanks To Shreya And Swostika, And Special Thanks To Sujit, For Their Help Throughout The Journey. ❤️"} />
+               </div>
+            </div>
+            
+            {/* Heart links to social handles */}
+            <div className="flex flex-wrap gap-4 mt-2">
+               {courtesy.some(c => c.socialLinks && c.socialLinks.length > 0) ? (
+                 courtesy.flatMap(c => (c.socialLinks || []).map((sl, idx) => (
+                   <a 
+                     key={`${c.id}-${idx}`} 
+                     href={sl.url} 
+                     target="_blank" 
+                     rel="noopener noreferrer"
+                     className="w-10 h-10 rounded-full border border-white/10 flex items-center justify-center text-white/20 bg-white/[0.03] hover:text-[#CB2729] hover:border-[#CB2729]/30 transition-all hover:scale-110 group relative"
+                   >
+                      <div className="absolute -top-10 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-black border border-white/10 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10 shadow-xl">
+                         <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#CB2729]">{c.name}</p>
+                         <p className="text-[7px] font-medium uppercase tracking-[0.1em] text-white/40 text-center">{sl.platform}</p>
+                      </div>
+                      <Heart size={16} className="transition-all group-hover:fill-[#CB2729]/20" />
+                   </a>
+                 )))
+               ) : (
+                 [1, 2, 3].map(i => (
+                   <div key={i} className="w-10 h-10 rounded-full border border-white/10 flex items-center justify-center text-white/20 bg-white/[0.02]">
+                      <Heart size={16} className="opacity-40" />
+                   </div>
+                 ))
+               )}
+            </div>
+          </div>
+
         </div>
       </div>
+
+      {/* Persistent CTA Bar - Matches About/Portfolio design */}
+      <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[1000] w-[90%] md:w-auto">
+         <div className="relative group cursor-pointer" onClick={() => setIsModalOpen(true)}>
+            <button 
+               className="relative flex items-center gap-4 px-8 md:px-10 py-3 md:py-3.5 rounded-full border border-white/5 bg-[#0a0a0a]/90 backdrop-blur-xl hover:bg-[#111] transition-all duration-300 shadow-xl"
+            >
+               <div className="w-1.5 h-1.5 rounded-full bg-[#CB2729] animate-pulse" />
+               <span className="text-[10px] md:text-[11px] font-bold uppercase tracking-[0.2em] text-white/30 group-hover:text-white transition-colors whitespace-nowrap font-inter">
+                 Want to collab or hire me?
+               </span>
+            </button>
+         </div>
+      </div>
+
+
+
+      {/* Clean & Professional Contact Modal */}
+      {isModalOpen && (
+         <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-300 backdrop-blur-sm bg-black/40">
+            {/* Backdrop */}
+            <div className="absolute inset-0" onClick={() => setIsModalOpen(false)} />
+            
+            <div className="relative w-full max-w-[400px] bg-[#0A0A0A] border border-white/5 rounded-2xl shadow-[0_0_50px_-12px_rgba(0,0,0,0.5)] overflow-hidden">
+               <div className="p-6 sm:p-8">
+                 <div className="flex justify-between items-start mb-8">
+                    <div>
+                       <h2 className="text-xl font-bold text-white tracking-tight font-inter">Contact</h2>
+                       <p className="text-white/20 text-[11px] font-medium font-inter mt-0.5">Let's talk about your next project.</p>
+                    </div>
+                    <button 
+                      onClick={() => setIsModalOpen(false)} 
+                      className="p-1 text-white/20 hover:text-white transition-all"
+                      disabled={submitting}
+                    >
+                      <X size={20} />
+                    </button>
+                 </div>
+
+                 {submitted ? (
+                    <div className="text-center py-8 space-y-3 animate-in fade-in duration-500">
+                       <CheckCircle2 size={48} className="mx-auto text-[#CB2729]" />
+                       <h3 className="text-base font-bold text-white">Message Sent</h3>
+                       <p className="text-white/40 text-xs">I'll get back to you shortly.</p>
+                    </div>
+                 ) : (
+                   <form onSubmit={handleSendEmail} className="space-y-5 font-inter">
+                      <div className="space-y-1.5">
+                         <label className="text-[11px] font-medium text-white/30 ml-1">Full Name</label>
+                         <input 
+                           type="text" 
+                           required
+                           value={formData.name}
+                           onChange={e => setFormData({...formData, name: e.target.value})}
+                           placeholder="Your name"
+                           className="w-full bg-white/[0.02] border border-white/5 rounded-xl px-4 py-3 text-[13px] text-white placeholder:text-white/10 focus:outline-none focus:border-[#CB2729]/50 transition-all"
+                         />
+                      </div>
+                      <div className="space-y-1.5">
+                         <label className="text-[11px] font-medium text-white/30 ml-1">Email Address</label>
+                         <input 
+                           type="email" 
+                           required
+                           value={formData.email}
+                           onChange={e => setFormData({...formData, email: e.target.value})}
+                           placeholder="your@email.com"
+                           className="w-full bg-white/[0.02] border border-white/5 rounded-xl px-4 py-3 text-[13px] text-white placeholder:text-white/10 focus:outline-none focus:border-[#CB2729]/50 transition-all"
+                         />
+                      </div>
+                      <div className="space-y-1.5">
+                         <label className="text-[11px] font-medium text-white/30 ml-1">Message</label>
+                         <textarea 
+                           rows={3}
+                           required
+                           value={formData.message}
+                           onChange={e => setFormData({...formData, message: e.target.value})}
+                           placeholder="How can I help you?"
+                           className="w-full bg-white/[0.02] border border-white/5 rounded-xl px-4 py-3 text-[13px] text-white placeholder:text-white/10 focus:outline-none focus:border-[#CB2729]/50 transition-all resize-none"
+                         />
+                      </div>
+
+                      <div className="pt-4 flex items-center gap-3">
+                         <button 
+                           disabled={submitting}
+                           className="flex-1 py-3 bg-[#CB2729] text-white font-bold text-[12px] uppercase tracking-widest rounded-xl hover:bg-red-700 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
+                         >
+                            {submitting ? <Loader2 className="animate-spin" size={16} /> : <>Send Message</>}
+                         </button>
+                         
+                         <div className="flex gap-2.5">
+                            <a 
+                              href={`tel:${about?.phone}`}
+                              className="w-10 h-10 rounded-xl border border-white/5 bg-white/[0.02] flex items-center justify-center text-white/20 hover:text-[#CB2729] transition-all"
+                              title="Call"
+                            >
+                              <PhoneCall size={16} />
+                            </a>
+                            <a 
+                              href={`https://wa.me/${about?.phone?.replace(/\+/g, '')}`}
+                              target="_blank"
+                              rel="noopener"
+                              className="w-10 h-10 rounded-xl border border-white/5 bg-white/[0.02] flex items-center justify-center text-white/20 hover:text-[#25D366] transition-all"
+                              title="WhatsApp"
+                            >
+                              <MessageSquare size={16} />
+                            </a>
+                         </div>
+                      </div>
+                   </form>
+                 )}
+               </div>
+            </div>
+         </div>
+      )}
     </div>
   );
 };
+
+const ContactItem = ({ label, value, icon }: { label: string; value: string; icon: React.ReactNode }) => (
+  <div className="flex gap-4 items-start group/item">
+    <div className="pt-1">{icon}</div>
+    <div className="flex flex-col">
+      <span className="block text-[12px] font-bold text-white uppercase tracking-[0.2em] font-poppins">{label}</span>
+      <span className="block text-[15px] text-white font-light tracking-wide -mt-0.5">{value}</span>
+    </div>
+  </div>
+);
 
 export default Contact;

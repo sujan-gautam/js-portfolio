@@ -1,75 +1,146 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap');
-
 @layer base {
   :root {
+    /* Absolute Dark Theme */
     --background: 0 0% 4%;
-    --foreground: 0 0% 90%;
+    --foreground: 0 0% 98%;
 
-    --card: 0 0% 8%;
-    --card-foreground: 0 0% 90%;
+    --card: 0 0% 6%;
+    --card-foreground: 0 0% 98%;
 
-    --popover: 0 0% 8%;
-    --popover-foreground: 0 0% 90%;
+    --popover: 0 0% 6%;
+    --popover-foreground: 0 0% 98%;
 
-    --primary: 0 80% 50%;
+    --primary: 359 68% 47%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 0 0% 12%;
-    --secondary-foreground: 0 0% 70%;
+    --secondary: 0 0% 10%;
+    --secondary-foreground: 0 0% 90%;
 
-    --muted: 0 0% 15%;
+    --muted: 0 0% 12%;
     --muted-foreground: 0 0% 55%;
 
-    --accent: 0 80% 50%;
+    --accent: 359 68% 47%;
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 84.2% 60.2%;
+    --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 0 0% 15%;
-    --input: 0 0% 15%;
-    --ring: 0 80% 50%;
+    --border: 0 0% 12%;
+    --input: 0 0% 12%;
+    --ring: 359 68% 47%;
 
     --radius: 0.5rem;
 
-    --nav-bg: 0 0% 10%;
+    /* Custom Navbar & Hero Tokens */
+    --nav-bg: 0 0% 6%;
     --nav-foreground: 0 0% 60%;
-    --nav-active: 0 80% 50%;
+    --nav-active: 359 68% 47%;
+    --hero-title: 0 0% 100%;
+    --hero-role: 359 68% 47%;
+    --hero-desc: 0 0% 70%;
+    --story-border: 0 0% 15%;
+    --hire-bg: 359 68% 47%;
 
-    --hero-title: 0 0% 65%;
-    --hero-role: 0 80% 55%;
-    --hero-desc: 0 0% 45%;
-
-    --story-border: 0 80% 40%;
-    --hire-bg: 0 75% 45%;
-
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    font-family: 'Poppins', sans-serif;
   }
-}
 
-@layer base {
+  /* ── Admin Scoped Light Theme ── */
+  .admin-panel {
+    --background:       0 0% 98%   !important;
+    --foreground:       222 47% 11% !important;
+
+    --card:             0 0% 100%  !important;
+    --card-foreground:  222 47% 11% !important;
+
+    --popover:          0 0% 100%  !important;
+    --popover-foreground: 222 47% 11% !important;
+
+    --primary:          222 47% 11% !important;
+    --primary-foreground: 0 0% 100% !important;
+
+    --secondary:        210 40% 96% !important;
+    --secondary-foreground: 222 47% 11% !important;
+
+    --muted:            210 40% 96% !important;
+    --muted-foreground: 215 16% 47% !important;
+
+    --accent:           210 40% 96% !important;
+    --accent-foreground: 222 47% 11% !important;
+
+    --destructive:      0 72% 51%  !important;
+    --destructive-foreground: 0 0% 100% !important;
+
+    --border:           214 32% 91% !important;
+    --input:            214 32% 91% !important;
+    --ring:             222 47% 11% !important;
+
+    --radius: 0.5rem !important;
+    font-family: 'Inter', sans-serif !important;
+  }
+
+  /* Force Inter inside admin */
+  .admin-panel,
+  .admin-panel * {
+    font-family: 'Inter', sans-serif !important;
+  }
+
   * {
     @apply border-border;
   }
 
   body {
-    @apply bg-background text-foreground font-poppins;
+    @apply text-foreground antialiased;
+    background: linear-gradient(to right, #000000, #0a0a0a, #0c0808, #0c0505, #0c0505, #000000, #000000, #000000, #150a0a, #0c0505, #0c0808, #0a0a0a, #000000);
+    background-size: 200% 100%;
+    animation: shiftBackground 20s linear infinite;
   }
 }
 
+/* ── Utilities ── */
 @layer utilities {
   .circle-clip {
     clip-path: circle(50%);
   }
+
+  /* Admin thin scrollbar */
+  .admin-panel ::-webkit-scrollbar       { width: 4px; height: 4px; }
+  .admin-panel ::-webkit-scrollbar-track { background: transparent; }
+  .admin-panel ::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 9999px; }
+  .admin-panel ::-webkit-scrollbar-thumb:hover { background: #cbd5e1; }
+}
+
+/* ── Animations ── */
+@keyframes marquee {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.animate-marquee {
+  animation: marquee 10s linear infinite;
+}
+
+.pause-animation {
+  animation-play-state: paused;
+}
+
+@keyframes musicWave {
+  from { transform: scaleY(1); }
+  to   { transform: scaleY(0.4); }
+}
+
+@keyframes shiftBackground {
+  0% { background-position: 0% 50%; }
+  100% { background-position: -200% 50%; }
+}
+
+/* Hide Bottom Nav & Cursor Aura when story is open */
+.story-open nav.fixed.bottom-0,
+.story-open .fixed.pointer-events-none.z-\[99999\] {
+  display: none !important;
 }

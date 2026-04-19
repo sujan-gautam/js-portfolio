@@ -4,6 +4,8 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import BottomNav from "@/components/BottomNav";
+
+// Public pages
 import Index from "./pages/Index.tsx";
 import About from "./pages/About.tsx";
 import Feed from "./pages/Feed.tsx";
@@ -11,78 +13,176 @@ import Portfolio from "./pages/Portfolio.tsx";
 import Contact from "./pages/Contact.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
+// Admin layout
 import AdminLayout from "@/components/admin/AdminLayout";
 import Dashboard from "@/pages/admin/Dashboard";
 import AdminAbout from "@/pages/admin/AdminAbout";
-import AdminEducation from "@/pages/admin/AdminEducation";
-import AdminFeed from "@/pages/admin/AdminFeed";
-import AdminSliders from "@/pages/admin/AdminSliders";
-import AdminPortfolio from "@/pages/admin/AdminPortfolio";
-import AdminFunWork from "@/pages/admin/AdminFunWork";
-import AdminVideos from "@/pages/admin/AdminVideos";
-import AdminServices from "@/pages/admin/AdminServices";
-import AdminStory from "@/pages/admin/AdminStory";
-import AdminPopups from "@/pages/admin/AdminPopups";
-import AdminAds from "@/pages/admin/AdminAds";
-import AdminContact from "@/pages/admin/AdminContact";
-import AdminVisitors from "@/pages/admin/AdminVisitors";
-import AdminUsers from "@/pages/admin/AdminUsers";
-import AdminApps from "@/pages/admin/AdminApps";
-import AdminCustomers from "@/pages/admin/AdminCustomers";
-import AdminWhatsNew from "@/pages/admin/AdminWhatsNew";
 import AdminSettings from "@/pages/admin/AdminSettings";
-import AdminMusic from "@/pages/admin/AdminMusic";
-import AdminUpdates from "@/pages/admin/AdminUpdates";
+
+// Feed
+import AdminFeedList from "@/pages/admin/AdminFeedList";
+import AdminFeedForm from "@/pages/admin/AdminFeedForm";
+
+// Music
+import AdminMusicList from "@/pages/admin/AdminMusicList";
+import AdminMusicForm from "@/pages/admin/AdminMusicForm";
+
+// Story
+import AdminStoryList from "@/pages/admin/AdminStoryList";
+import AdminStoryEditor from "@/pages/admin/AdminStoryEditor";
+
+// Education
+import { AdminEducationList, AdminEducationForm } from "@/pages/admin/AdminEducation";
+
+// Contact
+import { AdminContactList, AdminContactForm } from "@/pages/admin/AdminContact";
+
+// Portfolio
+import { AdminPortfolioList, AdminPortfolioForm } from "@/pages/admin/AdminPortfolio";
+
+// Fun Work
+import { AdminFunWorkList, AdminFunWorkForm } from "@/pages/admin/AdminFunWork";
+
+// Services
+import { AdminServicesList, AdminServicesForm } from "@/pages/admin/AdminServices";
+
+// Skills
+import { AdminSkillsList, AdminSkillsForm } from "@/pages/admin/AdminSkills";
+
+// Sliders
+import { AdminSlidersList, AdminSlidersForm } from "@/pages/admin/AdminSliders";
+
+// Updates
+import { AdminUpdatesList, AdminUpdatesForm } from "@/pages/admin/AdminUpdates";
+
+// Users
+import { AdminUsersList, AdminUsersForm } from "@/pages/admin/AdminUsers";
+
+// Videos
+import { AdminVideosList, AdminVideosForm } from "@/pages/admin/AdminVideos";
+
+// Visitors
+import { AdminVisitorsList, AdminVisitorsForm } from "@/pages/admin/AdminVisitors";
+
+import SEO from "@/components/SEO";
+
+import { AuthProvider } from "@/context/AuthContext";
+import ProtectedRoute from "@/components/admin/ProtectedRoute";
+import Login from "@/pages/admin/Login";
+import AuthSuccess from "@/pages/admin/AuthSuccess";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          {/* Public */}
-          <Route path="/" element={<Index />} />
-          <Route path="/about" element={<About />} />
-          <Route path="/feed" element={<Feed />} />
-          <Route path="/portfolio" element={<Portfolio />} />
-          <Route path="/contact" element={<Contact />} />
+    <AuthProvider>
+      <TooltipProvider>
+        <SEO />
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            {/* ── Public ────────────────────────────────── */}
+            <Route path="/" element={<Index />} />
+            <Route path="/about/" element={<About />} />
+            <Route path="/feed/" element={<Feed />} />
+            <Route path="/portfolio/" element={<Portfolio />} />
+            <Route path="/contact/" element={<Contact />} />
 
-          {/* Admin */}
-          <Route path="/admin" element={<AdminLayout />}>
-            <Route index element={<Dashboard />} />
-            <Route path="about" element={<AdminAbout />} />
-            <Route path="education" element={<AdminEducation />} />
-            <Route path="feed" element={<AdminFeed />} />
-            <Route path="sliders" element={<AdminSliders />} />
-            <Route path="portfolio" element={<AdminPortfolio />} />
-            <Route path="funwork" element={<AdminFunWork />} />
-            <Route path="videos" element={<AdminVideos />} />
-            <Route path="services" element={<AdminServices />} />
-            <Route path="story" element={<AdminStory />} />
-            <Route path="popups" element={<AdminPopups />} />
-            <Route path="ads" element={<AdminAds />} />
-            <Route path="contact" element={<AdminContact />} />
-            <Route path="visitors" element={<AdminVisitors />} />
-            <Route path="users" element={<AdminUsers />} />
-            <Route path="apps" element={<AdminApps />} />
-            <Route path="customers" element={<AdminCustomers />} />
-            <Route path="whatsnew" element={<AdminWhatsNew />} />
-            <Route path="settings" element={<AdminSettings />} />
-            <Route path="music" element={<AdminMusic />} />
-            <Route path="updates" element={<AdminUpdates />} />
-          </Route>
+            {/* ── Admin Login (Unprotected) ──────────────── */}
+            <Route path="/admin/login" element={<Login />} />
+            <Route path="/admin/auth-success" element={<AuthSuccess />} />
+
+            {/* ── Admin Panel (Protected) ────────────────── */}
+            <Route element={<ProtectedRoute />}>
+              <Route path="/admin" element={<AdminLayout />}>
+                <Route index element={<Dashboard />} />
+                <Route path="about"    element={<AdminAbout />} />
+                <Route path="settings" element={<AdminSettings />} />
+
+                {/* Feed */}
+                <Route path="feed"          element={<AdminFeedList />} />
+                <Route path="feed/add"      element={<AdminFeedForm />} />
+                <Route path="feed/edit/:id" element={<AdminFeedForm />} />
+
+                {/* Music */}
+                <Route path="music"          element={<AdminMusicList />} />
+                <Route path="music/add"      element={<AdminMusicForm />} />
+                <Route path="music/edit/:id" element={<AdminMusicForm />} />
+
+                {/* Story */}
+                <Route path="story"          element={<AdminStoryList />} />
+                <Route path="story/add"      element={<AdminStoryEditor />} />
+                <Route path="story/edit/:id" element={<AdminStoryEditor />} />
+
+                {/* Education */}
+                <Route path="education"          element={<AdminEducationList />} />
+                <Route path="education/add"      element={<AdminEducationForm />} />
+                <Route path="education/edit/:id" element={<AdminEducationForm />} />
+
+                {/* Contact */}
+                <Route path="contact"          element={<AdminContactList />} />
+                <Route path="contact/add"      element={<AdminContactForm />} />
+                <Route path="contact/edit/:id" element={<AdminContactForm />} />
+
+                {/* Portfolio */}
+                <Route path="portfolio"          element={<AdminPortfolioList />} />
+                <Route path="portfolio/add"      element={<AdminPortfolioForm />} />
+                <Route path="portfolio/edit/:id" element={<AdminPortfolioForm />} />
+
+                {/* Fun Work */}
+                <Route path="funwork"          element={<AdminFunWorkList />} />
+                <Route path="funwork/add"      element={<AdminFunWorkForm />} />
+                <Route path="funwork/edit/:id" element={<AdminFunWorkForm />} />
+
+                {/* Services */}
+                <Route path="services"          element={<AdminServicesList />} />
+                <Route path="services/add"      element={<AdminServicesForm />} />
+                <Route path="services/edit/:id" element={<AdminServicesForm />} />
+
+                {/* Skills */}
+                <Route path="skills"          element={<AdminSkillsList />} />
+                <Route path="skills/add"      element={<AdminSkillsForm />} />
+                <Route path="skills/edit/:id" element={<AdminSkillsForm />} />
+
+                {/* Sliders (used inside AdminAbout, also standalone) */}
+                <Route path="sliders"          element={<AdminSlidersList />} />
+                <Route path="sliders/add"      element={<AdminSlidersForm />} />
+                <Route path="sliders/edit/:id" element={<AdminSlidersForm />} />
+
+                {/* Updates */}
+                <Route path="updates"          element={<AdminUpdatesList />} />
+                <Route path="updates/add"      element={<AdminUpdatesForm />} />
+                <Route path="updates/edit/:id" element={<AdminUpdatesForm />} />
+
+                {/* Users */}
+                <Route path="users"          element={<AdminUsersList />} />
+                <Route path="users/add"      element={<AdminUsersForm />} />
+                <Route path="users/edit/:id" element={<AdminUsersForm />} />
+
+                {/* Videos */}
+                <Route path="videos"          element={<AdminVideosList />} />
+                <Route path="videos/add"      element={<AdminVideosForm />} />
+                <Route path="videos/edit/:id" element={<AdminVideosForm />} />
+
+                {/* Visitors */}
+                <Route path="visitors"          element={<AdminVisitorsList />} />
+                <Route path="visitors/add"      element={<AdminVisitorsForm />} />
+                <Route path="visitors/edit/:id" element={<AdminVisitorsForm />} />
+              </Route>
+            </Route>
 
           <Route path="*" element={<NotFound />} />
         </Routes>
+
+        {/* Hide bottom nav on all admin pages */}
         <Routes>
           <Route path="/admin/*" element={null} />
           <Route path="*" element={<BottomNav />} />
         </Routes>
       </BrowserRouter>
-    </TooltipProvider>
+      </TooltipProvider>
+    </AuthProvider>
   </QueryClientProvider>
 );
 

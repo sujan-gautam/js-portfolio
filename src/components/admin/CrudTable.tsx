@@ -1,214 +1,402 @@
 import { useState } from "react";
-import { Trash2, Pencil, Plus, Search } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Plus, Trash2, Pencil, Search, Upload, Loader2, Image as ImageIcon, Sparkles, Link as LinkIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Table, TableHeader, TableBody, TableRow, TableHead, TableCell,
-} from "@/components/ui/table";
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
-} from "@/components/ui/dialog";
-import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { generateId } from "@/lib/adminData";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
+import { cn } from "@/lib/utils";
+import axios from "axios";
+import { API_BASE } from "@/config";
+import { toast } from "sonner";
+import { AIRefineButton } from "./AIRefineButton";
 
 export interface FieldConfig {
   key: string;
   label: string;
-  type: "text" | "textarea" | "number" | "toggle" | "select" | "date" | "url";
+  type: "text" | "textarea" | "url" | "toggle" | "select" | "date" | "number";
   options?: string[];
   required?: boolean;
   hideInTable?: boolean;
+  placeholder?: string;
+  group?: string;
 }
 
-interface CrudTableProps<T extends { id: string }> {
+// ─── CrudTable (List View) ────────────────────────────────────────────────────
+interface CrudTableProps {
   title: string;
   fields: FieldConfig[];
-  data: T[];
-  onAdd: (item: T) => void;
-  onUpdate: (id: string, updates: Partial<T>) => void;
-  onDelete: (id: string) => void;
+  data: any[];
+  basePath: string; // e.g. "/admin/education"
+  onAdd: (item: any) => Promise<void>;
+  onUpdate: (id: string, item: any) => Promise<void>;
   onRefresh: () => void;
+  extraHeaderActions?: React.ReactNode;
+  onRefineItem?: (item: any) => Promise<void>;
 }
 
-export function CrudTable<T extends { id: string }>({
-  title, fields, data, onAdd, onUpdate, onDelete, onRefresh,
-}: CrudTableProps<T>) {
+export const CrudTable = ({ title, fields, data, basePath, onAdd, onUpdate, onDelete, onRefresh, extraHeaderActions, onRefineItem }: CrudTableProps) => {
+  const navigate = useNavigate();
   const [search, setSearch] = useState("");
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [editItem, setEditItem] = useState<T | null>(null);
-  const [formData, setFormData] = useState<Record<string, any>>({});
-
-  const tableFields = fields.filter(f => !f.hideInTable);
 
   const filteredData = data.filter(item =>
-    Object.values(item).some(v =>
-      String(v).toLowerCase().includes(search.toLowerCase())
+    Object.values(item).some(val =>
+      String(val).toLowerCase().includes(search.toLowerCase())
     )
   );
 
-  const openAdd = () => {
-    setEditItem(null);
-    const defaults: Record<string, any> = {};
-    fields.forEach(f => {
-      if (f.type === "toggle") defaults[f.key] = false;
-      else if (f.type === "number") defaults[f.key] = 0;
-      else defaults[f.key] = "";
-    });
-    setFormData(defaults);
-    setDialogOpen(true);
-  };
-
-  const openEdit = (item: T) => {
-    setEditItem(item);
-    setFormData({ ...item });
-    setDialogOpen(true);
-  };
-
-  const handleSave = () => {
-    if (editItem) {
-      onUpdate(editItem.id, formData as Partial<T>);
-    } else {
-      onAdd({ ...formData, id: generateId() } as T);
-    }
-    setDialogOpen(false);
-    onRefresh();
-  };
-
-  const handleDelete = () => {
-    if (deleteId) {
-      onDelete(deleteId);
-      setDeleteId(null);
+  const handleDelete = async (id: string) => {
+    if (!confirm(`Delete this ${title} entry?`)) return;
+    try {
+      await onDelete(id);
       onRefresh();
+      toast.success(`${title} deleted`);
+    } catch {
+      toast.error(`Failed to delete ${title}`);
     }
-  };
-
-  const renderField = (field: FieldConfig) => {
-    const value = formData[field.key];
-    switch (field.type) {
-      case "textarea":
-        return <Textarea value={value || ""} onChange={e => setFormData({ ...formData, [field.key]: e.target.value })} className="bg-muted border-border" />;
-      case "toggle":
-        return <Switch checked={!!value} onCheckedChange={v => setFormData({ ...formData, [field.key]: v })} />;
-      case "select":
-        return (
-          <Select value={value || ""} onValueChange={v => setFormData({ ...formData, [field.key]: v })}>
-            <SelectTrigger className="bg-muted border-border"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {field.options?.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        );
-      case "number":
-        return <Input type="number" value={value ?? 0} onChange={e => setFormData({ ...formData, [field.key]: Number(e.target.value) })} className="bg-muted border-border" />;
-      default:
-        return <Input type={field.type === "date" ? "date" : field.type === "url" ? "url" : "text"} value={value || ""} onChange={e => setFormData({ ...formData, [field.key]: e.target.value })} className="bg-muted border-border" />;
-    }
-  };
-
-  const formatCell = (value: any, field: FieldConfig) => {
-    if (field.type === "toggle") return value ? "✅" : "❌";
-    if (typeof value === "string" && value.length > 40) return value.slice(0, 40) + "…";
-    return String(value ?? "");
   };
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-foreground">{title}</h1>
-        <Button onClick={openAdd} className="gap-2">
-          <Plus size={16} /> Add New
-        </Button>
+    <div className="space-y-5 animate-in fade-in duration-300 font-inter pb-16">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-semibold text-slate-900">{title}</h1>
+          <p className="text-sm text-slate-500 mt-0.5">Manage {title.toLowerCase()} entries</p>
+        </div>
+        <div className="flex items-center gap-2">
+          {extraHeaderActions}
+          <Button
+            onClick={() => navigate(`${basePath}/add`)}
+            className="bg-slate-900 hover:bg-slate-800 text-white font-medium rounded-md px-4 h-9 transition-all text-sm"
+          >
+            <Plus size={16} className="mr-1.5" /> Add {title}
+          </Button>
+        </div>
       </div>
 
-      <div className="mb-4 relative max-w-sm">
-        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-        <Input placeholder="Search..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 bg-muted border-border" />
-      </div>
+      <Card className="bg-white border border-slate-200 shadow-none rounded-lg overflow-hidden">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+          <span className="text-sm text-slate-500">
+            {filteredData.length} {filteredData.length === 1 ? "entry" : "entries"}
+          </span>
+          <div className="relative w-56">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+            <input
+              type="text"
+              placeholder="Search..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-200 rounded-md py-2 pl-9 pr-4 text-sm text-slate-700 focus:bg-white focus:border-slate-300 transition-all outline-none"
+            />
+          </div>
+        </div>
 
-      <div className="rounded-lg border border-border overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-muted/50">
-              {tableFields.map(f => (
-                <TableHead key={f.key} className="text-muted-foreground font-semibold">{f.label}</TableHead>
-              ))}
-              <TableHead className="w-24 text-muted-foreground font-semibold">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredData.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={tableFields.length + 1} className="text-center text-muted-foreground py-8">
-                  No records found
-                </TableCell>
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow className="border-slate-100 bg-slate-50/60">
+                <TableHead className="px-6 h-11 text-xs font-medium text-slate-500">Image</TableHead>
+                {fields.filter(f => !f.hideInTable && f.type !== "toggle" && f.key !== "image").map(field => (
+                  <TableHead key={field.key} className="px-6 h-11 text-xs font-medium text-slate-500">{field.label}</TableHead>
+                ))}
+                <TableHead className="px-6 h-11 text-xs font-medium text-slate-500">Status</TableHead>
+                <TableHead className="px-6 h-11 text-xs font-medium text-slate-500">Created</TableHead>
+                <TableHead className="px-6 h-11 text-xs font-medium text-slate-500 text-right">Actions</TableHead>
               </TableRow>
-            ) : (
-              filteredData.map(item => (
-                <TableRow key={item.id} className="hover:bg-muted/30">
-                  {tableFields.map(f => (
-                    <TableCell key={f.key}>{formatCell((item as any)[f.key], f)}</TableCell>
+            </TableHeader>
+            <TableBody>
+              {filteredData.map((item, idx) => (
+                <TableRow key={item.id || idx} className="border-slate-100 hover:bg-slate-50 transition-colors">
+                  <TableCell className="px-6 py-4">
+                    <div className="w-10 h-10 bg-slate-100 rounded-md overflow-hidden border border-slate-200 flex items-center justify-center">
+                      {item.image ? (
+                        <img src={item.image} className="w-full h-full object-cover" />
+                      ) : (
+                        <ImageIcon size={14} className="text-slate-300" />
+                      )}
+                    </div>
+                  </TableCell>
+                  {fields.filter(f => !f.hideInTable && f.type !== "toggle" && f.key !== "image").map(field => (
+                    <TableCell key={field.key} className="px-6 py-4">
+                      <span className="text-sm text-slate-700 line-clamp-2 max-w-[200px]">
+                        {item[field.key] || "—"}
+                      </span>
+                    </TableCell>
                   ))}
-                  <TableCell>
-                    <div className="flex gap-1">
-                      <Button variant="ghost" size="icon" onClick={() => openEdit(item)}>
+                  <TableCell className="px-6 py-4">
+                    <span className={cn(
+                      "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border",
+                      (item.status === true || item.active === true)
+                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                        : "bg-slate-100 text-slate-500 border-slate-200"
+                    )}>
+                      {(item.status === true || item.active === true) ? "Active" : "Inactive"}
+                    </span>
+                  </TableCell>
+                  <TableCell className="px-6 py-4">
+                    <span className="text-xs text-slate-500">
+                      {item.createdAt ? new Date(item.createdAt).toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" }) : "—"}
+                    </span>
+                  </TableCell>
+                  <TableCell className="px-6 py-4 text-right">
+                    <div className="flex items-center justify-end gap-2">
+                      {onRefineItem && (
+                         <div className="relative group/refine">
+                            <button
+                               onClick={async () => {
+                                  try {
+                                     await onRefineItem(item);
+                                  } catch (err) {
+                                     console.error(err);
+                                  }
+                               }}
+                               className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-md transition-all active:scale-95"
+                               title="Refine with AI"
+                            >
+                               <Sparkles size={14} />
+                            </button>
+                         </div>
+                      )}
+                      <button
+                        onClick={() => navigate(`${basePath}/edit/${item.id}`)}
+                        className="p-1.5 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-md transition-colors"
+                      >
                         <Pencil size={14} />
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => setDeleteId(item.id)} className="text-destructive hover:text-destructive">
+                      </button>
+                      <button
+                        onClick={() => handleDelete(item.id)}
+                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                      >
                         <Trash2 size={14} />
-                      </Button>
+                      </button>
                     </div>
                   </TableCell>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
-
-      <p className="text-xs text-muted-foreground mt-2">{filteredData.length} record(s)</p>
-
-      {/* Add/Edit Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto bg-card border-border">
-          <DialogHeader>
-            <DialogTitle>{editItem ? "Edit" : "Add"} {title.replace(/s$/, "")}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            {fields.map(f => (
-              <div key={f.key} className="space-y-1.5">
-                <Label className="text-sm">{f.label}</Label>
-                {renderField(f)}
-              </div>
-            ))}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleSave}>Save</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete Confirm */}
-      <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
-        <AlertDialogContent className="bg-card border-border">
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete this record?</AlertDialogTitle>
-            <AlertDialogDescription>This action cannot be undone.</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">Delete</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+              ))}
+              {filteredData.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={fields.length + 4} className="py-16 text-center text-sm text-slate-400">
+                    No entries found
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </Card>
     </div>
   );
+};
+
+// ─── CrudForm (Add / Edit View) ───────────────────────────────────────────────
+interface CrudFormProps {
+  title: string;
+  fields: FieldConfig[];
+  initialData?: any; // undefined = new, object = edit
+  basePath: string;
+  onSave: (item: any) => Promise<void>;
 }
+
+export const CrudForm = ({ title, fields, initialData, basePath, onSave }: CrudFormProps) => {
+  const navigate = useNavigate();
+  const isEdit = Boolean(initialData?.id);
+  const [currentItem, setCurrentItem] = useState<any>(initialData || {});
+  const [loading, setLoading] = useState(false);
+  const [imageUploading, setImageUploading] = useState(false);
+
+  const groups = Array.from(new Set(fields.map(f => f.group || "Settings")));
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await onSave(currentItem);
+      toast.success(`${title} saved successfully`);
+      navigate(basePath);
+    } catch {
+      toast.error(`Failed to save ${title}`);
+    }
+    setLoading(false);
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImageUploading(true);
+    const fd = new FormData();
+    fd.append("file", file);
+    try {
+      const res = await axios.post(`${API_BASE}/upload`, fd);
+      setCurrentItem({ ...currentItem, image: res.data.url });
+      toast.success("Image uploaded");
+    } catch {
+      toast.error("Upload failed");
+    }
+    setImageUploading(false);
+  };
+
+  return (
+    <div className="space-y-6 animate-in fade-in duration-300 font-inter pb-16">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => navigate(basePath)}
+            className="p-1.5 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-md transition-colors"
+          >
+            ←
+          </button>
+          <div>
+            <h1 className="text-xl font-semibold text-slate-900">{isEdit ? `Edit ${title}` : `New ${title}`}</h1>
+            <p className="text-sm text-slate-500 mt-0.5">{isEdit ? "Update record details" : "Create a new record"}</p>
+          </div>
+        </div>
+        <Button variant="ghost" onClick={() => navigate(basePath)} className="text-slate-500 text-sm h-9">
+          Cancel
+        </Button>
+      </div>
+
+      <form onSubmit={handleSave} className="space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+          {/* Main fields */}
+          <div className="lg:col-span-2 space-y-6">
+            {groups.filter(g => g !== "Status" && g !== "Image").map(group => (
+              <Card key={group} className="bg-white border border-slate-200 shadow-none rounded-lg overflow-hidden">
+                <CardHeader className="px-6 py-4 border-b border-slate-100">
+                  <CardTitle className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{group}</CardTitle>
+                </CardHeader>
+                <CardContent className="p-6 space-y-5">
+                   {fields.filter(f => (f.group || "Settings") === group && f.type !== "toggle" && f.key !== "image").map(field => (
+                     <div key={field.key} className="space-y-1.5">
+                       <div className="flex items-center justify-between">
+                         <Label className="text-xs font-medium text-slate-700">{field.label}</Label>
+                         {(field.type === "textarea" || field.type === "text") && (
+                           <AIRefineButton 
+                             value={currentItem[field.key] || ""} 
+                             onRefine={(v) => setCurrentItem({ ...currentItem, [field.key]: v })} 
+                             context={`${title} ${field.label}`}
+                           />
+                         )}
+                       </div>
+                       {field.type === "textarea" ? (
+                        <textarea
+                          className="w-full h-28 p-3 rounded-md border border-slate-200 bg-white focus:border-slate-400 focus:ring-2 focus:ring-slate-100 transition-all outline-none text-sm text-slate-800 resize-none"
+                          value={currentItem[field.key] || ""}
+                          onChange={e => setCurrentItem({ ...currentItem, [field.key]: e.target.value })}
+                          placeholder={field.placeholder || `Enter ${field.label}`}
+                        />
+                      ) : field.type === "select" ? (
+                        <select
+                          className="w-full h-10 px-3 rounded-md border border-slate-200 bg-white focus:border-slate-400 outline-none text-sm text-slate-800"
+                          value={currentItem[field.key] || ""}
+                          onChange={e => setCurrentItem({ ...currentItem, [field.key]: e.target.value })}
+                        >
+                          <option value="">Select…</option>
+                          {field.options?.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                        </select>
+                      ) : (
+                        <Input
+                          className="h-10 rounded-md border-slate-200 focus:border-slate-400 text-sm text-slate-800"
+                          value={currentItem[field.key] || ""}
+                          onChange={e => setCurrentItem({ ...currentItem, [field.key]: e.target.value })}
+                          placeholder={field.placeholder || `Enter ${field.label}`}
+                          type={field.type === "number" ? "number" : "text"}
+                          required={field.required}
+                        />
+                      )}
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {/* Sidebar */}
+          <div className="space-y-6">
+            {/* Toggles */}
+            {fields.some(f => f.type === "toggle") && (
+              <Card className="bg-white border border-slate-200 shadow-none rounded-lg overflow-hidden">
+                <CardHeader className="px-6 py-4 border-b border-slate-100">
+                  <CardTitle className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Status</CardTitle>
+                </CardHeader>
+                <CardContent className="p-6 space-y-4">
+                  {fields.filter(f => f.type === "toggle").map(field => (
+                    <div key={field.key} className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-slate-800">{field.label}</p>
+                        <p className="text-xs text-slate-500 mt-0.5">Show this item publicly</p>
+                      </div>
+                      <Switch
+                        checked={Boolean(currentItem[field.key])}
+                        onCheckedChange={v => setCurrentItem({ ...currentItem, [field.key]: v })}
+                      />
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Image upload */}
+            {fields.some(f => f.key === "image") && (
+              <Card className="bg-white border border-slate-200 shadow-none rounded-lg overflow-hidden">
+                <CardHeader className="px-6 py-4 border-b border-slate-100">
+                  <CardTitle className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Image</CardTitle>
+                </CardHeader>
+                <CardContent className="p-6 space-y-4">
+                  <div className="w-full aspect-square bg-slate-50 rounded-md flex items-center justify-center border border-dashed border-slate-200 overflow-hidden relative">
+                    {currentItem.image ? (
+                      <img src={currentItem.image} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="text-slate-300 flex flex-col items-center gap-2">
+                        <ImageIcon size={32} className="opacity-40" />
+                        <span className="text-xs text-slate-400">No image</span>
+                      </div>
+                    )}
+                    {imageUploading && (
+                      <div className="absolute inset-0 bg-white/70 flex items-center justify-center">
+                        <Loader2 className="animate-spin text-slate-600" />
+                      </div>
+                    )}
+                  </div>
+                   <div className="space-y-3">
+                    <label className="w-full cursor-pointer block">
+                      <input type="file" className="hidden" onChange={handleImageUpload} />
+                      <div className="w-full h-9 flex items-center justify-center gap-2 border border-slate-200 rounded-md text-slate-600 hover:bg-slate-50 text-xs font-medium transition-colors">
+                        <Upload size={14} /> Upload Image
+                      </div>
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                         <LinkIcon size={12} className="text-slate-400" />
+                      </div>
+                      <input 
+                        type="text" 
+                        placeholder="Or paste direct image URL..." 
+                        value={currentItem.image || ""}
+                        onChange={e => setCurrentItem({ ...currentItem, image: e.target.value })}
+                        className="w-full h-9 pl-8 pr-3 text-[11px] bg-slate-50 border border-slate-200 rounded-md focus:outline-none focus:border-slate-400 transition-all text-slate-600 italic"
+                      />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Actions */}
+            <div className="flex flex-col gap-2">
+              <Button disabled={loading} type="submit" className="w-full h-10 bg-slate-900 hover:bg-slate-800 text-white font-medium rounded-md text-sm transition-all">
+                {loading ? <Loader2 size={15} className="animate-spin mr-2" /> : null}
+                {isEdit ? "Save Changes" : `Create ${title}`}
+              </Button>
+              <Button type="button" variant="ghost" className="w-full h-9 text-slate-500 hover:text-slate-900 text-sm" onClick={() => navigate(basePath)}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
+  );
+};
