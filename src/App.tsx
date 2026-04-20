@@ -183,17 +183,14 @@ const App = () => (
         {/* Footer and Bottom Nav */}
         <Routes>
           <Route path="/admin/*" element={null} />
-          <Route path="/feed/*" element={<BottomNav />} />
           <Route 
             path="*" 
             element={
-              <>
-                <Footer />
-                <BottomNav />
-              </>
+              <BottomNav />
             } 
           />
         </Routes>
+
 
       </BrowserRouter>
       </TooltipProvider>
