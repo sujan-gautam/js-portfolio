@@ -1,5 +1,14 @@
 // Production Config Manager
-export const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+// Dynamic API detection for local network testing (Mobile/Chrome)
+const getBaseUrl = () => {
+  if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
+  if (typeof window !== "undefined") {
+    return `http://${window.location.hostname}:5000`;
+  }
+  return "http://localhost:5000";
+};
+
+export const API_URL = getBaseUrl();
 export const API_BASE = `${API_URL}/api`;
 
 // YouTube Sourcing Keys
