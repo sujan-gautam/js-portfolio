@@ -150,7 +150,7 @@ router.get("/singleton/:name", async (req, res) => {
     let data = await Model.findOne({});
     if (!data) {
       if (isAbout) {
-        data = await Model.create({ name: "Sujan Shrestha", title: "Graphic Designer", bio: "Default bio..." });
+        data = await Model.create({ name: "Sujan Gautam", title: "Graphic Designer", bio: "Default bio..." });
       } else {
         data = await Model.create({ siteName: "Sujan 1919" });
       }
@@ -165,8 +165,7 @@ router.get("/singleton/:name", async (req, res) => {
 router.get("/visitors/count", async (req, res) => {
   try {
     const count = await Models.VisitorRecord.countDocuments({});
-    // Return at least 56170 to seed old visits as default if db is empty
-    res.json({ count: Math.max(count, 56170) });
+    res.json({ count: 56170 + count });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -182,7 +181,8 @@ router.post("/visitors/track", async (req, res) => {
       timestamp: new Date()
     });
     const count = await Models.VisitorRecord.countDocuments({});
-    res.json({ count: Math.max(count, 56170) });
+    // Add real database count to the base "legacy" count so it increases on every visit
+    res.json({ count: 56170 + count });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
