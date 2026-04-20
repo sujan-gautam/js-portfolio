@@ -8,6 +8,7 @@ import {
   PieChart, BarChart2, Eye, MapPin, Pin, Loader2, PlayCircle, Camera, Quote
 } from "lucide-react";
 import YouTube from "react-youtube";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const timelineStyles = `
   @keyframes silk-wave {
@@ -1050,9 +1051,25 @@ const Feed = () => {
         <div className="fixed top-1/2 left-[24px] md:left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 bg-[#CB2729]/5 blur-[40px] rounded-full pointer-events-none z-0 hidden md:block" />
 
         {loading ? (
-          Array(3).fill(0).map((_, i) => (
-             <div key={i} className="h-screen flex items-center justify-center snap-start">
-                <Loader2 className="animate-spin text-[#CB2729]" />
+          Array(2).fill(0).map((_, i) => (
+             <div key={i} className="h-screen flex items-center justify-center snap-start w-full px-4">
+                <div className="w-full md:w-[460px] lg:w-[520px] space-y-6">
+                  <div className="flex items-center gap-4">
+                    <Skeleton className="w-12 h-12 rounded-full opacity-20" />
+                    <div className="space-y-2">
+                       <Skeleton className="h-4 w-32 opacity-20" />
+                       <Skeleton className="h-3 w-16 opacity-10" />
+                    </div>
+                  </div>
+                  <Skeleton className="h-64 w-full rounded-3xl opacity-10" />
+                  <div className="space-y-3">
+                    <Skeleton className="h-4 w-full opacity-10" />
+                    <Skeleton className="h-4 w-2/3 opacity-10" />
+                  </div>
+                  <div className="flex gap-4 pt-2">
+                    {[1,2,3].map(j => <Skeleton key={j} className="h-6 w-12 rounded-full opacity-10" />)}
+                  </div>
+                </div>
              </div>
           ))
         ) : posts.length === 0 ? (

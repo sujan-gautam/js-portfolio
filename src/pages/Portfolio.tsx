@@ -3,6 +3,7 @@ import axios from "axios";
 import { portfolioDB, PortfolioItem, aboutDB, AboutData } from "@/lib/adminData";
 import { ExternalLink, Globe, X, ShieldCheck, Terminal, Pin, Maximize2, Sparkles, Send, Bot } from "lucide-react";
 import { SmartText } from "@/components/ui/SmartText";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const Portfolio = () => {
   const [projects, setProjects] = useState<PortfolioItem[]>([]);
@@ -139,7 +140,13 @@ INSTRUCTIONS:
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {Array(6).fill(0).map((_, i) => (
-              <div key={i} className="h-80 bg-white/5 rounded-3xl animate-pulse" />
+              <div key={i} className="flex flex-col gap-4">
+                <Skeleton className="h-64 w-full rounded-2xl opacity-10" />
+                <div className="space-y-2 px-2">
+                  <Skeleton className="h-4 w-2/3 opacity-20" />
+                  <Skeleton className="h-3 w-full opacity-10" />
+                </div>
+              </div>
             ))}
           </div>
         ) : filteredProjects.length === 0 ? (

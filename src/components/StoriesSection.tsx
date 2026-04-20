@@ -8,6 +8,7 @@ import axios from "axios";
 import { storiesDB, musicDB, StoryItem, MusicItem } from "@/lib/adminData";
 import { API_BASE } from "@/config";
 import { SmartText } from "@/components/ui/SmartText";
+import { Skeleton } from "@/components/ui/skeleton";
 
 import profileImgFallback from "@/assets/profile-3.jpg";
 
@@ -163,10 +164,10 @@ const StoriesSection = () => {
 
       <div className="flex items-center gap-4">
         {isLoading ? (
-          <>
-            <div className="w-16 h-16 rounded-full bg-white/5 animate-pulse border border-white/10" />
-            <div className="w-40 h-10 rounded-full bg-white/5 animate-pulse border border-white/10" />
-          </>
+          <div className="flex gap-4">
+            <Skeleton className="w-16 h-16 rounded-full opacity-20 border border-white/5" />
+            <Skeleton className="w-40 h-10 rounded-2xl opacity-10 border border-white/5" />
+          </div>
         ) : (
           <>
             {hasStories && (

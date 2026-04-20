@@ -6,6 +6,7 @@ import {
 import { aboutDB, settingsDB, courtesyDB, contactsDB, AboutData, AdminSettings, CourtesyItem } from "@/lib/adminData";
 import { toast } from "sonner";
 import { SmartText } from "@/components/ui/SmartText";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const IconMap: Record<string, any> = {
   facebook: Facebook,
@@ -63,7 +64,40 @@ const Contact = () => {
     setSubmitting(false);
   };
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center font-poppins"><Loader2 className="animate-spin text-[#CB2729]" /></div>;
+  if (loading) {
+    return (
+      <div className="min-h-screen flex flex-col justify-center max-w-7xl mx-auto px-6 md:px-10 w-full space-y-16">
+        <Skeleton className="h-20 w-3/4 mx-auto opacity-20" />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-16">
+          <div className="space-y-6">
+            <Skeleton className="h-8 w-32 opacity-20" />
+            <Skeleton className="h-20 w-full opacity-10" />
+            <div className="flex gap-4">
+              {[1,2,3].map(i => <Skeleton key={i} className="w-10 h-10 rounded-full opacity-10" />)}
+            </div>
+          </div>
+          <div className="space-y-10">
+            <Skeleton className="h-8 w-32 opacity-20" />
+            <div className="space-y-6">
+              {[1,2,3].map(i => (
+                <div key={i} className="flex gap-4">
+                  <Skeleton className="w-8 h-8 rounded opacity-10" />
+                  <div className="space-y-2 flex-1">
+                    <Skeleton className="h-3 w-16 opacity-10" />
+                    <Skeleton className="h-4 w-full opacity-20" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="space-y-6">
+             <Skeleton className="h-8 w-32 opacity-20" />
+             <Skeleton className="h-16 w-full opacity-10" />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-[100dvh] text-white selection:bg-red-500/30 font-poppins flex flex-col justify-center pt-8 pb-32">

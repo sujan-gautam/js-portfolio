@@ -4,6 +4,7 @@ import { aboutDB, slidersDB, SliderItem, AboutData } from "@/lib/adminData";
 import axios from "axios";
 import { API_BASE } from "@/config";
 import { SmartText } from "@/components/ui/SmartText";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const HeroSection = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -53,15 +54,18 @@ const HeroSection = () => {
   if (isLoading) {
     return (
       <section className="flex flex-col lg:flex-row items-center gap-8 lg:gap-16 px-6 py-10 max-w-6xl mx-auto">
-        <div className="w-72 h-72 md:w-96 md:h-96 rounded-full bg-muted animate-pulse border-2 border-border" />
-        <div className="flex-1 space-y-4 w-full">
-          <div className="h-10 bg-muted animate-pulse rounded w-3/4 mx-auto lg:mx-0" />
-          <div className="h-6 bg-muted animate-pulse rounded w-1/2 mx-auto lg:mx-0" />
-          <div className="space-y-2">
-            <div className="h-4 bg-muted animate-pulse rounded w-full" />
-            <div className="h-4 bg-muted animate-pulse rounded w-5/6" />
+        <Skeleton className="w-72 h-72 md:w-96 md:h-96 rounded-full border-2 border-white/5 opacity-20" />
+        <div className="flex-1 space-y-6 w-full">
+          <Skeleton className="h-14 w-3/4 mx-auto lg:mx-0 opacity-20" />
+          <Skeleton className="h-8 w-1/2 mx-auto lg:mx-0 opacity-10" />
+          <div className="space-y-4 pt-4">
+            <Skeleton className="h-4 w-full opacity-10" />
+            <Skeleton className="h-4 w-full opacity-10" />
+            <Skeleton className="h-4 w-5/6 opacity-10" />
           </div>
-          <div className="h-12 bg-muted animate-pulse rounded-full w-40 mx-auto lg:mx-0" />
+          <div className="flex gap-4 pt-8 justify-center lg:justify-start">
+            <Skeleton className="h-12 w-40 rounded-full opacity-20" />
+          </div>
         </div>
       </section>
     );
