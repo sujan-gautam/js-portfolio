@@ -12,6 +12,8 @@ import Feed from "./pages/Feed.tsx";
 import Portfolio from "./pages/Portfolio.tsx";
 import Contact from "./pages/Contact.tsx";
 import NotFound from "./pages/NotFound.tsx";
+import Privacy from "./pages/Privacy.tsx";
+import Terms from "./pages/Terms.tsx";
 
 // Admin layout
 import AdminLayout from "@/components/admin/AdminLayout";
@@ -88,6 +90,8 @@ const App = () => (
             <Route path="/feed/" element={<Feed />} />
             <Route path="/portfolio/" element={<Portfolio />} />
             <Route path="/contact/" element={<Contact />} />
+            <Route path="/privacy/" element={<Privacy />} />
+            <Route path="/terms/" element={<Terms />} />
 
             {/* ── Admin Login (Unprotected) ──────────────── */}
             <Route path="/admin/login" element={<Login />} />
