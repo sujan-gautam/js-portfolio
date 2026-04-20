@@ -1,16 +1,18 @@
 // Production Config Manager
 // Dynamic API detection for local network testing (Mobile/Chrome)
 const getBaseUrl = () => {
+  // Use relative path by default in production to avoid CORS/WWW issues
+  if (import.meta.env.PROD) {
+    if (typeof window !== "undefined" && window.location.hostname !== "localhost") {
+       return ""; // Relative path
+    }
+  }
+  
   if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
   if (typeof window !== "undefined") {
-    // If on Vercel or production domain, use relative path (cleanest for rewrites)
-    if (window.location.hostname !== "localhost" && !window.location.hostname.includes("192.168")) {
-      return window.location.origin;
-    }
-    // Deep local testing (Laptop/Mobile Chrome)
-    return `https://${window.location.hostname}:5000`;
+    return `http://${window.location.hostname}:5000`;
   }
-  return "https://localhost:5000";
+  return "http://localhost:5000";
 };
 
 export const API_URL = getBaseUrl();
