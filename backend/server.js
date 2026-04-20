@@ -31,9 +31,17 @@ app.use((req, res, next) => {
   const originalJson = res.json;
   res.json = function (body) {
     // Only encrypt object payloads that are NOT standard errors
-    if (body && typeof body === "object" && !body.error && !body.encryptedData) {
-      const ciphertext = CryptoJS.AES.encrypt(JSON.stringify(body), SECRET_KEY).toString();
-      return originalJson.call(this, { encryptedData: ciphertext });
+    if (body && typeof body === "object" && !body.error && !body.encryptedData && !req.path.includes("health")) {
+      try {
+        // Convert to plain object if it's a Mongoose document
+        const plainBody = (body.toObject && typeof body.toObject === 'function') ? body.toObject() : body;
+        const ciphertext = CryptoJS.AES.encrypt(JSON.stringify(plainBody), SECRET_KEY).toString();
+        return originalJson.call(this, { encryptedData: ciphertext });
+      } catch (err) {
+        console.error("Encryption Failed:", err);
+        // Fallback to unencrypted if specifically broken, but log it
+        return originalJson.call(this, body);
+      }
     }
     return originalJson.call(this, body);
   };
