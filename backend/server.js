@@ -241,15 +241,29 @@ app.post("/api/seed", async (req, res) => {
 // Optimize DB connection for Serverless
 let isConnected = false;
 const connectDB = async () => {
-  if (isConnected) return;
+  if (isConnected && mongoose.connection.readyState === 1) return;
   try {
-    await mongoose.connect(MONGO_URI);
+    console.log("Connecting to MongoDB...");
+    await mongoose.connect(MONGO_URI, {
+      serverSelectionTimeoutMS: 5000,
+    });
     isConnected = true;
     console.log("Connected to MongoDB");
   } catch (err) {
-    console.error("MongoDB connection Failed:", err);
+    console.error("MongoDB connection Failed:", err.message);
+    isConnected = false;
   }
 };
+
+// Health Check
+app.get("/api/health", (req, res) => {
+  res.status(200).json({ 
+    status: "healthy", 
+    api: "live", 
+    database: mongoose.connection.readyState === 1 ? "connected" : "disconnected",
+    timestamp: new Date().toISOString()
+  });
+});
 
 // Auto-connect middleware for Vercel
 app.use(async (req, res, next) => {

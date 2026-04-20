@@ -3,6 +3,11 @@
 const getBaseUrl = () => {
   if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
   if (typeof window !== "undefined") {
+    // If on Vercel or production domain, use relative path (cleanest for rewrites)
+    if (window.location.hostname !== "localhost" && !window.location.hostname.includes("192.168")) {
+      return window.location.origin;
+    }
+    // Deep local testing (Laptop/Mobile Chrome)
     return `http://${window.location.hostname}:5000`;
   }
   return "http://localhost:5000";
