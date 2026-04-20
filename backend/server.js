@@ -20,10 +20,15 @@ if (!MONGO_URI) {
     console.error("CRITICAL ERROR: MONGO_URI is missing from environment variables!");
 } else {
     console.log("DATABASE_STATUS: Initializing connection...");
-    mongoose.set('bufferCommands', false); // Disable buffering to prevent 10s hangs
-    mongoose.connect(MONGO_URI, { serverSelectionTimeoutMS: 5000 })
-        .then(() => console.log("DATABASE_STATUS: Connected Successfully"))
-        .catch(err => console.error("DATABASE_STATUS: Connection Failed ->", err.message));
+    mongoose.set('bufferCommands', false); // Disable buffering to prevent hangs
+    
+    // Top-Level Await ensures server won't handle requests until DB is ready
+    try {
+        await mongoose.connect(MONGO_URI, { serverSelectionTimeoutMS: 5000 });
+        console.log("DATABASE_STATUS: Connected Successfully");
+    } catch (err) {
+        console.error("DATABASE_STATUS: Connection Failed ->", err.message);
+    }
 }
 
 const app = express();
