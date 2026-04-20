@@ -1019,7 +1019,7 @@ const Feed = () => {
       )}
 
       {/* Main Timeline Wrapper */}
-      <div className="max-w-3xl mx-auto w-full pb-36 px-4 pt-16 relative">
+      <div className="max-w-6xl mx-auto w-full pb-36 px-4 pt-16 relative">
         {/* Refined Silky Timeline */}
         <div className="absolute left-[24px] md:left-1/2 top-0 bottom-0 w-12 -translate-x-1/2 z-0 pointer-events-none">
            <svg width="100%" height="100%" className="opacity-10">
@@ -1099,7 +1099,7 @@ const Feed = () => {
                 </div>
 
                 {/* Minimalist Curved Connector */}
-                <div className={`hidden md:block absolute top-1/2 -mt-12 w-24 h-8 pointer-events-none opacity-20
+                <div className={`hidden md:block absolute top-1/2 -mt-12 w-24 lg:w-40 h-8 pointer-events-none opacity-20
                   ${isEven ? 'right-[50%] translate-x-2' : 'left-[50%] -translate-x-2'}
                 `}>
                    <svg width="100%" height="100%" viewBox="0 0 100 20" preserveAspectRatio="none">
@@ -1113,8 +1113,8 @@ const Feed = () => {
                 </div>
                  
                  {/* Lifted card container - Centered on mobile without timeline margin */}
-                 <div className={`w-full max-w-[94%] md:max-w-none relative mx-auto md:ml-0 md:w-[460px] lg:w-[520px] group`} style={{maxHeight:`calc(100dvh - 90px)`}}>
-                    <div className="relative z-10 overflow-y-auto rounded-[24px] will-change-scroll" style={{maxHeight:`calc(100dvh - 90px)`, scrollbarWidth:`none`}}>
+                 <div className={`w-full max-w-[94%] md:max-w-none relative mx-auto ${isEven ? 'md:ml-0 md:mr-16 lg:mr-24' : 'md:mr-0 md:ml-16 lg:ml-24'} md:w-[460px] lg:w-[520px] group`} style={{maxHeight:`calc(100dvh - 90px)`}}>
+                    <div className="relative z-10 overflow-y-auto rounded-[24px] will-change-scroll transition-transform duration-500 group-hover:scale-[1.02] group-hover:-translate-y-1" style={{maxHeight:`calc(100dvh - 90px)`, scrollbarWidth:`none`}}>
                        <PostCard 
                          post={post} 
                          showAlert={setAlertMessage} 
@@ -1124,12 +1124,15 @@ const Feed = () => {
                          playingMusicId={musicData?.id || null}
                        />
                     </div>
+                    {/* Shadow Decor */}
+                    <div className="absolute -inset-4 bg-white/[0.01] blur-3xl rounded-[40px] -z-10 group-hover:bg-[#CB2729]/[0.03] transition-colors duration-500" />
                  </div>
               </div>
             );
           })
         )}
       </div>
+
 
       {/* Global Shared YouTube Player (Fast Audio Switching) */}
       <div className="hidden pointer-events-none overflow-hidden h-0 w-0">
