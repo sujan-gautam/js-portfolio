@@ -166,8 +166,9 @@ const AdminFeed = () => {
   if (showForm) {
      return (
         <div className="space-y-6 animate-in slide-in-from-right-4 duration-300 font-inter max-w-7xl mx-auto">
-           <div className="flex items-center justify-between mb-2">
+           <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:justify-between mb-2">
               <h1 className="text-xl font-semibold text-slate-900">{editId ? 'Edit Post' : 'New Post'}</h1>
+              <Button variant="ghost" onClick={() => setShowForm(false)} className="text-slate-500 text-sm h-9 w-full sm:w-auto">Cancel</Button>
            </div>
 
            <form onSubmit={handleSubmit} className="space-y-8">
@@ -372,20 +373,20 @@ const AdminFeed = () => {
 
   return (
     <div className="space-y-5 animate-in fade-in duration-300 font-inter max-w-7xl mx-auto pb-16">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between">
         <div>
           <h1 className="text-xl font-semibold text-slate-900">Feed</h1>
           <p className="text-sm text-slate-500 mt-0.5">Manage public posts and media</p>
         </div>
-        <Button onClick={() => { resetForm(); setShowForm(true); }} className="bg-slate-900 hover:bg-slate-800 text-white font-medium rounded-md px-4 h-9 transition-all text-sm">
+        <Button onClick={() => { resetForm(); setShowForm(true); }} className="bg-slate-900 hover:bg-slate-800 text-white font-medium rounded-md px-4 h-9 transition-all text-sm w-full sm:w-auto">
           <Plus size={16} className="mr-1.5" /> New Post
         </Button>
       </div>
 
       <Card className="bg-white border border-slate-200 shadow-none rounded-lg overflow-hidden">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between px-4 sm:px-6 py-4 border-b border-slate-100">
           <span className="text-sm text-slate-500">{filteredPosts.length} {filteredPosts.length === 1 ? 'post' : 'posts'}</span>
-          <div className="relative w-56">
+          <div className="relative w-full sm:w-56">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
             <input 
               type="text" 

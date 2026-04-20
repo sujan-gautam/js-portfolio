@@ -73,7 +73,7 @@ const Dashboard = () => {
   );
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300 font-inter max-w-7xl mx-auto">
+    <div className="space-y-5 sm:space-y-6 animate-in fade-in duration-300 font-inter max-w-7xl mx-auto">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold text-slate-900">Dashboard</h1>
@@ -82,7 +82,7 @@ const Dashboard = () => {
       </div>
 
       {/* Stats Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
         {stats.map((s, i) => (
           <Card key={i} className="bg-white border border-slate-200 shadow-none rounded-lg">
             <CardContent className="p-5 flex items-center justify-between">
@@ -110,10 +110,10 @@ const Dashboard = () => {
 
       {/* Chart */}
       <Card className="bg-white border border-slate-200 shadow-none rounded-lg">
-        <CardHeader className="px-6 pt-6 pb-2">
+        <CardHeader className="px-4 sm:px-6 pt-4 sm:pt-6 pb-2">
           <CardTitle className="text-sm font-medium text-slate-700">Visitor Activity — Last 7 Days</CardTitle>
         </CardHeader>
-        <CardContent className="px-6 pb-6 h-[280px]">
+        <CardContent className="px-2 sm:px-6 pb-4 sm:pb-6 h-[200px] sm:h-[280px]">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={visitorData}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
@@ -153,7 +153,7 @@ const Dashboard = () => {
         </CardContent>
       </Card>
 
-      <div className="pt-4 border-t border-slate-100 flex justify-between text-xs text-slate-400">
+      <div className="pt-4 border-t border-slate-100 flex flex-wrap justify-between gap-2 text-xs text-slate-400">
          <span>Sujan Gautam © 2026</span>
       </div>
     </div>

@@ -71,12 +71,12 @@ const AdminAbout = () => {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300 font-inter max-w-5xl mx-auto">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between">
         <div>
           <h1 className="text-xl font-semibold text-slate-900">About Info</h1>
           <p className="text-sm text-slate-500 mt-0.5">Manage your personal and professional details</p>
         </div>
-        <Button onClick={save} className="bg-slate-900 hover:bg-slate-800 text-white font-medium rounded-md px-4 h-9 text-sm transition-all">
+        <Button onClick={save} className="bg-slate-900 hover:bg-slate-800 text-white font-medium rounded-md px-4 h-9 text-sm transition-all w-full sm:w-auto">
           Save Changes
         </Button>
       </div>
@@ -88,7 +88,7 @@ const AdminAbout = () => {
             <div className="px-4 py-3 border-b border-slate-100">
               <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Sections</span>
             </div>
-            <nav className="flex flex-col py-1">
+            <nav className="flex flex-row lg:flex-col overflow-x-auto py-1">
               {TABS.map(tab => (
                 <button
                   key={tab.id}

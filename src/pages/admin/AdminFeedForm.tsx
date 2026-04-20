@@ -150,11 +150,11 @@ const AdminFeedForm = () => {
   return (
     <div className="space-y-6 animate-in fade-in duration-300 font-inter max-w-7xl mx-auto pb-16">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between">
         <div className="flex items-center gap-3">
           <button
             onClick={() => navigate("/admin/feed")}
-            className="p-1.5 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-md transition-colors"
+            className="p-1.5 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-md transition-colors shrink-0"
           >
             <ArrowLeft size={18} />
           </button>
@@ -163,7 +163,7 @@ const AdminFeedForm = () => {
             <p className="text-sm text-slate-500 mt-0.5">{isEdit ? "Update post details" : "Create a new feed post"}</p>
           </div>
         </div>
-        <Button variant="ghost" onClick={() => navigate("/admin/feed")} className="text-slate-500 text-sm h-9">
+        <Button variant="ghost" onClick={() => navigate("/admin/feed")} className="text-slate-500 text-sm h-9 hidden sm:flex">
           Cancel
         </Button>
       </div>
@@ -173,14 +173,14 @@ const AdminFeedForm = () => {
           {/* Main content */}
           <div className="lg:col-span-2 space-y-6">
             <Card className="bg-white border border-slate-200 shadow-none rounded-lg overflow-hidden">
-              <CardHeader className="px-6 py-4 border-b border-slate-100 flex flex-row items-center justify-between">
+              <CardHeader className="px-4 sm:px-6 py-4 border-b border-slate-100 flex flex-row items-center justify-between flex-wrap gap-2">
                 <CardTitle className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Post Details</CardTitle>
                 <div className="flex bg-slate-100 p-1 rounded-md">
                   <button type="button" onClick={() => setTextLayout("default")} className={cn("px-3 py-1 text-xs font-medium rounded", textLayout === "default" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500")}>Standard</button>
                   <button type="button" onClick={() => setTextLayout("quote")} className={cn("px-3 py-1 text-xs font-medium rounded", textLayout === "quote" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500")}>Quote</button>
                 </div>
               </CardHeader>
-              <CardContent className="p-6 space-y-5">
+              <CardContent className="p-4 sm:p-6 space-y-5">
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
                     <Label className="text-xs font-medium text-slate-700">Description</Label>
@@ -224,7 +224,7 @@ const AdminFeedForm = () => {
                     {type === "image" ? "Image Gallery" : type === "video" ? "Video Player" : "User Poll"}
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="p-6">
+                <CardContent className="p-4 sm:p-6">
                   {type === "image" && (
                     <div className="grid grid-cols-2 gap-4">
                       {images.map((img, i) => (
@@ -279,7 +279,7 @@ const AdminFeedForm = () => {
               <CardHeader className="px-6 py-4 border-b border-slate-100">
                 <CardTitle className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Post Music</CardTitle>
               </CardHeader>
-              <CardContent className="p-6 space-y-4">
+              <CardContent className="p-4 sm:p-6 space-y-4">
                 {musicVideoId && (
                   <div className="aspect-video rounded-md overflow-hidden bg-slate-900 mb-4">
                     <YouTube videoId={musicVideoId} opts={{ width: "100%", height: "100%", playerVars: { start: musicStartTime, end: musicEndTime > 0 ? musicEndTime : undefined } }} className="w-full h-full" onReady={e => playerRef.current = e.target} />
@@ -321,7 +321,7 @@ const AdminFeedForm = () => {
               <CardHeader className="px-6 py-4 border-b border-slate-100">
                 <CardTitle className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Post Settings</CardTitle>
               </CardHeader>
-              <CardContent className="p-6 space-y-5">
+              <CardContent className="p-4 sm:p-6 space-y-5">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-slate-800">Pin to Top</p>
@@ -355,13 +355,13 @@ const AdminFeedForm = () => {
 
       {/* YouTube Modal */}
       {ytOpen && (
-        <div className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm flex items-center justify-center p-6 animate-in fade-in">
-          <div className="bg-white w-full max-w-lg rounded-xl shadow-xl overflow-hidden flex flex-col">
-            <div className="h-14 flex items-center justify-between px-5 border-b border-slate-100">
+        <div className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-6 animate-in fade-in">
+          <div className="bg-white w-full sm:max-w-lg rounded-t-2xl sm:rounded-xl shadow-xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="h-14 flex items-center justify-between px-4 sm:px-5 border-b border-slate-100 shrink-0">
               <h3 className="text-sm font-semibold text-slate-900">Search Music</h3>
               <button onClick={() => setYtOpen(false)} className="p-1.5 text-slate-400 hover:text-slate-900 rounded-md hover:bg-slate-100 transition-colors"><X size={16} /></button>
             </div>
-            <div className="p-5 space-y-4">
+            <div className="p-4 sm:p-5 space-y-4 overflow-y-auto">
               <div className="flex gap-2">
                 <input value={ytQuery} onChange={e => setYtQuery(e.target.value)} onKeyDown={e => e.key === "Enter" && searchYT()} className="flex-1 h-10 px-4 bg-slate-50 border border-slate-200 rounded-md text-sm outline-none focus:border-slate-400 focus:bg-white transition-all" placeholder="Track name..." />
                 <Button onClick={searchYT} disabled={isSearching} className="h-10 px-4 bg-slate-900 hover:bg-slate-800 rounded-md">

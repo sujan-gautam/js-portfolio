@@ -30,14 +30,14 @@ const AdminStoryList = () => {
 
   return (
     <div className="space-y-5 animate-in fade-in duration-300 font-inter max-w-7xl mx-auto pb-16">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between">
         <div>
           <h1 className="text-xl font-semibold text-slate-900">Stories</h1>
           <p className="text-sm text-slate-500 mt-0.5">Manage your featured story updates</p>
         </div>
         <Button
           onClick={() => navigate("/admin/story/add")}
-          className="bg-slate-900 hover:bg-slate-800 text-white font-medium rounded-md px-4 h-9 text-sm transition-all"
+          className="bg-slate-900 hover:bg-slate-800 text-white font-medium rounded-md px-4 h-9 text-sm transition-all w-full sm:w-auto"
         >
           <Plus size={16} className="mr-1.5" /> New Story
         </Button>
@@ -56,7 +56,7 @@ const AdminStoryList = () => {
           </Button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-5">
           {data.map(story => (
             <div key={story.id} className="group bg-white border border-slate-200 rounded-lg overflow-hidden hover:shadow-md transition-all duration-200">
               <div className="aspect-[10/14] overflow-hidden relative bg-slate-100">
@@ -66,34 +66,34 @@ const AdminStoryList = () => {
                 }
                 <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
 
-                {/* Actions */}
-                <div className="absolute top-3 right-3 flex flex-col gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                {/* Actions - always visible on mobile, hover on desktop */}
+                <div className="absolute top-2 sm:top-3 right-2 sm:right-3 flex flex-col gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                   <button
                     onClick={() => setAnalyticsStory(story)}
-                    className="w-8 h-8 bg-white rounded-md flex items-center justify-center text-slate-500 hover:text-slate-900 shadow-sm transition-colors"
+                    className="w-7 h-7 sm:w-8 sm:h-8 bg-white rounded-md flex items-center justify-center text-slate-500 hover:text-slate-900 shadow-sm transition-colors"
                   >
-                    <BarChart3 size={14} />
+                    <BarChart3 size={12} />
                   </button>
                   <button
                     onClick={() => navigate(`/admin/story/edit/${story.id}`)}
-                    className="w-8 h-8 bg-white rounded-md flex items-center justify-center text-slate-500 hover:text-slate-900 shadow-sm transition-colors"
+                    className="w-7 h-7 sm:w-8 sm:h-8 bg-white rounded-md flex items-center justify-center text-slate-500 hover:text-slate-900 shadow-sm transition-colors"
                   >
-                    <Pencil size={14} />
+                    <Pencil size={12} />
                   </button>
                   <button
                     onClick={() => handleDelete(story.id)}
-                    className="w-8 h-8 bg-white rounded-md flex items-center justify-center text-slate-500 hover:text-red-600 shadow-sm transition-colors"
+                    className="w-7 h-7 sm:w-8 sm:h-8 bg-white rounded-md flex items-center justify-center text-slate-500 hover:text-red-600 shadow-sm transition-colors"
                   >
-                    <Trash2 size={14} />
+                    <Trash2 size={12} />
                   </button>
                 </div>
 
                 {/* Info */}
-                <div className="absolute bottom-4 left-4 right-4">
-                  <p className="text-sm font-medium text-white truncate mb-1">{story.title || "Untitled"}</p>
-                  <div className="flex items-center gap-3 text-xs text-white/70">
-                    <span className="flex items-center gap-1"><Eye size={11} /> {story.views || 0}</span>
-                    <span className="flex items-center gap-1"><MessageSquare size={11} /> {story.comments?.length || 0}</span>
+                <div className="absolute bottom-2 sm:bottom-4 left-2 sm:left-4 right-2 sm:right-4">
+                  <p className="text-xs sm:text-sm font-medium text-white truncate mb-1">{story.title || "Untitled"}</p>
+                  <div className="flex items-center gap-2 sm:gap-3 text-xs text-white/70">
+                    <span className="flex items-center gap-1"><Eye size={10} /> {story.views || 0}</span>
+                    <span className="flex items-center gap-1"><MessageSquare size={10} /> {story.comments?.length || 0}</span>
                   </div>
                 </div>
               </div>
@@ -104,9 +104,9 @@ const AdminStoryList = () => {
 
       {/* Analytics Modal */}
       {analyticsStory && (
-        <div className="fixed inset-0 z-[200] bg-black/40 backdrop-blur-sm flex items-center justify-center p-6 animate-in fade-in">
-          <div className="bg-white w-full max-w-3xl rounded-xl shadow-xl overflow-hidden flex flex-col">
-            <div className="h-14 border-b border-slate-100 flex items-center justify-between px-6">
+        <div className="fixed inset-0 z-[200] bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-6 animate-in fade-in">
+          <div className="bg-white w-full sm:max-w-3xl rounded-t-2xl sm:rounded-xl shadow-xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="h-14 border-b border-slate-100 flex items-center justify-between px-4 sm:px-6 shrink-0">
               <div>
                 <p className="text-sm font-semibold text-slate-900">Story Insights</p>
                 <p className="text-xs text-slate-500 mt-0.5">{analyticsStory.title}</p>
@@ -115,7 +115,7 @@ const AdminStoryList = () => {
                 <X size={16} />
               </button>
             </div>
-            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="p-4 sm:p-6 grid grid-cols-1 md:grid-cols-2 gap-6 overflow-y-auto">
               <div className="space-y-5">
                 <div>
                   <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Performance</p>

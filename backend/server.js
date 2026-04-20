@@ -37,8 +37,37 @@ const PORT = process.env.PORT || 5000;
 
 import CryptoJS from "crypto-js";
 
-// Global Middlewares
-app.use(cors());
+// ── CORS ──────────────────────────────────────────────────────────────────────
+const ALLOWED_ORIGINS = [
+  // Custom domain (primary)
+  "https://sujan1919.com.np",
+  "https://www.sujan1919.com.np",
+  // Vercel deployment URLs (covers all preview & production deployments)
+  /\.vercel\.app$/,
+  // Local dev
+  "http://localhost:3000",
+  "http://localhost:5173",
+  "http://localhost:8080",
+  // Dynamic CLIENT_URL from env
+  ...(process.env.CLIENT_URL ? [process.env.CLIENT_URL] : []),
+];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (server-to-server, Postman, curl)
+    if (!origin) return callback(null, true);
+    const allowed = ALLOWED_ORIGINS.some(o =>
+      typeof o === "string" ? o === origin : o.test(origin)
+    );
+    if (allowed) return callback(null, true);
+    console.warn("CORS blocked origin:", origin);
+    callback(new Error(`CORS policy: origin ${origin} is not allowed`));
+  },
+  credentials: true,             // Allow cookies / auth headers
+  methods: ["GET","POST","PUT","PATCH","DELETE","OPTIONS"],
+  allowedHeaders: ["Content-Type","Authorization","X-Requested-With"],
+  optionsSuccessStatus: 204,      // Some browsers choke on 200 for OPTIONS
+}));
 app.use(express.json());
 
 const SECRET_KEY = process.env.ENCRYPTION_KEY || "exact-echo-super-secret-key-24!";

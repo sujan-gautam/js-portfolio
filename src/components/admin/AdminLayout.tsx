@@ -37,11 +37,20 @@ const navItems = [
 ];
 
 const AdminLayout = () => {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [adminLogo, setAdminLogo] = useState<string | null>(null);
   const location = useLocation();
   const { logout } = useAuth();
   const navigate = useNavigate();
+
+  // Open sidebar by default on large screens
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)");
+    setSidebarOpen(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setSidebarOpen(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
 
   useEffect(() => {
     settingsDB.get().then(s => {
@@ -58,18 +67,35 @@ const AdminLayout = () => {
     navigate("/admin/login");
   };
 
+  // Close sidebar on mobile when navigating
+  const handleNavClick = () => {
+    if (window.innerWidth < 1024) setSidebarOpen(false);
+  };
+
   return (
     <div className="flex h-screen bg-[#fafafa] text-slate-900 font-inter overflow-hidden admin-panel">
-      {/* Sidebar - Sharp, Minimal, Professional */}
+
+      {/* Mobile overlay */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/40 z-20 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
       <aside
         className={cn(
           "h-full flex flex-col bg-white border-r border-slate-200 transition-all duration-300 z-30 overflow-y-auto scrollbar-none",
-          sidebarOpen ? "w-64" : "w-0 overflow-hidden"
+          // On mobile: fixed overlay sidebar
+          "fixed lg:relative top-0 left-0",
+          sidebarOpen ? "w-64 translate-x-0" : "w-64 -translate-x-full lg:w-0 lg:translate-x-0 lg:overflow-hidden"
         )}
       >
-        <div className="flex items-center gap-3 px-6 h-16 shrink-0 border-b border-slate-200">
-           {adminLogo ? (
-             <img src={adminLogo} alt="Logo" className="h-7 w-auto object-contain" />
+        <div className="flex items-center justify-between px-4 h-16 shrink-0 border-b border-slate-200">
+          <div className="flex items-center gap-3">
+            {adminLogo ? (
+              <img src={adminLogo} alt="Logo" className="h-7 w-auto object-contain" />
             ) : (
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-lg bg-slate-900 flex items-center justify-center shadow-lg shadow-black/10 relative overflow-hidden group">
@@ -81,6 +107,14 @@ const AdminLayout = () => {
                 <span className="text-sm font-bold text-slate-900 tracking-tight">Sujan Admin</span>
               </div>
             )}
+          </div>
+          {/* Close button on mobile */}
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="p-1.5 rounded-md hover:bg-slate-100 text-slate-500 lg:hidden"
+          >
+            <X size={16} />
+          </button>
         </div>
 
         <nav className="flex-1 py-6 px-3 space-y-6">
@@ -93,6 +127,7 @@ const AdminLayout = () => {
                    <Link
                      key={item.label}
                      to={item.path}
+                     onClick={handleNavClick}
                      className={cn(
                        "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors mb-0.5",
                        active
@@ -109,7 +144,7 @@ const AdminLayout = () => {
           ))}
         </nav>
 
-        {/* Global Access - Logout at bottom */}
+        {/* Logout at bottom */}
         <div className="p-4 border-t border-slate-100 mt-auto">
            <button 
              onClick={handleLogout}
@@ -122,10 +157,10 @@ const AdminLayout = () => {
       </aside>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Top bar matches professional SaaS standards */}
-        <header className="h-16 border-b border-slate-200 bg-white px-6 flex items-center justify-between z-20 shrink-0">
-          <div className="flex items-center gap-4">
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+        {/* Top bar */}
+        <header className="h-16 border-b border-slate-200 bg-white px-4 sm:px-6 flex items-center justify-between z-10 shrink-0">
+          <div className="flex items-center gap-3">
              <button 
                onClick={() => setSidebarOpen(!sidebarOpen)} 
                className="p-2 rounded-md hover:bg-slate-100 text-slate-600 transition-colors"
@@ -133,17 +168,17 @@ const AdminLayout = () => {
                <Menu size={20} />
              </button>
              
-             <div className="h-4 w-[1px] bg-slate-200 hidden md:block" />
+             <div className="h-4 w-[1px] bg-slate-200 hidden sm:block" />
              
-             <Link to="/" target="_blank" className="flex items-center gap-2 px-3 py-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-md text-sm font-medium transition-colors group">
-                <span>View Public Site</span>
+             <Link to="/" target="_blank" className="hidden sm:flex items-center gap-2 px-3 py-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-md text-sm font-medium transition-colors group">
+                <span>View Site</span>
                 <ExternalLink size={14} className="text-slate-400 group-hover:text-slate-600" />
              </Link>
           </div>
 
-          <div className="flex items-center gap-5">
-             <div className="flex items-center gap-3 cursor-pointer p-1.5 rounded-md transition-colors hover:bg-slate-50">
-                <div className="flex flex-col items-end">
+          <div className="flex items-center gap-2 sm:gap-5">
+             <div className="flex items-center gap-2 sm:gap-3 cursor-pointer p-1.5 rounded-md transition-colors hover:bg-slate-50">
+                <div className="hidden sm:flex flex-col items-end">
                    <span className="text-sm font-medium text-slate-900 leading-none">sujan gautam</span>
                    <span className="text-xs text-slate-500 mt-1">Super Admin</span>
                 </div>
@@ -152,7 +187,7 @@ const AdminLayout = () => {
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-8 scrollbar-thin scrollbar-thumb-slate-200 scroll-smooth bg-[#fafafa]">
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 scrollbar-thin scrollbar-thumb-slate-200 scroll-smooth bg-[#fafafa]">
            <Outlet />
         </main>
       </div>

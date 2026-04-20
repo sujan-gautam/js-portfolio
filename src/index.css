@@ -113,6 +113,20 @@
   .admin-panel ::-webkit-scrollbar-track { background: transparent; }
   .admin-panel ::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 9999px; }
   .admin-panel ::-webkit-scrollbar-thumb:hover { background: #cbd5e1; }
+
+  /* Admin mobile - prevent horizontal scroll blowout */
+  .admin-panel { overflow-x: hidden; }
+  .admin-panel main { min-width: 0; overflow-x: hidden; }
+
+  /* Ensure table cells don't force horizontal scroll on mobile */
+  .admin-panel table { min-width: 600px; }
+
+  /* Better touch targets on small screens */
+  @media (max-width: 640px) {
+    .admin-panel button, .admin-panel a {
+      min-height: 36px;
+    }
+  }
 }
 
 /* ── Animations ── */

@@ -68,12 +68,12 @@ const AdminSettingsPage = () => {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300 font-inter max-w-5xl mx-auto pb-16">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between">
         <div>
           <h1 className="text-xl font-semibold text-slate-900">Settings</h1>
           <p className="text-sm text-slate-500 mt-0.5">Manage your site configuration</p>
         </div>
-        <Button onClick={saveAll} className="bg-slate-900 hover:bg-slate-800 text-white font-medium rounded-md px-4 h-9 text-sm transition-all">
+        <Button onClick={saveAll} className="bg-slate-900 hover:bg-slate-800 text-white font-medium rounded-md px-4 h-9 text-sm transition-all w-full sm:w-auto">
            <CheckCircle2 size={15} className="mr-2"/> Save Changes
         </Button>
       </div>
@@ -82,12 +82,12 @@ const AdminSettingsPage = () => {
          {/* Main Settings Card */}
          <div className="space-y-6">
             <Card className="bg-white border border-slate-200 shadow-none rounded-lg overflow-hidden">
-               <CardHeader className="px-6 py-4 border-b border-slate-100">
+               <CardHeader className="px-4 sm:px-6 py-4 border-b border-slate-100">
                   <CardTitle className="text-xs font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-2">
                     <SettingsIcon size={13} /> Main Configuration
                   </CardTitle>
                </CardHeader>
-               <CardContent className="p-6 space-y-5">
+               <CardContent className="p-4 sm:p-6 space-y-5">
                   <div className="space-y-1.5">
                      <Label className="text-xs font-medium text-slate-700">Site Name</Label>
                      <Input value={settings.siteName} onChange={e => setSettings({ ...settings, siteName: e.target.value })} className="h-10 bg-white border-slate-200 rounded-md text-sm" />
@@ -195,7 +195,7 @@ const AdminSettingsPage = () => {
                     <Globe size={13} /> SEO & Metatags
                   </CardTitle>
                </CardHeader>
-               <CardContent className="p-6 space-y-5">
+               <CardContent className="p-4 sm:p-6 space-y-5">
                   <div className="space-y-1.5">
                      <Label className="text-xs font-medium text-slate-700">SEO Title Override</Label>
                      <Input placeholder="Custom title for Google" value={settings.seoTitle || ""} onChange={e => setSettings({ ...settings, seoTitle: e.target.value })} className="h-10 bg-white border-slate-200 rounded-md text-sm" />
@@ -204,7 +204,7 @@ const AdminSettingsPage = () => {
                      <Label className="text-xs font-medium text-slate-700">Keywords (Comma Separated)</Label>
                      <Input placeholder="e.g. Developer, Designer, React" value={settings.seoKeywords || ""} onChange={e => setSettings({ ...settings, seoKeywords: e.target.value })} className="h-10 bg-white border-slate-200 rounded-md text-sm" />
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                        <Label className="text-xs font-medium text-slate-700">Author</Label>
                        <Input placeholder="e.g. Sujan Gautam" value={settings.seoAuthor || ""} onChange={e => setSettings({ ...settings, seoAuthor: e.target.value })} className="h-10 bg-white border-slate-200 rounded-md text-sm" />
@@ -247,7 +247,7 @@ const AdminSettingsPage = () => {
                     <Plus size={13} /> Add Link
                   </button>
                </CardHeader>
-               <CardContent className="p-6 space-y-4">
+                <CardContent className="p-4 sm:p-6 space-y-4">
                   {settings.socialLinks && settings.socialLinks.length > 0 ? (
                      settings.socialLinks.map((link, i) => (
                        <div key={i} className="flex gap-3 animate-in fade-in duration-200">

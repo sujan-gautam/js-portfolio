@@ -91,12 +91,12 @@ const AdminMusic = () => {
   if (showForm) {
     return (
       <div className="space-y-6 animate-in slide-in-from-right-4 duration-300 font-inter max-w-5xl mx-auto pb-16">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:justify-between">
           <div>
             <h1 className="text-xl font-semibold text-slate-900">{editId ? 'Edit Track' : 'New Track'}</h1>
             <p className="text-sm text-slate-500 mt-0.5">Configure background audio</p>
           </div>
-          <Button variant="ghost" onClick={() => setShowForm(false)} className="text-slate-500 text-sm">Cancel</Button>
+          <Button variant="ghost" onClick={() => setShowForm(false)} className="text-slate-500 text-sm w-full sm:w-auto">Cancel</Button>
         </div>
 
         <form onSubmit={handleSave} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -226,12 +226,12 @@ const AdminMusic = () => {
 
   return (
     <div className="space-y-5 animate-in fade-in duration-300 font-inter max-w-7xl mx-auto pb-16">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between">
         <div>
           <h1 className="text-xl font-semibold text-slate-900">Music</h1>
           <p className="text-sm text-slate-500 mt-0.5">Manage background audio tracks</p>
         </div>
-        <Button onClick={() => { setEditId(null); setItem({ active: true, title: "", artist: "", url: "", videoId: "", startTime: 0, endTime: 0 }); setShowForm(true); }} className="bg-slate-900 hover:bg-slate-800 text-white font-medium rounded-md px-4 h-9 text-sm transition-all">
+        <Button onClick={() => { setEditId(null); setItem({ active: true, title: "", artist: "", url: "", videoId: "", startTime: 0, endTime: 0 }); setShowForm(true); }} className="bg-slate-900 hover:bg-slate-800 text-white font-medium rounded-md px-4 h-9 text-sm transition-all w-full sm:w-auto">
           <Plus size={16} className="mr-1.5" /> Add Track
         </Button>
       </div>
