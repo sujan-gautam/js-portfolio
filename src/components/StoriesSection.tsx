@@ -12,6 +12,15 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 import profileImgFallback from "@/assets/profile-3.jpg";
 
+const storyAnimations = `
+  @keyframes float-up-fade {
+    0% { transform: translateY(0) scale(0.5) rotate(0deg); opacity: 0; }
+    20% { opacity: 1; scale: 1.2; }
+    80% { opacity: 1; }
+    100% { transform: translateY(-160px) scale(0.8) rotate(15deg); opacity: 0; }
+  }
+`;
+
 const StoriesSection = () => {
   const [stories, setStories] = useState<StoryItem[]>([]);
   const [music, setMusic] = useState<MusicItem[]>([]);
@@ -26,12 +35,12 @@ const StoriesSection = () => {
   const [commentText, setCommentText] = useState("");
   const [commentsDrawerOpen, setCommentsDrawerOpen] = useState(false);
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [flyingReacts, setFlyingReacts] = useState<{ id: number; emoji: string; x: number; delay: number }[]>([]);
 
   const showAlert = (msg: string) => {
     setAlertMessage(msg);
   };
-
-  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     if (storyViewerOpen) {
@@ -107,6 +116,20 @@ const StoriesSection = () => {
   const handleReact = async (e: any, type: string) => {
     e.stopPropagation();
     if (!currentViewerStory) return;
+
+    // Trigger visual feedback flurry
+    const emojiMap: any = { heart: "❤️", fire: "🔥" };
+    const newReacts = Array(8).fill(0).map(() => ({
+      id: Math.random(),
+      emoji: emojiMap[type] || "❤️",
+      x: (Math.random() - 0.5) * 60, // random spread
+      delay: Math.random() * 0.4
+    }));
+    setFlyingReacts(prev => [...prev, ...newReacts]);
+    setTimeout(() => {
+      setFlyingReacts(prev => prev.filter(r => !newReacts.find(nr => nr.id === r.id)));
+    }, 2000);
+
     setStories(prev => prev.map(s => {
       if (s.id === currentViewerStory.id) {
         return { ...s, reacts: { ...s.reacts, [type]: ((s.reacts as any)?.[type] || 0) + 1 } as any };
@@ -158,6 +181,7 @@ const StoriesSection = () => {
 
   return (
     <div className="px-4 py-4 relative">
+      <style>{storyAnimations}</style>
       <p className="text-xs font-bold tracking-[0.2em] text-white mb-4 uppercase">
         STORIES:
       </p>
@@ -453,10 +477,26 @@ const StoriesSection = () => {
                     )}
 
                     {/* Quick Reactions */}
-                    <button onClick={(e) => handleReact(e, 'heart')} className="w-12 h-12 rounded-full bg-white/10 border border-white/5 flex items-center justify-center hover:bg-white/20 transition-all active:scale-90 shadow-lg">
-                       <span className="text-[18px]">❤️</span>
-                    </button>
-                    <button onClick={(e) => handleReact(e, 'fire')} className="w-12 h-12 rounded-full bg-white/10 border border-white/5 flex items-center justify-center hover:bg-white/20 transition-all active:scale-90 shadow-lg">
+                    <div className="relative">
+                      {flyingReacts.map(r => (
+                        <div 
+                          key={r.id}
+                          className="absolute pointer-events-none select-none text-[20px] left-1/2 -translate-x-1/2 bottom-12"
+                          style={{ 
+                            animation: `float-up-fade 1.5s ease-out forwards`,
+                            animationDelay: `${r.delay}s`,
+                            marginLeft: `${r.x}px`
+                          }}
+                        >
+                          {r.emoji}
+                        </div>
+                      ))}
+                      <button onClick={(e) => handleReact(e, 'heart')} className="w-12 h-12 rounded-full bg-white/10 border border-white/5 flex items-center justify-center hover:bg-white/20 transition-all active:scale-95 shadow-lg">
+                         <span className="text-[18px]">❤️</span>
+                      </button>
+                    </div>
+
+                    <button onClick={(e) => handleReact(e, 'fire')} className="w-12 h-12 rounded-full bg-white/10 border border-white/5 flex items-center justify-center hover:bg-white/20 transition-all active:scale-95 shadow-lg">
                        <span className="text-[18px]">🔥</span>
                     </button>
 
