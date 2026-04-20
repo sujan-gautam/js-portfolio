@@ -4,6 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import BottomNav from "@/components/BottomNav";
+import Footer from "@/components/Footer";
 
 // Public pages
 import Index from "./pages/Index.tsx";
@@ -179,10 +180,18 @@ const App = () => (
           <Route path="*" element={<NotFound />} />
         </Routes>
 
-        {/* Hide bottom nav on all admin pages */}
+        {/* Footer and Bottom Nav */}
         <Routes>
           <Route path="/admin/*" element={null} />
-          <Route path="*" element={<BottomNav />} />
+          <Route 
+            path="*" 
+            element={
+              <>
+                <Footer />
+                <BottomNav />
+              </>
+            } 
+          />
         </Routes>
       </BrowserRouter>
       </TooltipProvider>
