@@ -8,9 +8,9 @@ const getBaseUrl = () => {
       return window.location.origin;
     }
     // Deep local testing (Laptop/Mobile Chrome)
-    return `http://${window.location.hostname}:5000`;
+    return `https://${window.location.hostname}:5000`;
   }
-  return "http://localhost:5000";
+  return "https://localhost:5000";
 };
 
 export const API_URL = getBaseUrl();

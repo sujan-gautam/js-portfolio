@@ -56,7 +56,7 @@ const About = () => {
       4. Keep the response short (1 to 2 sentences maximum).
       5. Only use the facts provided above. If you don't know something, just be casual and say "Let's chat about that over email!"`;
 
-      const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+      const BASE_URL = import.meta.env.VITE_API_URL || "https://localhost:5000";
       const res = await axios.post(`${BASE_URL}/api/ai/ask`, { prompt });
       const responseText = res.data.answer || "My mind is a bit foggy... but I can tell you I love building great UIs!";
       

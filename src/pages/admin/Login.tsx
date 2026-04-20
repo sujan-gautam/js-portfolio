@@ -137,9 +137,9 @@ const Login = () => {
         </div>
 
         <div className="flex justify-center gap-6 pt-10 border-t border-white/5">
-           <a href="#" className="text-[11px] text-white/20 hover:text-white transition-colors">Privacy</a>
-           <a href="#" className="text-[11px] text-white/20 hover:text-white transition-colors">Terms</a>
-           <a href="#" className="text-[11px] text-white/20 hover:text-white transition-colors">Contact</a>
+           <a href="/privacy/" className="text-[11px] text-white/20 hover:text-white transition-colors">Privacy</a>
+           <a href="/terms/" className="text-[11px] text-white/20 hover:text-white transition-colors">Terms</a>
+           <a href="/contact/" className="text-[11px] text-white/20 hover:text-white transition-colors">Contact</a>
         </div>
       </div>
     </div>

@@ -75,7 +75,7 @@ INSTRUCTIONS:
 4. Use a casual, conversational tone (e.g., "I built this to...", "It was a fun challenge").
 5. Keep the response very short (1 to 2 sentences maximum).`;
 
-    const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+    const BASE_URL = import.meta.env.VITE_API_URL || "https://localhost:5000";
     let txt = "No info available.";
     
     try {

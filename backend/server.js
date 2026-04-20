@@ -32,6 +32,7 @@ if (!MONGO_URI) {
 }
 
 const app = express();
+app.enable('trust proxy'); // Trust Vercel's reverse proxy for HTTPS
 const PORT = process.env.PORT || 5000;
 
 import CryptoJS from "crypto-js";
