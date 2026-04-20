@@ -14,9 +14,20 @@ import session from "express-session";
 
 dotenv.config();
 
+// Pre-connect Database (Critical for Vercel/Production)
+const MONGO_URI = process.env.MONGO_URI;
+if (!MONGO_URI) {
+    console.error("CRITICAL ERROR: MONGO_URI is missing from environment variables!");
+} else {
+    console.log("DATABASE_STATUS: Initializing connection...");
+    mongoose.set('bufferCommands', false); // Disable buffering to prevent 10s hangs
+    mongoose.connect(MONGO_URI, { serverSelectionTimeoutMS: 5000 })
+        .then(() => console.log("DATABASE_STATUS: Connected Successfully"))
+        .catch(err => console.error("DATABASE_STATUS: Connection Failed ->", err.message));
+}
+
 const app = express();
 const PORT = process.env.PORT || 5000;
-const MONGO_URI = process.env.MONGO_URI || "mongodb://127.0.0.1:27017/exactecho_portfolio";
 
 import CryptoJS from "crypto-js";
 
@@ -246,23 +257,6 @@ app.post("/api/seed", async (req, res) => {
     res.json({ message: "Seed endpoint hit." });
 });
 
-// Optimize DB connection for Serverless
-let isConnected = false;
-const connectDB = async () => {
-  if (isConnected && mongoose.connection.readyState === 1) return;
-  try {
-    console.log("Connecting to MongoDB...");
-    await mongoose.connect(MONGO_URI, {
-      serverSelectionTimeoutMS: 5000,
-    });
-    isConnected = true;
-    console.log("Connected to MongoDB");
-  } catch (err) {
-    console.error("MongoDB connection Failed:", err.message);
-    isConnected = false;
-  }
-};
-
 // Health Check
 app.get("/api/health", (req, res) => {
   res.status(200).json({ 
@@ -273,19 +267,11 @@ app.get("/api/health", (req, res) => {
   });
 });
 
-// Auto-connect middleware for Vercel
-app.use(async (req, res, next) => {
-  await connectDB();
-  next();
-});
-
 // We still run listen manually if running locally vs Vercel
 if (process.env.NODE_ENV !== "production") {
-  connectDB().then(() => {
     app.listen(PORT, () => {
       console.log(`Backend is running on http://localhost:${PORT}`);
     });
-  });
 }
 
 export default app;
