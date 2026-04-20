@@ -34,6 +34,25 @@ const Portfolio = () => {
     });
   }, []);
 
+  // Handle global dismissal (scroll or click outside)
+  useEffect(() => {
+    const dismiss = (e: any) => {
+      if (!bubble) return;
+      if (e.type === 'click' && e.target.closest('.group\\/bubble')) return;
+      setBubble(null);
+    };
+
+    if (bubble) {
+      window.addEventListener("scroll", dismiss, true);
+      window.addEventListener("click", dismiss, true);
+    }
+    return () => {
+      window.removeEventListener("scroll", dismiss, true);
+      window.removeEventListener("click", dismiss, true);
+    };
+  }, [bubble]);
+
+
   const categories = ["All", ...new Set(projects.map(p => p.category))].filter(Boolean);
   const filteredProjects = filter === "All" ? projects : projects.filter(p => p.category === filter);
 
@@ -178,7 +197,7 @@ INSTRUCTIONS:
       </div>
 
       {/* ── Whisper Bar ────────────────────────────── */}
-      <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-[1000] px-6 py-2.5 bg-[#111]/90 backdrop-blur-xl border border-white/[0.06] rounded-full flex items-center gap-3 shadow-xl">
+      <div className="hidden md:flex fixed bottom-20 left-1/2 -translate-x-1/2 z-[1000] px-6 py-2.5 bg-[#111]/90 backdrop-blur-xl border border-white/[0.06] rounded-full items-center gap-3 shadow-xl">
         <div className="w-1.5 h-1.5 bg-[#CB2729] rounded-full animate-pulse" />
         <span className="text-[11px] text-white/30 uppercase tracking-[0.2em] whitespace-nowrap">
           Hover 3s or double-click to probe AI
@@ -187,32 +206,32 @@ INSTRUCTIONS:
 
       {/* ── AI Suggestion Bubble ────────────────────── */}
       {bubble && (
-        <div className="fixed inset-0 z-[10001] flex items-end md:items-center justify-center p-4">
+        <div className="fixed inset-0 z-[10001] flex items-end md:items-center justify-center p-0 md:p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setBubble(null)} />
-          <div className="relative w-full max-w-sm bg-[#141414] border border-white/10 rounded-3xl shadow-2xl overflow-hidden">
-            <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-white/[0.06]">
+          <div className="relative w-auto max-w-[85vw] md:max-w-sm bg-[#050505] border border-white/10 rounded-2xl md:rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 group/bubble">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.05]">
               <div className="flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-xl bg-[#CB2729]/20 flex items-center justify-center">
-                  <Bot size={14} className="text-[#CB2729]" />
+                <div className="w-6 h-6 rounded-lg bg-[#CB2729]/20 flex items-center justify-center">
+                  <Bot size={12} className="text-[#CB2729]" />
                 </div>
                 <div>
-                  <p className="text-[13px] font-semibold text-white">{bubble.text}</p>
-                  <p className="text-[9px] text-white/30 uppercase tracking-widest">Pick a question</p>
+                  <p className="text-[12px] font-bold text-white mb-0.5">{bubble.text}</p>
+                  <p className="text-[9px] text-white/20 uppercase tracking-widest">AI Insight</p>
                 </div>
               </div>
-              <button onClick={() => setBubble(null)} className="w-7 h-7 rounded-full bg-white/5 flex items-center justify-center hover:bg-white/10 transition-all">
-                <X size={12} className="text-white/40" />
+              <button onClick={() => setBubble(null)} className="text-white/20 hover:text-white transition-colors">
+                <X size={14} />
               </button>
             </div>
-            <div className="p-3 space-y-2">
+            <div className="p-2 space-y-1">
               {bubble.options.map((opt, i) => (
                 <button
                   key={i}
                   onClick={() => askAI(opt)}
-                  className="w-full text-left px-4 py-3.5 rounded-2xl bg-white/[0.04] hover:bg-[#CB2729]/10 border border-white/[0.06] hover:border-[#CB2729]/30 text-[12px] text-white/70 hover:text-white transition-all flex items-center justify-between group"
+                  className="w-full text-left px-4 py-2.5 rounded-xl bg-transparent hover:bg-white/[0.03] text-[12px] text-white/40 hover:text-white transition-all flex items-center justify-between group"
                 >
                   <span>{opt}</span>
-                  <Send size={11} className="text-white/20 group-hover:text-[#CB2729] transition-colors ml-2 shrink-0" />
+                  <Send size={10} className="text-white/10 group-hover:text-[#CB2729] transition-colors ml-2 shrink-0" />
                 </button>
               ))}
             </div>
@@ -222,9 +241,9 @@ INSTRUCTIONS:
 
       {/* ── AI Chat Drawer ──────────────────────────── */}
       {(aiAnswer !== null || chatHistory.length > 0) && (
-        <div className="fixed inset-0 z-[10002] flex justify-end">
+        <div className="fixed inset-0 z-[10002] flex justify-end items-end md:items-stretch">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => { setAiAnswer(null); setChatHistory([]); }} />
-          <div className="relative w-full max-w-sm bg-[#0f0f0f] border-l border-white/[0.07] flex flex-col h-full shadow-2xl">
+          <div className="relative w-full md:max-w-sm bg-[#0f0f0f] md:border-l border-t md:border-t-0 border-white/[0.07] flex flex-col h-[85vh] md:h-full md:rounded-none rounded-t-3xl shadow-2xl animate-in slide-in-from-bottom md:slide-in-from-right duration-500">
             {/* Header */}
             <div className="shrink-0">
               {activeProjectRef.current?.image && (
@@ -373,7 +392,10 @@ const Card = ({ project, index, isWide, onView, onAsk }: {
   const hoverTimer = useRef<any>(null);
   const t = index % 4;
 
-  const startHover = () => { hoverTimer.current = setTimeout(onAsk, 3000); };
+  const startHover = () => { 
+    const delay = window.innerWidth < 768 ? 1200 : 3000;
+    hoverTimer.current = setTimeout(onAsk, delay); 
+  }; 
   const endHover = () => clearTimeout(hoverTimer.current);
 
   const shared = {

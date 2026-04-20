@@ -84,6 +84,26 @@ const About = () => {
     return () => window.removeEventListener("mousemove", handleMouseMove);
   }, []);
 
+  // Handle global dismissal (scroll or click outside)
+  useEffect(() => {
+    const dismiss = (e: any) => {
+      if (!bubble) return;
+      // Don't dismiss if clicking inside the bubble
+      if (e.type === 'click' && e.target.closest('.group\\/bubble')) return;
+      setBubble(null);
+    };
+
+    if (bubble) {
+      window.addEventListener("scroll", dismiss, true);
+      window.addEventListener("click", dismiss, true);
+    }
+    return () => {
+      window.removeEventListener("scroll", dismiss, true);
+      window.removeEventListener("click", dismiss, true);
+    };
+  }, [bubble]);
+
+
   const handleInteractionTrigger = (e: any, context: string, immediate = false) => {
     const x = e.clientX || (e.touches && e.touches[0].clientX);
     const y = e.clientY || (e.touches && e.touches[0].clientY);
@@ -101,7 +121,8 @@ const About = () => {
       trigger();
     } else {
       // Long press / Long hover timer
-      hoverTimer.current = setTimeout(trigger, 3000); // 3-second hover as requested
+      const delay = window.innerWidth < 768 ? 1200 : 3000;
+      hoverTimer.current = setTimeout(trigger, delay); 
     }
   };
 
@@ -232,28 +253,41 @@ const About = () => {
       {/* Thought Bubble */}
       {bubble && (
         <div 
-          className="fixed z-[10000] bg-[#121212]/95 border border-white/10 p-7 rounded-3xl shadow-[0_20px_60px_rgba(203,39,41,0.2)] backdrop-blur-2xl animate-in zoom-in duration-300"
-          style={{ left: bubble.x, top: bubble.y }}
+          className="fixed z-[10000] bg-[#050505]/95 border border-white/10 rounded-2xl shadow-[0_25px_50px_-12px_rgba(0,0,0,0.7)] backdrop-blur-2xl animate-in zoom-in-95 duration-200 w-[260px] pointer-events-auto group/bubble"
+          style={{ 
+            left: window.innerWidth < 768 ? '50%' : bubble.x, 
+            top: window.innerWidth < 768 ? 'auto' : bubble.y - 140, // Offset upwards
+            transform: window.innerWidth < 768 ? 'translateX(-50%)' : 'none',
+            bottom: window.innerWidth < 768 ? '40px' : 'auto'
+          }}
           onMouseLeave={() => setBubble(null)}
         >
-          <div className="absolute bottom-[-10px] left-1/2 -translate-x-1/2 w-5 h-5 bg-[#121212] border-r border-b border-white/10 rotate-45" />
-          <div className="flex items-center gap-3 mb-5">
-            <div className="w-1.5 h-1.5 bg-red-600 rounded-full animate-pulse" />
-            <h4 className="text-[10px] uppercase text-white/40 tracking-[0.4em] font-bold">AI THOUGHTS</h4>
-          </div>
-          <div className="space-y-4">
+          {/* Subtle Red Top-Border Glow */}
+          <div className="h-[1px] w-full bg-gradient-to-r from-transparent via-[#CB2729] to-transparent opacity-60" />
+          
+          <div className="p-4 space-y-1">
+            {/* Minimal Icon Indicator */}
+            <div className="flex items-center gap-2 mb-2 px-1">
+               <div className="w-1 h-1 bg-[#CB2729] rounded-full animate-pulse" />
+               <span className="text-[9px] uppercase text-white/30 tracking-[0.2em] font-medium">Interrogate</span>
+            </div>
+
             {bubble.options.map((opt, i) => (
               <button 
                 key={i} 
                 onClick={() => { askAI(opt, "Contextual probe"); setBubble(null); }}
-                className="block w-full text-left text-[14px] text-white/70 hover:text-red-500 transition-all py-1.5 border-b border-white/5 last:border-0 hover:translate-x-1"
+                className="w-full text-left text-[12.5px] text-white/50 hover:text-white hover:bg-white/[0.03] transition-all px-3 py-2.5 rounded-xl flex items-center justify-between group/opt"
               >
-                {opt}
+                <span className="leading-snug">{opt}</span>
               </button>
             ))}
           </div>
         </div>
       )}
+
+
+
+
 
       {/* AI Answer Overlay */}
       {aiAnswer && (
@@ -287,7 +321,7 @@ const About = () => {
 
       {/* Whisper Bar - Positioned above footer nav */}
       {!aiAnswer && (
-        <div className="fixed bottom-28 left-1/2 -translate-x-1/2 z-[10000] w-[90%] md:w-auto px-10 py-3 bg-[#111]/80 backdrop-blur-lg border border-white/5 rounded-full shadow-2xl transition-all duration-500">
+        <div className="hidden md:flex fixed bottom-28 left-1/2 -translate-x-1/2 z-[10000] w-[90%] md:w-auto px-10 py-3 bg-[#111]/80 backdrop-blur-lg border border-white/5 rounded-full shadow-2xl transition-all duration-500">
           <div className="flex items-center gap-5">
             <div className="w-2 h-2 bg-red-600 rounded-full animate-pulse shadow-[0_0_10px_#red]" />
             <span className="text-[14px] text-white/60 font-light lowercase tracking-[0.15em] whitespace-nowrap overflow-hidden">
