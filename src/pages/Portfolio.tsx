@@ -95,6 +95,7 @@ INSTRUCTIONS:
 4. Use a casual, conversational tone (e.g., "I built this to...", "It was a fun challenge").
 5. Keep the response very short (1 to 2 sentences maximum).`;
 
+    let txt = "No info available.";
     try {
       const res = await axios.post(`${API_BASE}/ai/ask`, { prompt });
       txt = res.data.answer || txt;
