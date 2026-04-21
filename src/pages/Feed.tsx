@@ -385,7 +385,8 @@ const PostCard = ({
   globalMute, 
   setGlobalMute, 
   setMusicData,
-  playingMusicId 
+  playingMusicId,
+  isIOS
 }: { 
   post: FeedPost; 
   showAlert: (msg: string) => void; 
