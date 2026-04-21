@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import YouTube from "react-youtube";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { ChevronLeft, ChevronRight, Play, Pause, Loader2, Send, MessageSquare, X, UserCheck, Music, Star } from "lucide-react";
+import { ChevronLeft, ChevronRight, Play, Pause, Loader2, Send, MessageSquare, X, UserCheck, Music, Star, Volume2, VolumeX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import axios from "axios";
@@ -37,6 +37,9 @@ const StoriesSection = () => {
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [flyingReacts, setFlyingReacts] = useState<{ id: number; emoji: string; x: number; delay: number }[]>([]);
+  const [isIOS, setIsIOS] = useState(false);
+  const [isMuted, setIsMuted] = useState(true);
+  const [storyPlayer, setStoryPlayer] = useState<any>(null);
 
   const showAlert = (msg: string) => {
     setAlertMessage(msg);
@@ -51,6 +54,16 @@ const StoriesSection = () => {
   }, [storyViewerOpen]);
 
   useEffect(() => {
+    // Detect iOS
+    const checkIOS = () => {
+      const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+                          (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      setIsIOS(isIOSDevice);
+      if (isIOSDevice) setIsMuted(true);
+      else setIsMuted(false);
+    };
+    checkIOS();
+
     async function loadResources() {
       setIsLoading(true);
       const activeStories = (await storiesDB.getAll()).filter(s => s.active);
@@ -100,7 +113,23 @@ const StoriesSection = () => {
     setCommentsDrawerOpen(false);
   };
 
-  const closeStories = () => setStoryViewerOpen(false);
+  const closeStories = () => {
+    if (storyPlayer) storyPlayer.pauseVideo();
+    setStoryViewerOpen(false);
+  };
+
+  const toggleMute = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!storyPlayer) return;
+    if (isMuted) {
+      storyPlayer.unMute();
+      storyPlayer.playVideo();
+      setIsMuted(false);
+    } else {
+      storyPlayer.mute();
+      setIsMuted(true);
+    }
+  };
 
   const nextStory = (e: any) => {
     e.stopPropagation();
@@ -365,6 +394,15 @@ const StoriesSection = () => {
                   </div>
 
                   <div className="flex items-center gap-2 pointer-events-auto">
+                     {isIOS && (
+                        <button 
+                          onClick={toggleMute} 
+                          className="w-10 h-10 flex items-center justify-center bg-white/5 backdrop-blur-md border border-white/10 rounded-full hover:bg-white/10 transition-colors"
+                          title={isMuted ? "Unmute" : "Mute"}
+                        >
+                           {isMuted ? <VolumeX size={18} className="text-white" /> : <Volume2 size={18} className="text-white" />}
+                        </button>
+                     )}
                      <button onClick={closeStories} className="w-10 h-10 flex items-center justify-center bg-white/5 backdrop-blur-md border border-white/10 rounded-full hover:bg-white/10 transition-colors">
                         <X size={18} className="text-white" />
                      </button>
@@ -416,7 +454,26 @@ const StoriesSection = () => {
 
               {/* YouTube Invisible Wrapper */}
               {currentViewerStory.musicVideoId && (
-                <div className="absolute opacity-0 pointer-events-none z-0"><YouTube videoId={currentViewerStory.musicVideoId} opts={{ playerVars: { autoplay: 1, start: currentViewerStory.musicStartTime || 0, end: currentViewerStory.musicEndTime, controls: 0, origin: window.location.origin } }} /></div>
+                <div className="absolute opacity-0 pointer-events-none z-0">
+                  <YouTube 
+                    videoId={currentViewerStory.musicVideoId} 
+                    opts={{ 
+                      playerVars: { 
+                        autoplay: 1, 
+                        start: currentViewerStory.musicStartTime || 0, 
+                        end: currentViewerStory.musicEndTime, 
+                        controls: 0, 
+                        origin: window.location.origin,
+                        mute: isIOS ? 1 : 0
+                      } 
+                    }} 
+                    onReady={(e) => {
+                      setStoryPlayer(e.target);
+                      if (isIOS) e.target.mute();
+                      else e.target.unMute();
+                    }}
+                  />
+                </div>
               )}
 
               {/* Professional Interaction Deck */}
