@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import axios from "axios";
 import { Download, GraduationCap, X, ExternalLink, Sparkles, Bot } from "lucide-react";
 import { aboutDB, skillsDB, educationDB, AboutData, SkillItem, EducationItem } from "@/lib/adminData";
+import { API_BASE } from "@/config";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const About = () => {
@@ -56,8 +57,7 @@ const About = () => {
       4. Keep the response short (1 to 2 sentences maximum).
       5. Only use the facts provided above. If you don't know something, just be casual and say "Let's chat about that over email!"`;
 
-      const BASE_URL = import.meta.env.VITE_API_URL || "https://localhost:5000";
-      const res = await axios.post(`${BASE_URL}/api/ai/ask`, { prompt });
+      const res = await axios.post(`${API_BASE}/ai/ask`, { prompt });
       const responseText = res.data.answer || "My mind is a bit foggy... but I can tell you I love building great UIs!";
       
       // Typing effect

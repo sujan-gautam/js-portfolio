@@ -3,9 +3,7 @@
 const getBaseUrl = () => {
   // Use relative path by default in production to avoid CORS/WWW issues
   if (import.meta.env.PROD) {
-    if (typeof window !== "undefined" && window.location.hostname !== "localhost") {
-       return ""; // Relative path
-    }
+    return ""; // Relative path is safest for same-origin Vercel deployments
   }
   
   if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;

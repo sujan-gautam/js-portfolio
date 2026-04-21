@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { portfolioDB, PortfolioItem, aboutDB, AboutData } from "@/lib/adminData";
+import { API_BASE } from "@/config";
 import { ExternalLink, Globe, X, ShieldCheck, Terminal, Pin, Maximize2, Sparkles, Send, Bot } from "lucide-react";
 import { SmartText } from "@/components/ui/SmartText";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -94,11 +95,8 @@ INSTRUCTIONS:
 4. Use a casual, conversational tone (e.g., "I built this to...", "It was a fun challenge").
 5. Keep the response very short (1 to 2 sentences maximum).`;
 
-    const BASE_URL = import.meta.env.VITE_API_URL || "https://localhost:5000";
-    let txt = "No info available.";
-    
     try {
-      const res = await axios.post(`${BASE_URL}/api/ai/ask`, { prompt });
+      const res = await axios.post(`${API_BASE}/ai/ask`, { prompt });
       txt = res.data.answer || txt;
     } catch (err: any) {
       console.error("Internal AI Proxy Error:", err);

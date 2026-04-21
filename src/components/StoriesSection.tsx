@@ -114,7 +114,13 @@ const StoriesSection = () => {
   };
 
   const closeStories = () => {
-    if (storyPlayer) storyPlayer.pauseVideo();
+    if (storyPlayer && typeof storyPlayer.pauseVideo === 'function') {
+      try {
+        storyPlayer.pauseVideo();
+      } catch (err) {
+        console.warn("YouTube pause failed:", err);
+      }
+    }
     setStoryViewerOpen(false);
   };
 
@@ -296,7 +302,8 @@ const StoriesSection = () => {
                         autoplay: 0, 
                         start: currentBgMusic.startTime || 0, 
                         end: currentBgMusic.endTime, 
-                        controls: 0 
+                        controls: 0,
+                        origin: window.location.origin
                       } 
                     }} 
                     onReady={e => { setBgPlayer(e.target); setIsBgPlayerReady(true); }} 
