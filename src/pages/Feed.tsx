@@ -393,6 +393,7 @@ const PostCard = ({
   setGlobalMute: (v: boolean) => void;
   setMusicData: (data: MusicData | null) => void;
   playingMusicId: string | null;
+  isIOS: boolean;
 }) => {
   const [post, setPost] = useState(initialPost);
   const [commentsOpen, setCommentsOpen] = useState(false);
@@ -882,8 +883,8 @@ const PostCard = ({
               <Eye size={10} /> {post.views || 0}
             </div>
 
-            {/* Music volume control – only when post has music */}
-            {post.musicVideoId && (
+            {/* Music volume control – only on iOS according to same logic */}
+            {post.musicVideoId && isIOS && (
               <button
                 onClick={() => setGlobalMute(!globalMute)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[11px] font-medium transition-all ${
@@ -945,8 +946,15 @@ const Feed = () => {
   const [globalMute, setGlobalMute] = useState(false);
   const [musicData, setMusicData] = useState<MusicData | null>(null);
   const [ytPlayer, setYtPlayer] = useState<any>(null);
+  const [isIOS, setIsIOS] = useState(false);
 
   useEffect(() => {
+    // Detect iOS
+    const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+                        (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    setIsIOS(isIOSDevice);
+    setGlobalMute(isIOSDevice);
+
     feedAPI.getPosts().then(data => { 
       setPosts(data); 
       setLoading(false); 
@@ -1122,6 +1130,7 @@ const Feed = () => {
                          setGlobalMute={setGlobalMute} 
                          setMusicData={setMusicData}
                          playingMusicId={musicData?.id || null}
+                         isIOS={isIOS}
                        />
                     </div>
                     {/* Shadow Decor */}
