@@ -107,7 +107,11 @@ const FunWorkSchema = new mongoose.Schema({
   title: String, image: String, description: String, category: String
 });
 const StorySchema = new mongoose.Schema({
-  title: String, image: String, active: Boolean, createdAt: Date
+  title: String, 
+  image: String, 
+  type: { type: String, enum: ["image", "video", "gif"], default: "image" },
+  active: Boolean, 
+  createdAt: Date
 }, { strict: false });
 const PopupSchema = new mongoose.Schema({
   title: String, content: String, image: String, active: Boolean, startDate: String, endDate: String

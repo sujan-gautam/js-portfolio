@@ -51,10 +51,10 @@ export interface SliderItem { id: string; title: string; subtitle: string; image
 export interface ServiceItem { id: string; title: string; description: string; icon: string; active: boolean; }
 export interface VideoItem { id: string; title: string; url: string; thumbnail: string; description: string; createdAt: string; }
 export interface FunWorkItem { id: string; title: string; image: string; description: string; category: string; }
-export interface StoryLayer { id: string; type: "text" | "gif" | "image"; content: string; top: number; left: number; scale: number; rotation: number; color?: string; fontFamily?: string; fontSize?: number; filter?: string; }
+export interface StoryLayer { id: string; type: "text" | "gif" | "image" | "video"; content: string; top: number; left: number; scale: number; rotation: number; color?: string; fontFamily?: string; fontSize?: number; filter?: string; }
 export interface StoryComment { id: string; text: string; createdAt: string; ip: string; device: string; }
 export interface StoryAnalytics { type: string; ip: string; device: string; timestamp: string; }
-export interface StoryItem { id: string; title: string; image: string; active: boolean; createdAt: string; duration?: number; musicVideoId?: string; musicTitle?: string; musicArtist?: string; musicStartTime?: number; musicEndTime?: number; layers?: StoryLayer[]; filter?: string; views?: number; allowComments?: boolean; comments?: StoryComment[]; reacts?: { heart: number, fire: number, laugh: number }; analyticsLogs?: StoryAnalytics[]; }
+export interface StoryItem { id: string; title: string; image: string; type?: "image" | "video" | "gif"; active: boolean; createdAt: string; duration?: number; musicVideoId?: string; musicTitle?: string; musicArtist?: string; musicStartTime?: number; musicEndTime?: number; layers?: StoryLayer[]; filter?: string; views?: number; allowComments?: boolean; comments?: StoryComment[]; reacts?: { heart: number, fire: number, laugh: number }; analyticsLogs?: StoryAnalytics[]; }
 export interface PopupItem { id: string; title: string; content: string; image: string; active: boolean; startDate: string; endDate: string; }
 export interface AdItem { id: string; title: string; image: string; link: string; position: string; active: boolean; impressions: number; clicks: number; }
 export interface ContactMessage { id: string; name: string; email: string; subject: string; message: string; read: boolean; createdAt: string; }

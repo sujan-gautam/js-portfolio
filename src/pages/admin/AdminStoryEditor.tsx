@@ -67,10 +67,15 @@ const AdminStoryEditor = () => {
   const handleUploadBg = async (e: any) => {
     const file = e.target.files?.[0]; if (!file) return;
     setUploading(true);
+    // Detect type
+    let type: "image" | "video" | "gif" = "image";
+    if (file.type.startsWith("video/")) type = "video";
+    else if (file.type === "image/gif") type = "gif";
+
     const fd = new FormData(); fd.append("file", file);
     try {
       const res = await axios.post(`${API_BASE}/upload`, fd);
-      setItem(prev => prev ? { ...prev, image: res.data.url } : null);
+      setItem(prev => prev ? { ...prev, image: res.data.url, type } : null);
     } catch { toast.error("Upload failed"); }
     setUploading(false);
   };
@@ -199,7 +204,10 @@ const AdminStoryEditor = () => {
             }}
           >
             {item.image
-              ? <img src={item.image} className="w-full h-full object-cover absolute inset-0 pointer-events-none" />
+              ? (item.type === "video" || item.image.match(/\.(mp4|webm|mov|ogg)$/)
+                  ? <video src={item.image} autoPlay loop muted playsInline className="w-full h-full object-cover absolute inset-0 pointer-events-none" />
+                  : <img src={item.image} className="w-full h-full object-cover absolute inset-0 pointer-events-none" />
+                )
               : <div className="absolute inset-0 flex flex-col items-center justify-center border border-dashed border-white/10 m-8 rounded-2xl gap-3">
                   <ImageIcon size={40} className="text-white/10" />
                   <p className="text-[10px] text-white/20 font-medium uppercase tracking-widest">No Content</p>
@@ -220,8 +228,8 @@ const AdminStoryEditor = () => {
           <div className="mt-8 flex items-center gap-3 md:hidden">
             <div className="relative flex items-center gap-2 h-10 px-4 bg-white rounded-full border border-slate-200 shadow-sm active:scale-95 transition-all text-xs font-bold text-slate-700">
               <ImageIcon size={14} className="text-slate-400"/>
-              <span>{item.image ? 'Change' : 'Upload'} Image</span>
-              <input type="file" onChange={handleUploadBg} className="absolute inset-0 opacity-0 cursor-pointer" />
+              <span>{item.image ? 'Change' : 'Upload'} Media</span>
+              <input type="file" accept="image/*,video/*" onChange={handleUploadBg} className="absolute inset-0 opacity-0 cursor-pointer" />
               {uploading && <Loader2 size={14} className="animate-spin text-slate-400"/>}
             </div>
             <button onClick={addTextLayer} className="h-10 px-4 bg-slate-900 rounded-full text-xs font-bold text-white flex items-center gap-2 shadow-lg active:scale-95 transition-all">
@@ -246,8 +254,8 @@ const AdminStoryEditor = () => {
               </div>
               <div className="hidden md:block relative flex items-center gap-2 h-10 px-3 bg-slate-50 rounded-md border border-slate-200 hover:border-slate-300 cursor-pointer transition-colors">
                 <ImageIcon size={15} className="text-slate-400 shrink-0" />
-                <span className="text-sm text-slate-600">{item.image ? "Change Background" : "Upload Background"}</span>
-                <input type="file" onChange={handleUploadBg} className="absolute inset-0 opacity-0 cursor-pointer" />
+                <span className="text-sm text-slate-600">{item.image ? "Change Media" : "Upload Media (Img/Vid/Gif)"}</span>
+                <input type="file" accept="image/*,video/*" onChange={handleUploadBg} className="absolute inset-0 opacity-0 cursor-pointer" />
                 {uploading && <Loader2 size={15} className="ml-auto animate-spin text-slate-400" />}
               </div>
             </div>

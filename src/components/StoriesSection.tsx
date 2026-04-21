@@ -411,7 +411,18 @@ const StoriesSection = () => {
               </div>
 
               {/* Stage Asset */}
-              <img src={currentViewerStory.image} alt="Story Layout" className="absolute inset-0 w-full h-full object-cover flex-shrink-0" />
+              {currentViewerStory.type === "video" || currentViewerStory.image.match(/\.(mp4|webm|mov|ogg)$/) ? (
+                <video 
+                  src={currentViewerStory.image} 
+                  autoPlay 
+                  loop 
+                  muted 
+                  playsInline 
+                  className="absolute inset-0 w-full h-full object-cover flex-shrink-0" 
+                />
+              ) : (
+                <img src={currentViewerStory.image} alt="Story Layout" className="absolute inset-0 w-full h-full object-cover flex-shrink-0" />
+              )}
 
               {/* Overlays / Typographies */}
               <div className="absolute inset-0 z-[66] pointer-events-none">
@@ -419,7 +430,9 @@ const StoriesSection = () => {
                     <div key={l.id} className={`absolute whitespace-pre-wrap font-black uppercase ${l.type === "text" ? "pointer-events-auto" : ""}`}
                        style={{ top: `${l.top}%`, left: `${l.left}%`, transform: `translate(-50%, -50%) scale(${l.scale}) rotate(${l.rotation}deg)`, color: l.color, fontFamily: l.fontFamily || "Inter", fontSize: `${l.fontSize || 24}px`, textShadow: '0 4px 12px rgba(0,0,0,0.5)', letterSpacing: '-0.02em' }}
                     >
-                      {l.type === "text" ? <SmartText text={l.content} /> : null}
+                      {l.type === "text" && <SmartText text={l.content} />}
+                      {(l.type === "image" || l.type === "gif") && <img src={l.content} className="w-full h-full object-contain" alt="Layer asset" />}
+                      {l.type === "video" && <video src={l.content} autoPlay loop muted playsInline className="w-full h-full object-contain" />}
                     </div>
                  ))}
               </div>
