@@ -464,6 +464,25 @@ const StoriesSection = () => {
               {/* Members Only Overlay */}
               {currentViewerStory.isMembersOnly && !user && (
                  <div className="absolute inset-0 z-[75] flex flex-col items-center justify-center p-8 text-center bg-black/20 backdrop-blur-xl">
+                    {/* Navigation for Restricted View */}
+                    <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex justify-between px-4 pointer-events-none">
+                       <button 
+                         onClick={prevStory} 
+                         className={cn(
+                           "w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-all active:scale-90 pointer-events-auto",
+                           storyIndex === 0 && "opacity-0 pointer-events-none"
+                         )}
+                       >
+                          <ChevronLeft size={24} className="text-white/40" />
+                       </button>
+                       <button 
+                         onClick={nextStory} 
+                         className="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-all active:scale-90 pointer-events-auto"
+                       >
+                          <ChevronRight size={24} className="text-white/40" />
+                       </button>
+                    </div>
+
                     <div className="w-14 h-14 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-6">
                        <Lock size={22} className="text-white/40" />
                     </div>
