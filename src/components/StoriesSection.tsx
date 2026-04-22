@@ -242,17 +242,15 @@ const StoriesSection = () => {
               <button onClick={openStories} className="relative w-16 h-16 rounded-full p-[3px] flex-shrink-0 cursor-pointer group focus:outline-none">
                 <div className="absolute inset-0 rounded-full border-2 border-dashed border-primary animate-[spin_8s_linear_infinite] group-hover:border-solid group-hover:animate-none transition-all" />
                 <div className="w-full h-full rounded-full overflow-hidden border-4 border-background bg-secondary relative z-10 shadow-md">
-                  <img 
-                    src={storyImage} 
-                    alt="Story" 
-                    className={cn(
-                      "w-full h-full object-cover group-hover:scale-110 transition-all duration-500",
-                      isFirstStoryRestricted && "blur-[10px] grayscale brightness-50"
-                    )} 
-                  />
-                  {isFirstStoryRestricted && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                      <Lock size={14} className="text-white/60" />
+                  {!isFirstStoryRestricted ? (
+                    <img 
+                      src={storyImage} 
+                      alt="Story" 
+                      className="w-full h-full object-cover group-hover:scale-110 transition-all duration-500"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-neutral-800 flex items-center justify-center">
+                       <Lock size={14} className="text-white/20" />
                     </div>
                   )}
                 </div>
@@ -446,18 +444,22 @@ const StoriesSection = () => {
               </div>
 
               {/* Stage Asset */}
-              <div className={`absolute inset-0 w-full h-full transition-all duration-700 ${currentViewerStory.isMembersOnly && !user ? 'blur-[30px] scale-110 opacity-50' : ''}`}>
-                {currentViewerStory.type === "video" || currentViewerStory.image.match(/\.(mp4|webm|mov|ogg)$/) ? (
-                  <video 
-                    src={currentViewerStory.image} 
-                    autoPlay 
-                    loop 
-                    muted 
-                    playsInline 
-                    className="absolute inset-0 w-full h-full object-cover flex-shrink-0" 
-                  />
+              <div className={`absolute inset-0 w-full h-full transition-all duration-700 ${currentViewerStory.isMembersOnly && !user ? 'opacity-20' : ''}`}>
+                {!(currentViewerStory.isMembersOnly && !user) ? (
+                  currentViewerStory.type === "video" || currentViewerStory.image.match(/\.(mp4|webm|mov|ogg)$/) ? (
+                    <video 
+                      src={currentViewerStory.image} 
+                      autoPlay 
+                      loop 
+                      muted 
+                      playsInline 
+                      className="absolute inset-0 w-full h-full object-cover flex-shrink-0" 
+                    />
+                  ) : (
+                    <img src={currentViewerStory.image} alt="Story Layout" className="absolute inset-0 w-full h-full object-cover flex-shrink-0" />
+                  )
                 ) : (
-                  <img src={currentViewerStory.image} alt="Story Layout" className="absolute inset-0 w-full h-full object-cover flex-shrink-0" />
+                  <div className="absolute inset-0 bg-neutral-900" />
                 )}
               </div>
 
