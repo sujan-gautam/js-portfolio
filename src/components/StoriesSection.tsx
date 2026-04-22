@@ -399,7 +399,7 @@ const StoriesSection = () => {
                       </div>
                       <div className="flex flex-col gap-1">
                         
-                        {currentViewerStory.musicVideoId && (
+                        {currentViewerStory.musicVideoId && !(currentViewerStory.isMembersOnly && !user) && (
                           <div className="flex items-center gap-2 bg-white/10 backdrop-blur-md px-2 py-0.5 rounded-full border border-white/5 animate-in slide-in-from-left-2 duration-300 w-fit max-w-[160px]">
                              <Music size={10} className="text-white flex-shrink-0" />
                              
