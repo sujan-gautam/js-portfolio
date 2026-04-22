@@ -99,6 +99,7 @@ const StoriesSection = () => {
   const hasMusic = music.length > 0 && music[0].videoId;
   const currentBgMusic = hasMusic ? music[0] : null;
   const hasStories = stories.length > 0;
+  const isFirstStoryRestricted = hasStories && stories[0].isMembersOnly && !user;
   const storyImage = hasStories ? stories[0].image : profileImgFallback;
   const currentViewerStory = hasStories ? stories[storyIndex] : null;
 
@@ -240,9 +241,23 @@ const StoriesSection = () => {
               <button onClick={openStories} className="relative w-16 h-16 rounded-full p-[3px] flex-shrink-0 cursor-pointer group focus:outline-none">
                 <div className="absolute inset-0 rounded-full border-2 border-dashed border-primary animate-[spin_8s_linear_infinite] group-hover:border-solid group-hover:animate-none transition-all" />
                 <div className="w-full h-full rounded-full overflow-hidden border-4 border-background bg-secondary relative z-10 shadow-md">
-                  <img src={storyImage} alt="Story" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                  <img 
+                    src={storyImage} 
+                    alt="Story" 
+                    className={cn(
+                      "w-full h-full object-cover group-hover:scale-110 transition-all duration-500",
+                      isFirstStoryRestricted && "blur-[10px] grayscale brightness-50"
+                    )} 
+                  />
+                  {isFirstStoryRestricted && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                      <Lock size={14} className="text-white/60" />
+                    </div>
+                  )}
                 </div>
-                <div className="absolute -top-1 -right-1 bg-primary text-[9px] text-primary-foreground font-bold px-1.5 py-0.5 rounded-full z-20 shadow-sm uppercase tracking-wider">Live</div>
+                <div className="absolute -top-1 -right-1 bg-primary text-[9px] text-primary-foreground font-bold px-1.5 py-0.5 rounded-full z-20 shadow-sm uppercase tracking-wider">
+                  {isFirstStoryRestricted ? 'Member' : 'Live'}
+                </div>
               </button>
             )}
 
@@ -374,8 +389,8 @@ const StoriesSection = () => {
                       <div className="flex items-center gap-2">
                         <p className="text-white font-black text-sm tracking-tight leading-none">{currentViewerStory.title}</p>
                         {currentViewerStory.isMembersOnly && (
-                           <div className="flex items-center gap-1 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded text-[8px] text-amber-500 font-black uppercase tracking-wider">
-                              <Lock size={8} /> Member
+                           <div className="flex items-center gap-1 bg-white/10 backdrop-blur-md border border-white/10 px-2 py-0.5 rounded text-[9px] text-white/60 font-bold uppercase tracking-wider">
+                              <Lock size={9} /> Members Only
                            </div>
                         )}
                         <span className="text-white/30 text-[10px] select-none">•</span>
@@ -447,23 +462,22 @@ const StoriesSection = () => {
 
               {/* Members Only Overlay */}
               {currentViewerStory.isMembersOnly && !user && (
-                 <div className="absolute inset-0 z-[75] flex flex-col items-center justify-center p-8 text-center bg-black/40 backdrop-blur-md">
-                    <div className="w-20 h-20 rounded-full bg-white/10 border border-white/10 flex items-center justify-center mb-6 animate-pulse">
-                       <Lock size={40} className="text-white/60" />
+                 <div className="absolute inset-0 z-[75] flex flex-col items-center justify-center p-8 text-center bg-black/20 backdrop-blur-xl">
+                    <div className="w-14 h-14 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-6">
+                       <Lock size={22} className="text-white/40" />
                     </div>
-                    <h3 className="text-2xl font-black text-white mb-2 uppercase tracking-tighter italic">Exclusive Content</h3>
-                    <p className="text-white/60 text-sm font-medium mb-8 max-w-[240px]">
-                       This story is reserved for the inner circle. Join the community to unlock this moment.
+                    <h3 className="text-lg font-semibold text-white mb-1 tracking-tight">Members Only Content</h3>
+                    <p className="text-white/40 text-[13px] mb-8 max-w-[200px] leading-relaxed">
+                       Please sign in to view this story.
                     </p>
                     <button 
                       onClick={handleGoogleLogin}
-                      className="group relative px-8 py-4 bg-white text-black font-black uppercase text-xs tracking-[0.2em] rounded-full overflow-hidden hover:scale-105 active:scale-95 transition-all shadow-2xl flex items-center gap-3"
+                      className="h-11 px-6 bg-white text-black font-semibold text-[13px] rounded-full hover:bg-neutral-200 active:scale-95 transition-all shadow-xl flex items-center gap-2.5"
                     >
-                       <img src="https://www.google.com/favicon.ico" className="w-4 h-4 grayscale group-hover:grayscale-0 transition-all" alt="google" />
-                       Signin to View
-                       <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                       <img src="https://www.google.com/favicon.ico" className="w-3.5 h-3.5" alt="google" />
+                       Continue with Google
                     </button>
-                    <p className="mt-6 text-[10px] text-white/30 uppercase font-black tracking-widest">Free access • instant unlock</p>
+                    <p className="mt-8 text-[9px] text-white/20 uppercase font-bold tracking-[0.1em]">Free access • Instant unlock</p>
                  </div>
               )}
 
