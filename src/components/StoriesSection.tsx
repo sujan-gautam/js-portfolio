@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import YouTube from "react-youtube";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { ChevronLeft, ChevronRight, Play, Pause, Loader2, Send, MessageSquare, X, UserCheck, Music, Star, Volume2, VolumeX } from "lucide-react";
+import { ChevronLeft, ChevronRight, Play, Pause, Loader2, Send, MessageSquare, X, UserCheck, Music, Star, Volume2, VolumeX, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import axios from "axios";
@@ -9,6 +9,7 @@ import { storiesDB, musicDB, StoryItem, MusicItem } from "@/lib/adminData";
 import { API_BASE } from "@/config";
 import { SmartText } from "@/components/ui/SmartText";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAuth } from "@/context/AuthContext";
 
 import profileImgFallback from "@/assets/profile-3.jpg";
 
@@ -22,6 +23,7 @@ const storyAnimations = `
 `;
 
 const StoriesSection = () => {
+  const { user } = useAuth();
   const [stories, setStories] = useState<StoryItem[]>([]);
   const [music, setMusic] = useState<MusicItem[]>([]);
 
@@ -212,6 +214,11 @@ const StoriesSection = () => {
     return `${diffDays}d`;
   };
 
+  const handleGoogleLogin = () => {
+    localStorage.setItem("auth_return", window.location.pathname);
+    window.location.href = `${API_BASE}/auth/google`;
+  };
+
   if (!isLoading && !hasStories && !hasMusic) return null;
 
   return (
@@ -366,6 +373,11 @@ const StoriesSection = () => {
                     <div className="flex flex-col gap-1.5">
                       <div className="flex items-center gap-2">
                         <p className="text-white font-black text-sm tracking-tight leading-none">{currentViewerStory.title}</p>
+                        {currentViewerStory.isMembersOnly && (
+                           <div className="flex items-center gap-1 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded text-[8px] text-amber-500 font-black uppercase tracking-wider">
+                              <Lock size={8} /> Member
+                           </div>
+                        )}
                         <span className="text-white/30 text-[10px] select-none">•</span>
                         <p className="text-white/40 text-[11px] font-bold tracking-tight lowercase">{formatStoryDate(currentViewerStory.createdAt)}</p>
                       </div>
@@ -418,21 +430,45 @@ const StoriesSection = () => {
               </div>
 
               {/* Stage Asset */}
-              {currentViewerStory.type === "video" || currentViewerStory.image.match(/\.(mp4|webm|mov|ogg)$/) ? (
-                <video 
-                  src={currentViewerStory.image} 
-                  autoPlay 
-                  loop 
-                  muted 
-                  playsInline 
-                  className="absolute inset-0 w-full h-full object-cover flex-shrink-0" 
-                />
-              ) : (
-                <img src={currentViewerStory.image} alt="Story Layout" className="absolute inset-0 w-full h-full object-cover flex-shrink-0" />
+              <div className={`absolute inset-0 w-full h-full transition-all duration-700 ${currentViewerStory.isMembersOnly && !user ? 'blur-[30px] scale-110 opacity-50' : ''}`}>
+                {currentViewerStory.type === "video" || currentViewerStory.image.match(/\.(mp4|webm|mov|ogg)$/) ? (
+                  <video 
+                    src={currentViewerStory.image} 
+                    autoPlay 
+                    loop 
+                    muted 
+                    playsInline 
+                    className="absolute inset-0 w-full h-full object-cover flex-shrink-0" 
+                  />
+                ) : (
+                  <img src={currentViewerStory.image} alt="Story Layout" className="absolute inset-0 w-full h-full object-cover flex-shrink-0" />
+                )}
+              </div>
+
+              {/* Members Only Overlay */}
+              {currentViewerStory.isMembersOnly && !user && (
+                 <div className="absolute inset-0 z-[75] flex flex-col items-center justify-center p-8 text-center bg-black/40 backdrop-blur-md">
+                    <div className="w-20 h-20 rounded-full bg-white/10 border border-white/10 flex items-center justify-center mb-6 animate-pulse">
+                       <Lock size={40} className="text-white/60" />
+                    </div>
+                    <h3 className="text-2xl font-black text-white mb-2 uppercase tracking-tighter italic">Exclusive Content</h3>
+                    <p className="text-white/60 text-sm font-medium mb-8 max-w-[240px]">
+                       This story is reserved for the inner circle. Join the community to unlock this moment.
+                    </p>
+                    <button 
+                      onClick={handleGoogleLogin}
+                      className="group relative px-8 py-4 bg-white text-black font-black uppercase text-xs tracking-[0.2em] rounded-full overflow-hidden hover:scale-105 active:scale-95 transition-all shadow-2xl flex items-center gap-3"
+                    >
+                       <img src="https://www.google.com/favicon.ico" className="w-4 h-4 grayscale group-hover:grayscale-0 transition-all" alt="google" />
+                       Signin to View
+                       <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </button>
+                    <p className="mt-6 text-[10px] text-white/30 uppercase font-black tracking-widest">Free access • instant unlock</p>
+                 </div>
               )}
 
               {/* Overlays / Typographies */}
-              <div className="absolute inset-0 z-[66] pointer-events-none">
+              <div className={`absolute inset-0 z-[66] pointer-events-none transition-opacity duration-700 ${currentViewerStory.isMembersOnly && !user ? 'opacity-0' : 'opacity-100'}`}>
                  {currentViewerStory.layers?.map(l => (
                     <div key={l.id} className={`absolute whitespace-pre-wrap font-black uppercase ${l.type === "text" ? "pointer-events-auto" : ""}`}
                        style={{ top: `${l.top}%`, left: `${l.left}%`, transform: `translate(-50%, -50%) scale(${l.scale}) rotate(${l.rotation}deg)`, color: l.color, fontFamily: l.fontFamily || "Inter", fontSize: `${l.fontSize || 24}px`, textShadow: '0 4px 12px rgba(0,0,0,0.5)', letterSpacing: '-0.02em' }}
@@ -447,7 +483,7 @@ const StoriesSection = () => {
               {/* Now Playing Badge if music */}
               {(() => {
                 const storyMusic = music.find(m => m.videoId === currentViewerStory.musicVideoId);
-                if (!storyMusic) return null;
+                if (!storyMusic || (currentViewerStory.isMembersOnly && !user)) return null;
                 return (
                   <div className="absolute bottom-[160px] left-6 z-30 animate-in slide-in-from-left-4 duration-500">
                     <div className="bg-primary px-3 py-1.5 rounded-md flex items-center gap-2 shadow-xl">
@@ -473,7 +509,7 @@ const StoriesSection = () => {
               </div>
 
               {/* YouTube Invisible Wrapper */}
-              {currentViewerStory.musicVideoId && (
+              {currentViewerStory.musicVideoId && !(currentViewerStory.isMembersOnly && !user) && (
                 <div className="absolute opacity-0 pointer-events-none z-0">
                   <YouTube 
                     videoId={currentViewerStory.musicVideoId} 
@@ -497,7 +533,7 @@ const StoriesSection = () => {
               )}
 
               {/* Professional Interaction Deck */}
-              <div className="absolute bottom-0 inset-x-0 z-[70] bg-gradient-to-t from-black via-black/80 to-transparent pt-32 pb-8 px-6 pointer-events-none flex flex-col justify-end gap-6 min-h-[400px]">
+              <div className={`absolute bottom-0 inset-x-0 z-[70] bg-gradient-to-t from-black via-black/80 to-transparent pt-32 pb-8 px-6 pointer-events-none flex flex-col justify-end gap-6 min-h-[400px] transition-all duration-700 ${currentViewerStory.isMembersOnly && !user ? 'translate-y-full opacity-0' : 'translate-y-0 opacity-100'}`}>
 
                 {/* Instagram-Style Comments Drawer */}
                 {commentsDrawerOpen && (

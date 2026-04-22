@@ -50,8 +50,8 @@ const AdminStory = () => {
   };
 
   const openEditor = (story?: StoryItem) => {
-    if (story) setItem({ ...story, layers: story.layers || [], allowComments: story.allowComments ?? true });
-    else setItem({ active: true, allowComments: true, layers: [], title: "", duration: 5000, filter: "none", views: 0 });
+    if (story) setItem({ ...story, layers: story.layers || [], allowComments: story.allowComments ?? true, isMembersOnly: story.isMembersOnly ?? false });
+    else setItem({ active: true, isMembersOnly: false, allowComments: true, layers: [], title: "", duration: 5000, filter: "none", views: 0 });
     setEditorOpen(true);
     setActiveLayer(null);
   };
@@ -228,6 +228,13 @@ const AdminStory = () => {
                     <Label className="text-xs font-medium text-slate-700">Title</Label>
                     <Input value={item.title || ""} onChange={e => setItem({...item, title: e.target.value})} className="h-10 rounded-md border-slate-200 text-sm" placeholder="Story title..." />
                   </div>
+                  <div className="flex items-center justify-between p-3 bg-slate-50 rounded-md border border-slate-200">
+                    <div>
+                      <p className="text-sm font-medium text-slate-800">Members Only</p>
+                      <p className="text-[11px] text-slate-500">Restrict to logged-in members</p>
+                    </div>
+                    <Switch checked={item.isMembersOnly || false} onCheckedChange={v => setItem({...item, isMembersOnly: v})} />
+                  </div>
                   <div className="relative flex items-center gap-2 h-10 px-3 bg-slate-50 rounded-md border border-slate-200 hover:border-slate-300 cursor-pointer transition-colors">
                     <ImageIcon size={15} className="text-slate-400 shrink-0"/>
                     <span className="text-sm text-slate-600">{item.image ? 'Change Background' : 'Upload Background'}</span>
@@ -238,9 +245,18 @@ const AdminStory = () => {
               </section>
 
               {/* Title only (mobile) */}
-              <div className="md:hidden space-y-1.5">
-                <Label className="text-xs font-medium text-slate-700">Title</Label>
-                <Input value={item.title || ""} onChange={e => setItem({...item, title: e.target.value})} className="h-10 rounded-md border-slate-200 text-sm" placeholder="Story title..." />
+              <div className="md:hidden space-y-2.5">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-slate-700">Title</Label>
+                  <Input value={item.title || ""} onChange={e => setItem({...item, title: e.target.value})} className="h-10 rounded-md border-slate-200 text-sm" placeholder="Story title..." />
+                </div>
+                <div className="flex items-center justify-between p-3 bg-slate-50 rounded-md border border-slate-200">
+                  <div>
+                    <p className="text-sm font-medium text-slate-800">Members Only</p>
+                    <p className="text-[11px] text-slate-500">Restrict to members</p>
+                  </div>
+                  <Switch checked={item.isMembersOnly || false} onCheckedChange={v => setItem({...item, isMembersOnly: v})} />
+                </div>
               </div>
 
               {/* Layers */}

@@ -20,7 +20,7 @@ const AdminStoryEditor = () => {
 
   const [loading, setLoading] = useState(isEdit);
   const [item, setItem] = useState<Partial<StoryItem>>({
-    active: true, allowComments: true, layers: [], title: "", duration: 5000, filter: "none", views: 0
+    active: true, isMembersOnly: false, allowComments: true, layers: [], title: "", duration: 5000, filter: "none", views: 0
   });
 
   const [activeLayer, setActiveLayer] = useState<string | null>(null);
@@ -40,7 +40,7 @@ const AdminStoryEditor = () => {
     storiesDB.getAll()
       .then(all => {
         const found = all.find(s => s.id === id);
-        if (found) setItem({ ...found, layers: found.layers || [], allowComments: found.allowComments ?? true });
+        if (found) setItem({ ...found, layers: found.layers || [], allowComments: found.allowComments ?? true, isMembersOnly: found.isMembersOnly ?? false });
         else { toast.error("Story not found"); navigate("/admin/story"); }
       })
       .finally(() => setLoading(false));
@@ -246,7 +246,7 @@ const AdminStoryEditor = () => {
           <div className="p-6 space-y-8">
           {/* Content (Title only on mobile since upload is in canvas) */}
           <section className="space-y-4">
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Story Details</p>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">STORY SETTINGS (EDITED)</p>
             <div className="space-y-3">
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium text-slate-700">Title</Label>
@@ -349,6 +349,13 @@ const AdminStoryEditor = () => {
                 <p className="text-xs text-slate-500 mt-0.5">Show on public site</p>
               </div>
               <Switch checked={item.active} onCheckedChange={v => setItem({ ...item, active: v })} />
+            </div>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-800">Members Only</p>
+                <p className="text-xs text-slate-500 mt-0.5">Restrict to members only</p>
+              </div>
+              <Switch checked={item.isMembersOnly || false} onCheckedChange={v => setItem({ ...item, isMembersOnly: v })} />
             </div>
             <div className="flex items-center justify-between">
               <div>

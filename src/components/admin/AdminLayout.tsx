@@ -33,6 +33,7 @@ const navItems = [
   { group: "System", items: [
     { label: "Settings", icon: Settings, path: "/admin/settings" },
     { label: "Music", icon: Music, path: "/admin/music" },
+    { label: "Users", icon: Users, path: "/admin/users" },
   ]}
 ];
 

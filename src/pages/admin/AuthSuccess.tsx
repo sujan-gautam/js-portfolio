@@ -12,8 +12,12 @@ const AuthSuccess = () => {
     const token = searchParams.get("token");
     if (token) {
       login(token);
+      
+      const returnPath = localStorage.getItem("auth_return") || "/";
+      localStorage.removeItem("auth_return");
+
       setTimeout(() => {
-        navigate("/admin");
+        navigate(returnPath);
       }, 500);
     } else {
       navigate("/admin/login");

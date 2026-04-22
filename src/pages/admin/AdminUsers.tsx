@@ -8,7 +8,7 @@ const BASE = "/admin/users";
 export const fields: FieldConfig[] = [
   { key: "name",      label: "Name",   type: "text",   required: true },
   { key: "email",     label: "Email",  type: "text",   required: true },
-  { key: "role",      label: "Role",   type: "select", options: ["admin", "editor", "viewer"] },
+  { key: "role",      label: "Role",   type: "select", options: ["admin", "member", "editor", "viewer"] },
   { key: "status",    label: "Status", type: "select", options: ["active", "inactive"] },
   { key: "createdAt", label: "Joined", type: "date" },
 ];

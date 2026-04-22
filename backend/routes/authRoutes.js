@@ -55,11 +55,8 @@ passport.use(new GoogleStrategy({
   async (accessToken, refreshToken, profile, done) => {
     try {
       const email = profile.emails[0].value;
-      
-      // Strict Admin Check
-      if (email !== process.env.ADMIN_EMAIL) {
-        return done(null, false, { message: "Unauthorized access" });
-      }
+      const isAdmin = email === process.env.ADMIN_EMAIL;
+      const role = isAdmin ? "admin" : "member";
 
       let user = await User.findOne({ email });
       if (!user) {
@@ -68,12 +65,12 @@ passport.use(new GoogleStrategy({
           name: profile.displayName,
           email: email,
           avatar: profile.photos[0]?.value,
-          role: "admin"
+          role: role
         });
       } else {
         user.googleId = profile.id;
         user.avatar = profile.photos[0]?.value;
-        user.role = "admin";
+        user.role = role; // Keep roles updated if admin status changes
         await user.save();
       }
       return done(null, user);

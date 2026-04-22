@@ -111,6 +111,7 @@ const StorySchema = new mongoose.Schema({
   image: String, 
   type: { type: String, enum: ["image", "video", "gif"], default: "image" },
   active: Boolean, 
+  isMembersOnly: { type: Boolean, default: false },
   createdAt: Date
 }, { strict: false });
 const PopupSchema = new mongoose.Schema({
