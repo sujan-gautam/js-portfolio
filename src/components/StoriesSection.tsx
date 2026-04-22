@@ -289,19 +289,21 @@ const StoriesSection = () => {
                 </div>
 
                 {/* Song Info - High Density */}
-                <div className="flex flex-col min-w-[70px] max-w-[110px] overflow-hidden">
-                  <div className="flex whitespace-nowrap animate-marquee group-hover:pause-animation">
-                    <h3 className="text-white text-[11px] font-black tracking-tight leading-none uppercase pr-6">
-                       {currentBgMusic.title}
-                    </h3>
-                    <h3 className="text-white text-[11px] font-black tracking-tight leading-none uppercase pr-6" aria-hidden="true">
-                       {currentBgMusic.title}
-                    </h3>
+                {!isFirstStoryRestricted && (
+                  <div className="flex flex-col min-w-[70px] max-w-[110px] overflow-hidden">
+                    <div className="flex whitespace-nowrap animate-marquee group-hover:pause-animation">
+                      <h3 className="text-white text-[11px] font-black tracking-tight leading-none uppercase pr-6">
+                        {currentBgMusic.title}
+                      </h3>
+                      <h3 className="text-white text-[11px] font-black tracking-tight leading-none uppercase pr-6" aria-hidden="true">
+                        {currentBgMusic.title}
+                      </h3>
+                    </div>
+                    <p className="text-white/30 text-[9px] font-bold uppercase tracking-widest leading-none mt-1">
+                      {currentBgMusic.artist || (currentBgMusic.title.includes('-') ? currentBgMusic.title.split('-')[1].trim() : 'Artist')}
+                    </p>
                   </div>
-                  <p className="text-white/30 text-[9px] font-bold uppercase tracking-widest leading-none mt-1">
-                    {currentBgMusic.artist || (currentBgMusic.title.includes('-') ? currentBgMusic.title.split('-')[1].trim() : 'Artist')}
-                  </p>
-                </div>
+                )}
 
                 {/* Minimalist Play Button */}
                 <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center transition-all group-hover:scale-110 shadow-lg flex-shrink-0">
@@ -399,7 +401,7 @@ const StoriesSection = () => {
                       </div>
                       <div className="flex flex-col gap-1">
                         
-                        {currentViewerStory.musicVideoId && (
+                        {currentViewerStory.musicVideoId && !(currentViewerStory.isMembersOnly && !user) && (
                           <div className="flex items-center gap-2 bg-white/10 backdrop-blur-md px-2 py-0.5 rounded-full border border-white/5 animate-in slide-in-from-left-2 duration-300 w-fit max-w-[160px]">
                              <Music size={10} className="text-white flex-shrink-0" />
                              
@@ -478,7 +480,6 @@ const StoriesSection = () => {
                        <img src="https://www.google.com/favicon.ico" className="w-3.5 h-3.5" alt="google" />
                        Continue with Google
                     </button>
-                    <p className="mt-8 text-[9px] text-white/20 uppercase font-bold tracking-[0.1em]">Free access • Instant unlock</p>
                  </div>
               )}
 
