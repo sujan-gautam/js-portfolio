@@ -12,6 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/context/AuthContext";
 
 import profileImgFallback from "@/assets/profile-3.jpg";
+import { cn } from "@/lib/utils";
 
 const storyAnimations = `
   @keyframes float-up-fade {
