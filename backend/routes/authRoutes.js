@@ -21,6 +21,7 @@ const loginLimiter = rateLimit({
   message: { error: "Too many login attempts. Your IP has been temporarily blocked for 15 minutes." },
   standardHeaders: true, 
   legacyHeaders: false,
+  validate: { trustProxy: false },
   handler: (req, res, next, options) => {
     console.warn(`[SECURITY] Potential brute force attempt from IP: ${req.ip}`);
     res.status(429).json(options.message);
@@ -31,6 +32,7 @@ const loginLimiter = rateLimit({
 const authLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
   max: 50, 
+  validate: { trustProxy: false },
   message: { error: "Excessive authentication requests. Please try again later." }
 });
 

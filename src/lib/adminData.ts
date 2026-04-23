@@ -47,11 +47,31 @@ export interface FeedPost {
 }
 // Legacy alias kept for any existing references
 export type FeedItem = FeedPost;
-export interface SliderItem { id: string; title: string; subtitle: string; image: string; order: number; active: boolean; }
+export interface SliderItem { id: string; title: string; subtitle: string; image: string; order: number; active: boolean; filter?: string; }
 export interface ServiceItem { id: string; title: string; description: string; icon: string; active: boolean; }
 export interface VideoItem { id: string; title: string; url: string; thumbnail: string; description: string; createdAt: string; }
 export interface FunWorkItem { id: string; title: string; image: string; description: string; category: string; }
-export interface StoryLayer { id: string; type: "text" | "gif" | "image" | "video"; content: string; top: number; left: number; scale: number; rotation: number; color?: string; fontFamily?: string; fontSize?: number; filter?: string; }
+export interface StoryLayer { 
+  id: string; 
+  type: "text" | "gif" | "image" | "video" | "link" | "poll" | "sticker"; 
+  content: string; 
+  top: number; 
+  left: number; 
+  scale: number; 
+  rotation: number; 
+  color?: string; 
+  fontFamily?: string; 
+  fontSize?: number; 
+  // Specific properties
+  linkUrl?: string;
+  linkLabel?: string;
+  pollQuestion?: string;
+  pollOptions?: { id: string; label: string; votes: number; voters: string[] }[];
+  stickerId?: string;
+  width?: number;
+  height?: number;
+  filter?: string; 
+}
 export interface StoryComment { id: string; text: string; createdAt: string; ip: string; device: string; }
 export interface StoryAnalytics { type: string; ip: string; device: string; timestamp: string; }
 export interface StoryItem { id: string; title: string; image: string; type?: "image" | "video" | "gif"; active: boolean; isMembersOnly?: boolean; createdAt: string; duration?: number; musicVideoId?: string; musicTitle?: string; musicArtist?: string; musicStartTime?: number; musicEndTime?: number; layers?: StoryLayer[]; filter?: string; views?: number; allowComments?: boolean; comments?: StoryComment[]; reacts?: { heart: number, fire: number, laugh: number }; analyticsLogs?: StoryAnalytics[]; }

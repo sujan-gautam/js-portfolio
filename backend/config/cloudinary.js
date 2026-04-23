@@ -14,10 +14,13 @@ cloudinary.config({
 
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
-  params: {
-    folder: 'exact-echo',
-    resource_type: 'auto',
-    // allow audio, video, image
+  params: async (req, file) => {
+    const isPrivate = req.headers['x-members-only'] === 'true' || req.body?.isMembersOnly === 'true';
+    return {
+      folder: 'exact-echo',
+      resource_type: 'auto',
+      type: isPrivate ? 'authenticated' : 'upload'
+    };
   }
 });
 

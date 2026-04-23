@@ -79,9 +79,10 @@ const HeroSection = () => {
           <div className="w-72 h-72 md:w-96 md:h-96 rounded-full overflow-hidden border-2 border-border relative">
             <div className="absolute inset-0 bg-background/20 z-10 pointer-events-none" />
             <img
-              src={visuals[currentSlide]}
+              src={sortedSliders[currentSlide]?.image}
               alt={about?.name || "Sujan"}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-cover transition-all duration-700"
+              style={{ filter: sortedSliders[currentSlide]?.filter || 'none' }}
               width={800}
               height={800}
             />

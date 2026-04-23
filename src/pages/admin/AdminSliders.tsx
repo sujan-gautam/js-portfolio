@@ -9,6 +9,7 @@ export const fields: FieldConfig[] = [
   { key: "title",    label: "Title",    type: "text",   required: true },
   { key: "subtitle", label: "Subtitle", type: "text" },
   { key: "image",    label: "Image URL",type: "url" },
+  { key: "filter",   label: "CSS Filter",type: "text",  placeholder: "e.g. sepia(0.5) contrast(1.2)" },
   { key: "order",    label: "Order",    type: "number" },
   { key: "active",   label: "Active",   type: "toggle" },
 ];

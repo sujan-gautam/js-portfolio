@@ -1,8 +1,45 @@
 import express from "express";
 import * as Models from "../models/index.js";
 import { parser } from "../config/cloudinary.js";
+import { v2 as cloudinary } from "cloudinary";
+import jwt from "jsonwebtoken";
 
 const router = express.Router();
+
+router.get("/collection/stories/secure-media", async (req, res) => {
+  const { url, token } = req.query;
+  if (!url) return res.status(400).json({ error: "Missing url" });
+  if (!token) return res.status(401).json({ error: "Missing token" });
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    if (!decoded || !decoded.id) return res.status(401).json({ error: "Invalid token" });
+
+    const urlObj = new URL(url);
+    const pathParts = urlObj.pathname.split('/');
+    const folderIndex = pathParts.findIndex(p => p === 'exact-echo');
+    if (folderIndex === -1) {
+       return res.redirect(url);
+    }
+    
+    // Parse Cloudinary URL accurately
+    // Format: https://res.cloudinary.com/<cloud>/<resource_type>/<delivery_type>/v<version>/<public_id>
+    const resourceType = pathParts[2] || "image"; 
+    const deliveryType = pathParts[3] || "upload"; 
+    const publicIdWithExt = pathParts.slice(folderIndex).join('/');
+    
+    const signedUrl = cloudinary.utils.url(publicIdWithExt, {
+       resource_type: resourceType,
+       type: deliveryType,
+       sign_url: true,
+       secure: true
+    });
+    
+    res.redirect(signedUrl);
+  } catch (err) {
+    res.status(401).json({ error: "Authentication failed" });
+  }
+});
 
 router.post("/upload", (req, res) => {
   parser.single("file")(req, res, (err) => {

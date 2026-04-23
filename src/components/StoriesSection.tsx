@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import YouTube from "react-youtube";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { ChevronLeft, ChevronRight, Play, Pause, Loader2, Send, MessageSquare, X, UserCheck, Music, Star, Volume2, VolumeX, Lock } from "lucide-react";
+import { ChevronLeft, ChevronRight, Play, Pause, Loader2, Send, MessageSquare, X, UserCheck, Music, Star, Volume2, VolumeX, Lock, ExternalLink, BarChart2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import axios from "axios";
@@ -95,13 +95,26 @@ const StoriesSection = () => {
         device: navigator.userAgent
       }).catch(() => { });
     }
+    setStoryPlayer(null);
   }, [storyViewerOpen, storyIndex]);
+
+  const getMediaUrl = (storyUrl: string | undefined, isMembersOnly: boolean) => {
+    if (!storyUrl) return "";
+    if (isMembersOnly) {
+      if (!user) return ""; // scrub URL if not logged in
+      if (storyUrl.includes('res.cloudinary.com')) {
+         const token = localStorage.getItem("admin_token");
+         return `${API_BASE}/collection/stories/secure-media?url=${encodeURIComponent(storyUrl)}&token=${token}`;
+      }
+    }
+    return storyUrl;
+  };
 
   const hasMusic = music.length > 0 && music[0].videoId;
   const currentBgMusic = hasMusic ? music[0] : null;
   const hasStories = stories.length > 0;
   const isFirstStoryRestricted = hasStories && stories[0].isMembersOnly && !user;
-  const storyImage = hasStories ? stories[0].image : profileImgFallback;
+  const storyImage = hasStories ? getMediaUrl(stories[0].image, stories[0].isMembersOnly || false) : "";
   const currentViewerStory = hasStories ? stories[storyIndex] : null;
 
   const togglePlayBg = () => {
@@ -117,6 +130,32 @@ const StoriesSection = () => {
     setCommentsDrawerOpen(false);
   };
 
+  const handlePollVote = async (layerId: string, optionId: string) => {
+    if (!currentViewerStory) return;
+    
+    // Local update for instant feedback
+    setStories(prev => prev.map(s => {
+      if (s.id === currentViewerStory.id) {
+        const layers = s.layers?.map(l => {
+          if (l.id === layerId && l.pollOptions) {
+            const opts = l.pollOptions.map(o => {
+              if (o.id === optionId) return { ...o, votes: o.votes + 1 };
+              return o;
+            });
+            return { ...l, pollOptions: opts };
+          }
+          return l;
+        });
+        return { ...s, layers };
+      }
+      return s;
+    }));
+
+    try {
+      await axios.post(`${API_BASE}/collection/stories/${currentViewerStory.id}/vote`, { layerId, optionId });
+    } catch { /* Silent fail fallback */ }
+  };
+
   const closeStories = () => {
     if (storyPlayer && typeof storyPlayer.pauseVideo === 'function') {
       try {
@@ -130,14 +169,19 @@ const StoriesSection = () => {
 
   const toggleMute = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!storyPlayer) return;
-    if (isMuted) {
-      storyPlayer.unMute();
-      storyPlayer.playVideo();
-      setIsMuted(false);
-    } else {
-      storyPlayer.mute();
-      setIsMuted(true);
+    try {
+      if (storyPlayer) {
+        if (isMuted) {
+          if (typeof storyPlayer.unMute === 'function') storyPlayer.unMute();
+          if (typeof storyPlayer.playVideo === 'function') storyPlayer.playVideo();
+        } else {
+          if (typeof storyPlayer.mute === 'function') storyPlayer.mute();
+        }
+      }
+      setIsMuted(!isMuted);
+    } catch (err) {
+      console.warn("YouTube mute toggle failed:", err);
+      setIsMuted(!isMuted);
     }
   };
 
@@ -240,9 +284,9 @@ const StoriesSection = () => {
           <>
             {hasStories && (
               <button onClick={openStories} className="relative w-16 h-16 rounded-full p-[3px] flex-shrink-0 cursor-pointer group focus:outline-none">
-                <div className="absolute inset-0 rounded-full border-2 border-dashed border-primary animate-[spin_8s_linear_infinite] group-hover:border-solid group-hover:animate-none transition-all" />
-                <div className="w-full h-full rounded-full overflow-hidden border-4 border-background bg-secondary relative z-10 shadow-md">
-                  {!isFirstStoryRestricted ? (
+                <div className="absolute inset-0 rounded-full border-2 border-dashed border-[#CB2729] animate-[spin_8s_linear_infinite] group-hover:border-solid transition-all" />
+                <div className="w-full h-full rounded-full overflow-hidden border-4 border-background bg-secondary relative z-10 shadow-md flex items-center justify-center">
+                  {!isFirstStoryRestricted && storyImage ? (
                     <img 
                       src={storyImage} 
                       alt="Story" 
@@ -250,11 +294,11 @@ const StoriesSection = () => {
                     />
                   ) : (
                     <div className="w-full h-full bg-neutral-800 flex items-center justify-center">
-                       <Lock size={14} className="text-white/20" />
+                       {isFirstStoryRestricted ? <Lock size={14} className="text-white/20" /> : <Plus size={14} className="text-white/20" />}
                     </div>
                   )}
                 </div>
-                <div className="absolute -top-1 -right-1 bg-primary text-[9px] text-primary-foreground font-bold px-1.5 py-0.5 rounded-full z-20 shadow-sm uppercase tracking-wider">
+                <div className="absolute -top-1 -right-1 bg-[#CB2729] text-[9px] text-white font-bold px-1.5 py-0.5 rounded-full z-20 shadow-sm uppercase tracking-wider">
                   {isFirstStoryRestricted ? 'Member' : 'Live'}
                 </div>
               </button>
@@ -362,7 +406,7 @@ const StoriesSection = () => {
           )}
 
           {currentViewerStory && (
-            <div className="relative flex-1 w-full flex flex-col bg-black overflow-hidden" style={{ filter: currentViewerStory.filter !== "none" ? currentViewerStory.filter : "none" }}>
+            <div className="relative flex-1 w-full flex flex-col bg-black overflow-hidden">
 
               {/* Fixed Safe Header Area - Highest z-index for core controls */}
               <div className="absolute top-0 inset-x-0 bg-gradient-to-b from-black/60 to-transparent pt-4 pb-16 z-[80] px-5 flex flex-col gap-4">
@@ -378,48 +422,75 @@ const StoriesSection = () => {
 
                 {/* Pro Header Layout */}
                 <div className="flex items-center justify-between mt-1">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-full ring-1 ring-white/10 p-[2px] bg-gradient-to-tr from-primary/20 to-transparent">
-                      <div className="w-full h-full rounded-full overflow-hidden bg-neutral-800">
-                         <img src={currentViewerStory.image} className="w-full h-full object-cover" />
+                  <div className="flex items-center gap-3 w-full pr-10 overflow-hidden">
+                    <div className="w-10 h-10 rounded-full ring-1 ring-white/20 p-[2px] bg-gradient-to-tr from-white/10 to-transparent flex-shrink-0">
+                      <div className="w-full h-full rounded-full overflow-hidden bg-neutral-800 flex items-center justify-center">
+                         {currentViewerStory.isMembersOnly && !user ? (
+                           <Lock size={14} className="text-white/30" />
+                         ) : (
+                           getMediaUrl(currentViewerStory.image, currentViewerStory.isMembersOnly || false) ? (
+                           <img src={getMediaUrl(currentViewerStory.image, currentViewerStory.isMembersOnly || false)} className="w-full h-full object-cover" />
+                         ) : (
+                           <div className="w-full h-full bg-neutral-900 flex items-center justify-center">
+                             <Plus size={14} className="text-white/20" />
+                           </div>
+                         )
+                         )}
                       </div>
                     </div>
-                    <div className="flex flex-col gap-1.5">
+                    <div className="flex flex-col gap-1.5 min-w-0 w-full overflow-hidden">
                       <div className="flex items-center gap-2">
-                        <p className="text-white font-black text-sm tracking-tight leading-none">{currentViewerStory.title}</p>
-                        {currentViewerStory.isMembersOnly && (
-                           <div className="flex items-center gap-1 bg-white/10 backdrop-blur-md border border-white/10 px-2 py-0.5 rounded text-[9px] text-white/60 font-bold uppercase tracking-wider">
-                              <Lock size={9} /> Members Only
-                           </div>
+                        {currentViewerStory.title && (
+                          <p className="text-white font-bold text-[14px] tracking-wide leading-none truncate max-w-[130px] drop-shadow-md">
+                            {currentViewerStory.title}
+                          </p>
                         )}
-                        <span className="text-white/30 text-[10px] select-none">•</span>
-                        <p className="text-white/40 text-[11px] font-bold tracking-tight lowercase">{formatStoryDate(currentViewerStory.createdAt)}</p>
+                        {currentViewerStory.isMembersOnly && (
+                           <span className="text-white/90 drop-shadow-md" title="Members Only Access">
+                             <Lock size={10} strokeWidth={3} />
+                           </span>
+                        )}
+                        <span className="text-white/40 text-[10px] select-none translate-y-[0.5px] ml-0.5">•</span>
+                        <p className="text-white/60 text-[11px] font-medium tracking-tight translate-y-[0.5px]">
+                          {formatStoryDate(currentViewerStory.createdAt)}
+                        </p>
                       </div>
-                      <div className="flex flex-col gap-1">
+
+                      <div className="flex items-center gap-2 w-full">
                         
                         {currentViewerStory.musicVideoId && !(currentViewerStory.isMembersOnly && !user) && (
-                          <div className="flex items-center gap-2 bg-white/10 backdrop-blur-md px-2 py-0.5 rounded-full border border-white/5 animate-in slide-in-from-left-2 duration-300 w-fit max-w-[160px]">
-                             <Music size={10} className="text-white flex-shrink-0" />
+                          <div className="flex items-center gap-2">
+                             <button 
+                               onClick={(e) => toggleMute(e)}
+                               className="flex items-center justify-center w-8 h-8 rounded-full bg-black/20 backdrop-blur-md border border-white/10 hover:bg-white/10 transition-colors flex-shrink-0 cursor-pointer"
+                               title={isMuted ? "Unmute Music" : "Mute Music"}
+                             >
+                               {isMuted ? <VolumeX size={14} className="text-white/60" /> : <Volume2 size={14} className="text-white/90" />}
+                             </button>
                              
-                             {/* Marquee Title Wrapper */}
-                             <div className="flex whitespace-nowrap overflow-hidden">
-                               <div className="flex animate-marquee">
-                                 <span className="text-[10px] text-white font-medium tracking-tight pr-6">
-                                   {(() => {
-                                      if (currentViewerStory.musicTitle) return `${currentViewerStory.musicTitle} - ${currentViewerStory.musicArtist || 'Audio'}`;
-                                      const m = music.find(i => i.videoId === currentViewerStory.musicVideoId);
-                                      return m ? `${m.title} - ${m.artist}` : "Original Audio";
-                                   })()}
-                                 </span>
-                                 <span className="text-[10px] text-white font-medium tracking-tight pr-6" aria-hidden="true">
-                                   {(() => {
-                                      if (currentViewerStory.musicTitle) return `${currentViewerStory.musicTitle} - ${currentViewerStory.musicArtist || 'Audio'}`;
-                                      const m = music.find(i => i.videoId === currentViewerStory.musicVideoId);
-                                      return m ? `${m.title} - ${m.artist}` : "Original Audio";
-                                   })()}
-                                 </span>
+                             {/* Only show marquee if sticker is HIDDEN (Style 3) */}
+                             {currentViewerStory.musicStyle === 3 && (
+                               <div className="bg-black/30 backdrop-blur-md pl-1.5 pr-2 py-[3px] rounded border border-white/10 overflow-hidden flex-1 max-w-[160px]">
+                                 <div className="flex whitespace-nowrap overflow-hidden relative w-full" style={{ WebkitMaskImage: 'linear-gradient(to right, black 85%, transparent 100%)' }}>
+                                   <div className="flex animate-marquee">
+                                     <span className="text-[9.5px] text-white/90 font-medium tracking-tight pr-6 drop-shadow-md">
+                                       {(() => {
+                                          if (currentViewerStory.musicTitle) return `${currentViewerStory.musicTitle} - ${currentViewerStory.musicArtist || 'Audio'}`;
+                                          const m = music.find(i => i.videoId === currentViewerStory.musicVideoId);
+                                          return m ? `${m.title} - ${m.artist}` : "Original Audio";
+                                       })()}
+                                     </span>
+                                     <span className="text-[9.5px] text-white/90 font-medium tracking-tight pr-6 drop-shadow-md" aria-hidden="true">
+                                       {(() => {
+                                          if (currentViewerStory.musicTitle) return `${currentViewerStory.musicTitle} - ${currentViewerStory.musicArtist || 'Audio'}`;
+                                          const m = music.find(i => i.videoId === currentViewerStory.musicVideoId);
+                                          return m ? `${m.title} - ${m.artist}` : "Original Audio";
+                                       })()}
+                                     </span>
+                                   </div>
+                                 </div>
                                </div>
-                             </div>
+                             )}
                           </div>
                         )}
                       </div>
@@ -444,24 +515,39 @@ const StoriesSection = () => {
               </div>
 
               {/* Stage Asset */}
-              <div className={`absolute inset-0 w-full h-full transition-all duration-700 ${currentViewerStory.isMembersOnly && !user ? 'opacity-20' : ''}`}>
+              <div 
+                className={`absolute inset-0 w-full h-full transition-all duration-700 ${currentViewerStory.isMembersOnly && !user ? 'opacity-20' : ''}`}
+                style={{ filter: currentViewerStory.filter || 'none' }}
+              >
                 {!(currentViewerStory.isMembersOnly && !user) ? (
-                  currentViewerStory.type === "video" || currentViewerStory.image.match(/\.(mp4|webm|mov|ogg)$/) ? (
+                  currentViewerStory.type === "video" || (currentViewerStory.image && currentViewerStory.image.match(/\.(mp4|webm|mov|ogg)$/)) ? (
                     <video 
-                      src={currentViewerStory.image} 
+                      src={getMediaUrl(currentViewerStory.image, currentViewerStory.isMembersOnly || false)} 
                       autoPlay 
                       loop 
-                      muted 
+                      muted={isMuted} 
                       playsInline 
                       className="absolute inset-0 w-full h-full object-cover flex-shrink-0" 
                     />
+                  ) : currentViewerStory.image ? (
+                    <img src={getMediaUrl(currentViewerStory.image, currentViewerStory.isMembersOnly || false)} alt="Story Layout" className="absolute inset-0 w-full h-full object-cover flex-shrink-0" />
                   ) : (
-                    <img src={currentViewerStory.image} alt="Story Layout" className="absolute inset-0 w-full h-full object-cover flex-shrink-0" />
+                    <div className="absolute inset-0 bg-neutral-900 flex items-center justify-center" />
                   )
                 ) : (
                   <div className="absolute inset-0 bg-neutral-900" />
                 )}
               </div>
+
+              {/* ── On-Canvas Sound Toggle ── */}
+              {currentViewerStory.musicVideoId && !(currentViewerStory.isMembersOnly && !user) && (
+                <button 
+                  onClick={toggleMute}
+                  className="absolute top-24 right-6 z-[310] w-10 h-10 rounded-full bg-black/20 backdrop-blur-md border border-white/10 flex items-center justify-center text-white/90 hover:bg-black/40 transition-all hover:scale-110 active:scale-95"
+                >
+                  {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
+                </button>
+              )}
 
               {/* Members Only Overlay */}
               {currentViewerStory.isMembersOnly && !user && (
@@ -479,7 +565,10 @@ const StoriesSection = () => {
                        </button>
                        <button 
                          onClick={nextStory} 
-                         className="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-all active:scale-90 pointer-events-auto"
+                         className={cn(
+                           "w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-all active:scale-90 pointer-events-auto",
+                           storyIndex === stories.length - 1 && "opacity-0 pointer-events-none"
+                         )}
                        >
                           <ChevronRight size={24} className="text-white/40" />
                        </button>
@@ -504,15 +593,122 @@ const StoriesSection = () => {
 
               {/* Overlays / Typographies */}
               <div className={`absolute inset-0 z-[66] pointer-events-none transition-opacity duration-700 ${currentViewerStory.isMembersOnly && !user ? 'opacity-0' : 'opacity-100'}`}>
-                 {currentViewerStory.layers?.map(l => (
-                    <div key={l.id} className={`absolute whitespace-pre-wrap font-black uppercase ${l.type === "text" ? "pointer-events-auto" : ""}`}
-                       style={{ top: `${l.top}%`, left: `${l.left}%`, transform: `translate(-50%, -50%) scale(${l.scale}) rotate(${l.rotation}deg)`, color: l.color, fontFamily: l.fontFamily || "Inter", fontSize: `${l.fontSize || 24}px`, textShadow: '0 4px 12px rgba(0,0,0,0.5)', letterSpacing: '-0.02em' }}
+                  {currentViewerStory.layers?.map(l => (
+                    <div key={l.id} 
+                      className={cn(
+                        "absolute whitespace-pre-wrap font-black uppercase",
+                        (l.type === "text" || l.type === "link" || l.type === "poll") ? "pointer-events-auto" : ""
+                      )}
+                      style={{ 
+                        top: `${l.top}%`, 
+                        left: `${l.left}%`, 
+                        width: l.width ? `${l.width}%` : undefined,
+                        height: l.height ? `${l.height}%` : undefined,
+                        transform: l.width ? "none" : `translate(-50%, -50%) scale(${l.scale}) rotate(${l.rotation}deg)`, 
+                        zIndex: l.type === "poll" || l.type === "link" ? 70 : 60
+                      }}
                     >
-                      {l.type === "text" && <SmartText text={l.content} />}
-                      {(l.type === "image" || l.type === "gif") && <img src={l.content} className="w-full h-full object-contain" alt="Layer asset" />}
-                      {l.type === "video" && <video src={l.content} autoPlay loop muted playsInline className="w-full h-full object-contain" />}
+                      {l.type === "text" && (
+                         <div style={{ color: l.color, fontFamily: l.fontFamily || "Inter", fontSize: `${l.fontSize || 24}px`, textShadow: '0 4px 12px rgba(0,0,0,0.5)', letterSpacing: '-0.02em' }}>
+                           <SmartText text={l.content} />
+                         </div>
+                      )}
+                      
+                      {l.type === "link" && (
+                         <a 
+                           href={l.linkUrl} 
+                           target="_blank" 
+                           rel="noopener noreferrer" 
+                           className="flex items-center gap-2 bg-white/90 backdrop-blur-md px-5 py-2.5 rounded-full shadow-2xl border border-white/20 group hover:scale-105 transition-all active:scale-95"
+                         >
+                            <span className="text-[13px] font-bold text-slate-900 tracking-tight">{l.linkLabel || "Learn More"}</span>
+                            <ExternalLink size={14} className="text-blue-500 group-hover:translate-x-0.5 transition-transform" />
+                         </a>
+                      )}
+
+                      {l.type === "poll" && (
+                         <div className="bg-black/40 backdrop-blur-xl rounded-2xl p-4 shadow-2xl border border-white/10 min-w-[200px]">
+                            <p className="text-[14px] font-bold text-white mb-4 text-center tracking-tight drop-shadow-md">{l.pollQuestion}</p>
+                            <div className="space-y-2">
+                               {l.pollOptions?.map(opt => {
+                                  const total = l.pollOptions?.reduce((acc, curr) => acc + curr.votes, 0) || 0;
+                                  const pct = total === 0 ? 0 : Math.round((opt.votes / total) * 100);
+                                  return (
+                                     <button 
+                                       key={opt.id}
+                                       onClick={(e) => { e.stopPropagation(); handlePollVote(l.id, opt.id); }}
+                                       className="w-full h-11 relative rounded-xl border border-white/5 overflow-hidden group hover:border-white/20 transition-all bg-white/5 active:scale-[0.98]"
+                                     >
+                                        <div className="absolute inset-0 bg-white/10 origin-left transition-transform duration-1000 ease-out" style={{ transform: `scaleX(${pct / 100})` }} />
+                                        <div className="relative h-full px-4 flex items-center justify-between text-white">
+                                           <span className="text-[13px] font-bold truncate max-w-[140px]">{opt.label}</span>
+                                           {total > 0 && <span className="text-[11px] font-black opacity-60">{pct}%</span>}
+                                        </div>
+                                     </button>
+                                  );
+                               })}
+                            </div>
+                         </div>
+                      )}
+
+                      {(l.type === "image" || l.type === "gif" || l.type === "sticker") && (
+                         <img src={l.content} className={cn("w-full h-full drop-shadow-2xl", l.width ? "object-cover" : "object-contain")} alt="Layer asset" />
+                      )}
+                      {l.type === "video" && (
+                         <video src={l.content} autoPlay loop muted playsInline className={cn("w-full h-full", l.width ? "object-cover" : "object-contain")} />
+                      )}
                     </div>
-                 ))}
+                  ))}
+
+                  {/* ── On-Canvas Music Sticker (Persisted Styles) ── */}
+                  {currentViewerStory.musicVideoId && !(currentViewerStory.isMembersOnly && !user) && (
+                    <div 
+                      className="absolute z-50 select-none pointer-events-none"
+                      style={{ 
+                        left: `${currentViewerStory.musicX ?? 50}%`, 
+                        top: `${currentViewerStory.musicY ?? 75}%`, 
+                        transform: 'translate(-50%, -50%)' 
+                      }}
+                    >
+                       {/* Style 0: Pill (Default) */}
+                       {(currentViewerStory.musicStyle === 0 || !currentViewerStory.musicStyle) && (
+                         <div className="w-[180px] bg-white rounded-xl p-2 shadow-2xl flex items-center gap-2.5 border border-slate-100 animate-in zoom-in-95 duration-500">
+                            <img src={`https://img.youtube.com/vi/${currentViewerStory.musicVideoId}/mqdefault.jpg`} className="w-8 h-8 rounded-lg object-cover" />
+                            <div className="flex-1 overflow-hidden">
+                               <p className="text-[10px] font-bold text-slate-900 truncate tracking-tight leading-tight">{currentViewerStory.musicTitle}</p>
+                               <p className="text-[7px] font-medium text-slate-400 truncate mt-0.5">{currentViewerStory.musicArtist}</p>
+                            </div>
+                            <Music size={10} className="text-slate-300" />
+                         </div>
+                       )}
+
+                       {/* Style 1: Square / Large Pill */}
+                       {currentViewerStory.musicStyle === 1 && (
+                         <div className="bg-black/80 backdrop-blur-xl rounded-2xl p-4 flex flex-col items-center gap-3 border border-white/10 shadow-2xl animate-in zoom-in-95 duration-500 w-[140px]">
+                            <img src={`https://img.youtube.com/vi/${currentViewerStory.musicVideoId}/mqdefault.jpg`} className="w-20 h-20 rounded-xl object-cover shadow-lg" />
+                            <div className="text-center overflow-hidden w-full">
+                               <p className="text-[11px] font-bold text-white truncate">{currentViewerStory.musicTitle}</p>
+                               <p className="text-[8px] font-medium text-white/40 truncate mt-0.5">{currentViewerStory.musicArtist}</p>
+                            </div>
+                         </div>
+                       )}
+
+                       {/* Style 2: Minimalist Capsule */}
+                       {currentViewerStory.musicStyle === 2 && (
+                         <div className="bg-white/95 backdrop-blur-xl rounded-full px-5 py-2.5 flex items-center gap-3 border border-slate-200 shadow-2xl animate-in zoom-in-95 duration-500">
+                            <Music size={14} className="text-slate-900" />
+                            <div className="overflow-hidden max-w-[120px]">
+                               <p className="text-[11px] font-bold text-slate-900 truncate tracking-tight">{currentViewerStory.musicTitle}</p>
+                            </div>
+                         </div>
+                       )}
+
+                       {/* Style 3: Hidden (Ghost Icon - Barely visible for viewer) */}
+                       {currentViewerStory.musicStyle === 3 && (
+                         <div className="opacity-0 pointer-events-none" />
+                       )}
+                    </div>
+                  )}
               </div>
 
               {/* Now Playing Badge if music */}
@@ -531,12 +727,12 @@ const StoriesSection = () => {
 
               {/* Interaction Hotzones - Elevated z-index to stay above text layers */}
               <div className="absolute inset-0 z-[65] flex pointer-events-none">
-                <div className="flex-[0.35] pointer-events-auto cursor-pointer flex items-center justify-start px-4 group" onClick={prevStory}>
+                <div className={cn("flex-[0.35] pointer-events-auto cursor-pointer flex items-center justify-start px-4 group", storyIndex === 0 && "opacity-0 pointer-events-none")} onClick={prevStory}>
                    <div className="w-10 h-10 rounded-full bg-black/20 backdrop-blur-md border border-white/10 flex items-center justify-center transition-all active:scale-90">
                       <ChevronLeft size={24} className="text-white/40" />
                    </div>
                 </div>
-                <div className="flex-[0.65] pointer-events-auto cursor-pointer flex items-center justify-end px-4 group" onClick={nextStory}>
+                <div className={cn("flex-[0.65] pointer-events-auto cursor-pointer flex items-center justify-end px-4 group", storyIndex === stories.length - 1 && "opacity-0 pointer-events-none")} onClick={nextStory}>
                    <div className="w-10 h-10 rounded-full bg-black/20 backdrop-blur-md border border-white/10 flex items-center justify-center transition-all active:scale-90">
                       <ChevronRight size={24} className="text-white/40" />
                    </div>
