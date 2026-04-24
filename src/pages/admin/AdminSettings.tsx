@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import axios from "axios";
 import { API_BASE } from "@/config";
-import { Trash2, Plus, Globe, Loader2, Settings as SettingsIcon, CheckCircle2, X, Heart, Upload } from "lucide-react";
+import { Trash2, Plus, Globe, Loader2, Settings as SettingsIcon, CheckCircle2, X, Heart, Upload, Camera } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AIRefineButton } from "@/components/admin/AIRefineButton";
 
@@ -184,6 +184,62 @@ const AdminSettingsPage = () => {
                         <p className="text-xs text-slate-500 mt-0.5">Show auto-generated quote on homepage</p>
                      </div>
                      <Switch checked={settings.quoteEnabled ?? true} onCheckedChange={v => setSettings({ ...settings, quoteEnabled: v })} />
+                  </div>
+               </CardContent>
+            </Card>
+
+            {/* Feed Profile Card */}
+            <Card className="bg-white border border-slate-200 shadow-none rounded-lg overflow-hidden">
+               <CardHeader className="px-4 sm:px-6 py-4 border-b border-slate-100">
+                  <CardTitle className="text-xs font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-2">
+                    <Camera size={13} /> Feed Identity
+                  </CardTitle>
+               </CardHeader>
+               <CardContent className="p-4 sm:p-6 space-y-5">
+                  <div className="space-y-1.5">
+                     <Label className="text-xs font-medium text-slate-700">Feed Profile Name</Label>
+                     <Input 
+                       placeholder="e.g. Sujan Gautam" 
+                       value={settings.feedProfileName || ""} 
+                       onChange={e => setSettings({ ...settings, feedProfileName: e.target.value })} 
+                       className="h-10 bg-white border-slate-200 rounded-md text-sm" 
+                     />
+                  </div>
+                  
+                  <div className="space-y-1.5 pt-2">
+                     <Label className="text-xs font-medium text-slate-700">Feed Profile Image</Label>
+                     <div className="flex gap-4 items-center">
+                        <div className="w-16 h-16 rounded-full bg-slate-100 border border-slate-200 overflow-hidden flex-shrink-0 flex items-center justify-center">
+                           {settings.feedProfileImage ? (
+                             <img src={settings.feedProfileImage} alt="" className="w-full h-full object-cover" />
+                           ) : (
+                             <Camera size={20} className="text-slate-400" />
+                           )}
+                        </div>
+                        <div className="flex-1 space-y-2">
+                           <div className="flex gap-2">
+                              <Input 
+                                placeholder="https://" 
+                                value={settings.feedProfileImage || ""} 
+                                onChange={e => setSettings({ ...settings, feedProfileImage: e.target.value })} 
+                                className="h-9 bg-white border-slate-200 rounded-md text-sm" 
+                              />
+                              <label className="h-9 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md cursor-pointer transition-colors border border-slate-200 flex items-center justify-center shrink-0">
+                                 <Upload size={14} />
+                                 <input type="file" className="hidden" onChange={async (e) => {
+                                   const f = e.target.files?.[0]; if (!f) return;
+                                   const fd = new FormData(); fd.append("file", f);
+                                   try {
+                                     const { data } = await axios.post(`${API_BASE}/upload`, fd);
+                                     setSettings({ ...settings, feedProfileImage: data.url });
+                                     toast.success("Profile image uploaded");
+                                   } catch { toast.error("Upload failed"); }
+                                 }} />
+                              </label>
+                           </div>
+                           <p className="text-[10px] text-slate-500">This image will appear next to your feed posts and comments.</p>
+                        </div>
+                     </div>
                   </div>
                </CardContent>
             </Card>

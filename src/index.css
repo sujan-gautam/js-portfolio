@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -96,9 +96,7 @@
 
   body {
     @apply text-foreground antialiased;
-    background: linear-gradient(to right, #000000, #0a0a0a, #0c0808, #0c0505, #0c0505, #000000, #000000, #000000, #150a0a, #0c0505, #0c0808, #0a0a0a, #000000);
-    background-size: 200% 100%;
-    animation: shiftBackground 20s linear infinite;
+    background: #050505;
   }
 }
 
@@ -148,10 +146,7 @@
   to   { transform: scaleY(0.4); }
 }
 
-@keyframes shiftBackground {
-  0% { background-position: 0% 50%; }
-  100% { background-position: -200% 50%; }
-}
+
 
 /* Hide Bottom Nav & Cursor Aura when story is open */
 .story-open nav.fixed.bottom-0,

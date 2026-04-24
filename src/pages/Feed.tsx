@@ -1,39 +1,18 @@
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { feedAPI, FeedPost, FeedComment } from "@/lib/adminData";
+import { feedAPI, FeedPost, FeedComment, settingsDB, AdminSettings } from "@/lib/adminData";
 import { SmartText } from "@/components/ui/SmartText";
 import { 
   Heart, MessageCircle, Share2, MoreHorizontal, Send, 
   ChevronLeft, ChevronRight, X, Play, Pause, Music, Volume2, VolumeX,
-  PieChart, BarChart2, Eye, MapPin, Pin, Loader2, PlayCircle, Camera, Quote
+  PieChart, BarChart2, Eye, MapPin, Pin, Loader2, PlayCircle, Camera, Quote,
+  Link, Flag, User, EyeOff
 } from "lucide-react";
 import YouTube from "react-youtube";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const timelineStyles = `
-  @keyframes silk-wave {
-    0%, 100% { transform: translateX(-2px); }
-    50% { transform: translateX(2px); }
-  }
-  @keyframes gem-wobble {
-    0%, 100% { transform: scale(1) rotate(0deg); }
-    25% { transform: scale(1.1) rotate(5deg); }
-    75% { transform: scale(1.1) rotate(-5deg); }
-  }
-  @keyframes sparkle-drift {
-    0% { transform: translateY(0) scale(0); opacity: 0; }
-    50% { opacity: 0.5; scale: 1; }
-    100% { transform: translateY(-40px) scale(0); opacity: 0; }
-  }
-  @keyframes float-heart {
-    0% { transform: translateY(0) scale(0); opacity: 0; }
-    20% { opacity: 1; scale: 1.2; }
-    100% { transform: translateY(-100px) scale(0.5); opacity: 0; }
-  }
-  @keyframes side-sway {
-    0%, 100% { margin-left: 0px; }
-    50% { margin-left: 15px; }
-  }
+  @keyframes music-bar { 0% { transform: scaleY(0.3); } 100% { transform: scaleY(1); } }
 `;
 
 // Load cute handwritten font for polaroids
@@ -134,7 +113,6 @@ const CommentSection = ({ post, onUpdate, showAlert, openOverride, setOpenOverri
   const showModal = openOverride !== undefined ? openOverride : isModalOpen;
   const setModal = setOpenOverride || setIsModalOpen;
   
-  // Inline preview: show up to 2 most recent comments
   const previewComments = allComments.slice(-2);
 
   const submit = async (e: React.FormEvent) => {
@@ -152,111 +130,112 @@ const CommentSection = ({ post, onUpdate, showAlert, openOverride, setOpenOverri
   };
 
   return (
-    <div className="px-4 pb-3 space-y-2 w-full">
+    <div className="px-5 pb-4 space-y-3 w-full font-['Inter']">
       {/* Inline Comment Preview */}
       {allComments.length > 0 && (
-        <div className="space-y-1.5">
+        <div className="space-y-2">
+          {previewComments.map((c, i) => (
+            <div key={c.id || i} className="flex items-baseline gap-2">
+              <span className="text-[13px] font-bold text-white shrink-0">Anonymous</span>
+              <p className="text-[13px] text-white/70 leading-relaxed line-clamp-2">{c.text}</p>
+            </div>
+          ))}
           {allComments.length > 2 && (
-            <button onClick={() => setModal(true)} className="text-[11px] text-white/40 hover:text-white/70 transition-colors font-medium tracking-wide">
+            <button 
+              onClick={() => setModal(true)} 
+              className="text-[12px] text-[#8e8e93] hover:text-white transition-colors font-medium mt-1"
+            >
               View all {allComments.length} comments
             </button>
           )}
-          {previewComments.map((c, i) => (
-            <div key={c.id || i} className="flex items-start gap-2 max-w-[85%]">
-              <div className="flex-1 bg-transparent">
-                <p className="text-[12px] text-white/80 leading-snug break-words line-clamp-3">
-                  <span className="font-bold text-white mr-2">Anonymous</span>
-                  {c.text}
-                </p>
-              </div>
-            </div>
-          ))}
         </div>
       )}
 
-      {/* Inline Fake Input Trigger */}
+      {/* Modern Fake Input */}
       <div 
         onClick={() => setModal(true)} 
-        className="flex items-center gap-2 mt-2 cursor-pointer"
+        className="flex items-center gap-3 pt-1 cursor-pointer group"
       >
-        <div className="w-6 h-6 rounded-full bg-[#CB2729]/20 border border-[#CB2729]/30 flex items-center justify-center shrink-0">
-          <span className="text-[9px] text-[#CB2729] font-black">Y</span>
+        <div className="w-7 h-7 rounded-full bg-white/5 border border-white/5 flex items-center justify-center text-[11px] font-black text-white/40 group-hover:bg-white/10 transition-colors">
+          Y
         </div>
-        <div className="flex-1 h-8 rounded-full bg-white/[0.04] border border-white/[0.05] flex items-center px-3">
-          <span className="text-[11px] text-white/30">Add a comment...</span>
-        </div>
+        <span className="text-[13px] text-white/30 group-hover:text-white/40 transition-colors">Add a comment...</span>
       </div>
 
-      {/* Fullscreen Modal Portal */}
+      {/* Premium Bottom Sheet Modal */}
       {showModal && createPortal(
-        <div className="fixed inset-0 z-[99999] flex flex-col items-center justify-end bg-black/60 backdrop-blur-sm animate-in fade-in duration-200 p-0 md:p-6" onClick={() => setModal(false)}>
-          
-          <div className="w-full max-w-[480px] h-[75vh] md:h-[80vh] bg-[#111] md:rounded-[28px] rounded-t-3xl flex flex-col shadow-2xl animate-in slide-in-from-bottom duration-300 border border-white/10" onClick={e => e.stopPropagation()}>
-            
-            {/* Modal Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.04] shrink-0">
-              <div className="w-8" /> {/* spacer */}
-              <h3 className="text-white font-bold text-[15px]">Comments</h3>
-              <button onClick={() => setModal(false)} className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-white/60 hover:text-white transition-colors">
-                <X size={18} />
-              </button>
+        <div 
+          className="fixed inset-0 z-[99999] flex flex-col items-center justify-end bg-black/70 backdrop-blur-[6px] animate-in fade-in duration-300"
+          onClick={() => setModal(false)}
+        >
+          <div 
+            className="w-full max-w-[500px] h-[80vh] bg-[#0a0a0a] rounded-t-[32px] border-t border-x border-white/10 flex flex-col shadow-[0_-20px_50px_rgba(0,0,0,0.5)] animate-in slide-in-from-bottom duration-500 ease-[cubic-bezier(0.23,1,0.32,1)]"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Drag Handle Indicator */}
+            <div className="w-full flex justify-center py-3">
+              <div className="w-10 h-1 rounded-full bg-white/10" />
             </div>
 
-            {/* Comments List (Scrollable) */}
-            <div className="flex-1 overflow-y-auto px-5 py-6 space-y-5" style={{ scrollbarWidth: 'none' }}>
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 pb-4 border-b border-white/5">
+               <h3 className="text-white font-bold text-[17px] tracking-tight">Comments</h3>
+               <button onClick={() => setModal(false)} className="p-2 -mr-2 text-white/40 hover:text-white transition-colors">
+                 <X size={22} />
+               </button>
+            </div>
+
+            {/* List */}
+            <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6 scrollbar-none">
               {allComments.length > 0 ? (
                 allComments.map((c, i) => (
-                  <div key={c.id || i} className="flex items-start gap-3">
-                    <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center shrink-0 mt-0.5 border border-white/5 shadow-sm">
-                      <span className="text-[12px] text-white/50 font-bold">A</span>
+                  <div key={c.id || i} className="flex gap-4">
+                    <div className="w-9 h-9 rounded-full bg-white/5 border border-white/5 flex items-center justify-center shrink-0 text-[13px] font-semibold text-white/30">
+                      A
                     </div>
-                    <div className="bg-white/[0.03] rounded-2xl rounded-tl-sm px-4 py-2 border border-white/[0.04] max-w-[85%]">
-                      <p className="text-[12px] font-bold text-white/90 mb-0.5">Anonymous</p>
-                      <p className="text-[13px] text-white/70 leading-relaxed word-break">{c.text}</p>
+                    <div className="space-y-1 pt-0.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[13px] font-semibold text-white">Anonymous</span>
+                        <span className="text-[11px] text-[#8e8e93] font-normal opacity-60">{timeAgo(c.createdAt)}</span>
+                      </div>
+                      <p className="text-[14px] text-white/70 leading-relaxed font-normal break-words">{c.text}</p>
                     </div>
                   </div>
                 ))
               ) : (
-                <div className="h-full flex items-center justify-center text-white/20 text-[12px] font-medium tracking-widest uppercase">
-                  No comments yet
+                <div className="h-full flex flex-col items-center justify-center gap-4 opacity-10">
+                  <MessageCircle size={48} strokeWidth={1} />
+                  <span className="text-[12px] font-semibold uppercase tracking-[0.3em]">No comments yet</span>
                 </div>
               )}
             </div>
 
-            {/* Modal Input (Sticky Bottom) */}
-            <div className="shrink-0 px-4 py-4 border-t border-white/[0.04] bg-[#0a0a0a] pb-8 md:pb-4">
+            {/* Sticky Input Area */}
+            <div className="p-6 pt-4 bg-[#0a0a0a] border-t border-white/5 pb-10">
               {!hasCommented ? (
-                <form onSubmit={submit} className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-[#CB2729]/20 border border-[#CB2729]/30 flex items-center justify-center shrink-0">
-                    <span className="text-[10px] text-[#CB2729] font-black">Y</span>
-                  </div>
-                  <div className="flex-1 relative">
-                    <input
-                      autoFocus
-                      value={text}
-                      onChange={e => setText(e.target.value)}
-                      placeholder="Write a comment…"
-                      className="w-full h-11 px-4 pr-10 rounded-full bg-white/[0.05] border border-white/[0.07] text-[13px] text-white/90 placeholder-white/25 focus:outline-none focus:border-white/20 transition-colors shadow-inner"
-                    />
-                    <button
-                      type="submit"
-                      disabled={!text.trim() || submitting}
-                      className="absolute right-1.5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-[#CB2729] disabled:opacity-30 disabled:bg-white/10 flex items-center justify-center transition-all hover:scale-105 active:scale-95"
-                    >
-                      {submitting ? <Loader2 size={14} className="animate-spin text-white" /> : <Send size={14} className="text-white" />}
-                    </button>
-                  </div>
+                <form onSubmit={submit} className="relative flex items-center gap-3">
+                  <input
+                    autoFocus
+                    value={text}
+                    onChange={e => setText(e.target.value)}
+                    placeholder="Share your thoughts..."
+                    className="flex-1 h-12 bg-white/5 border border-white/10 rounded-2xl px-5 text-[14px] text-white font-normal placeholder:text-white/20 focus:outline-none focus:border-white/20 transition-all"
+                  />
+                  <button
+                    type="submit"
+                    disabled={!text.trim() || submitting}
+                    className="w-12 h-12 rounded-2xl bg-white text-black flex items-center justify-center disabled:bg-white/10 disabled:text-white/10 transition-all hover:scale-105 active:scale-95"
+                  >
+                    {submitting ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} />}
+                  </button>
                 </form>
               ) : (
-                <div className="py-3 bg-white/[0.02] border border-white/[0.04] rounded-xl text-center shadow-inner">
-                  <p className="text-[11px] text-white/30 font-bold tracking-widest uppercase flex items-center justify-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-green-500/50" />
-                    Comment Posted
-                  </p>
+                <div className="h-12 flex items-center justify-center gap-2 rounded-2xl bg-white/5 border border-white/5 text-[12px] font-semibold text-white/20 uppercase tracking-widest">
+                  <div className="w-1.5 h-1.5 rounded-full bg-green-500/30" />
+                  Your comment is live
                 </div>
               )}
             </div>
-
           </div>
         </div>,
         document.body
@@ -283,36 +262,30 @@ const PollCard = ({ post, onUpdate, showAlert }: { post: FeedPost; onUpdate: (p:
   };
 
   return (
-    <div className="bg-[#111] border border-white/[0.06] rounded-2xl p-5 mt-3 relative overflow-hidden">
-      <div className="flex items-center gap-3 mb-5">
-        <BarChart2 size={16} className="text-[#CB2729]" />
-        <h3 className="font-semibold text-white text-[15px]">{post.pollQuestion}</h3>
-      </div>
+    <div className="space-y-4 font-['Inter']">
+      <h3 className="text-white text-[16px] font-bold leading-snug">{post.pollQuestion}</h3>
       
       <div className="space-y-2.5">
-        {(post.pollOptions || []).map(opt => {
+        {(post.pollOptions || []).map((opt, idx) => {
+          const optId = opt.id || (opt as any)._id || `opt-${idx}`;
           const pct = totalVotes > 0 ? Math.round((opt.votes / totalVotes) * 100) : 0;
           return (
             <button
-              key={opt.id}
-              onClick={() => vote(opt.id)}
+              key={optId}
+              onClick={() => vote(optId)}
               disabled={hasVoted || expired}
-              className={`w-full text-left relative rounded-xl overflow-hidden border transition-all duration-300 ${
-                hasVoted || expired
-                  ? "border-white/[0.05] bg-white/[0.02]"
-                  : "border-white/[0.1] bg-white/[0.03] hover:border-[#CB2729]/50 hover:bg-[#CB2729]/10"
-              }`}
+              className="w-full text-left relative h-11 rounded-[10px] overflow-hidden bg-white/[0.04] border border-white/5 transition-all hover:bg-white/[0.08]"
             >
               {(hasVoted || expired) && (
                 <div 
-                  className="absolute inset-y-0 left-0 bg-[#CB2729]/20 transition-all duration-1000 ease-out" 
+                  className="absolute inset-y-0 left-0 bg-[#ff3b30]/20 transition-all duration-1000 ease-[cubic-bezier(0.23,1,0.32,1)]" 
                   style={{ width: `${pct}%` }} 
                 />
               )}
-              <div className="relative flex items-center justify-between px-4 py-3">
-                <span className="text-[13px] font-medium text-white/90">{opt.label}</span>
+              <div className="relative h-full flex items-center justify-between px-4">
+                <span className={`text-[14px] font-semibold ${hasVoted || expired ? 'text-white' : 'text-white/70'}`}>{opt.label}</span>
                 {(hasVoted || expired) && (
-                  <span className="text-[12px] font-bold text-[#CB2729]">{pct}%</span>
+                  <span className="text-[13px] font-bold text-white/50">{pct}%</span>
                 )}
               </div>
             </button>
@@ -320,56 +293,15 @@ const PollCard = ({ post, onUpdate, showAlert }: { post: FeedPost; onUpdate: (p:
         })}
       </div>
       
-      <div className="mt-4 text-[12px] text-white/30 flex justify-between">
-        <span>{totalVotes} vote{totalVotes !== 1 ? "s" : ""}</span>
-        {expired ? <span className="text-[#CB2729]">Poll ended</span> : post.pollEndsAt ? <span>Ends {timeAgo(post.pollEndsAt)}</span> : null}
+      <div className="flex items-center gap-2 text-[11px] font-bold text-[#8e8e93] uppercase tracking-wider">
+        <span>{totalVotes.toLocaleString()} votes</span>
+        <span>•</span>
+        <span>{expired ? "Closed" : "Active"}</span>
       </div>
     </div>
   );
 };
 
-// ── Polaroid Layout ──────────────────────────────────
-const PolaroidLayout = ({ images, captions, onExpand }: { images: string[]; captions?: string[]; onExpand: (idx: number) => void }) => {
-  return (
-    <div className="w-full overflow-x-auto no-scrollbar py-10 flex gap-4 scroll-smooth bg-black/60 border-y border-white/[0.03] scroll-px-10">
-      <div className="flex gap-10 px-12 min-w-full">
-        {images.map((img, i) => {
-          const rotations = [-4, 3, -2, 5, -3];
-          const rot = rotations[i % rotations.length];
-          return (
-            <div 
-              key={i} 
-              onClick={() => onExpand(i)}
-              className="shrink-0 bg-white p-2.5 pb-10 shadow-[0_20px_50px_rgba(0,0,0,0.8)] transition-all hover:scale-110 hover:rotate-0 hover:z-20 cursor-zoom-in group select-none relative"
-              style={{ 
-                width: '190px', 
-                transform: `rotate(${rot}deg)`,
-                height: 'fit-content',
-              }}
-            >
-              <div className="w-full aspect-[4/5] overflow-hidden bg-[#f0f0f0] relative shadow-inner">
-                <img src={img} alt="" className="w-full h-full object-cover grayscale-[0.05] group-hover:grayscale-0 transition-all duration-1000" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent pointer-events-none" />
-                <div className="absolute inset-0 border-[0.5px] border-black/5 pointer-events-none" />
-              </div>
-              <div className="mt-5 px-1 flex flex-col items-center">
-                 <p className="font-['Caveat'] text-black/80 text-[22px] font-bold text-center leading-none tracking-tight">
-                   {captions?.[i] || "..."}
-                 </p>
-              </div>
-              {/* Subtle texture/paper effect */}
-              <div className="absolute inset-0 opacity-[0.03] pointer-events-none mix-blend-multiply bg-[url('https://www.transparenttextures.com/patterns/paper.png')]" />
-            </div>
-          );
-        })}
-      </div>
-      <style>{`
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-      `}</style>
-    </div>
-  );
-};
 
 // ── Shared Music Types ────────────────────────────────
 interface MusicData {
@@ -386,21 +318,26 @@ const PostCard = ({
   setGlobalMute, 
   setMusicData,
   playingMusicId,
-  isIOS
+  isIOS,
+  settings
 }: { 
   post: FeedPost; 
   showAlert: (msg: string) => void; 
   globalMute: boolean; 
   setGlobalMute: (v: boolean) => void;
-  setMusicData: (data: MusicData | null) => void;
+  setMusicData: (d: any) => void;
   playingMusicId: string | null;
   isIOS: boolean;
+  settings: AdminSettings | null;
 }) => {
   const [post, setPost] = useState(initialPost);
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [imgExpandedIndex, setImgExpandedIndex] = useState<number | null>(null);
   const [videoFullscreen, setVideoFullscreen] = useState(false);
   const [fsPlaying, setFsPlaying] = useState(true);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [isHidden, setIsHidden] = useState(false);
+  const [floatingHearts, setFloatingHearts] = useState<{ id: number; x: number; y: number; rotation: number; scale: number; opacity: number }[]>([]);
   const [fsMuted, setFsMuted] = useState(false);
   const [fsFlash, setFsFlash] = useState<'play' | 'pause' | null>(null);
   const fsFlashTimeout = useRef<any>(null);
@@ -411,11 +348,14 @@ const PostCard = ({
   const [activeIndex, setActiveIndex] = useState(0);
   const [showReelControls, setShowReelControls] = useState(false);
   const controlsTimeoutRef = useRef<any>(null);
-  const [likeHearts, setLikeHearts] = useState<{id: number, x: number, delay: number, size: number}[]>([]);
 
   const isMusicActive = playingMusicId === post.id;
 
   const imagesList = post.images?.length ? post.images : (post.image ? [post.image] : []);
+  const mediaItems = [
+    ...imagesList.map(url => ({ type: 'image' as const, url })),
+    ...(post.videoUrl ? [{ type: 'video' as const, url: post.videoUrl }] : [])
+  ];
 
   // Keyboard navigation for image lightbox
   useEffect(() => {
@@ -483,6 +423,12 @@ const PostCard = ({
     return () => observer.disconnect();
   }, [post.type, post.musicVideoId, post.id, playingMusicId]);
 
+  const formatCount = (num: number) => {
+    if (num >= 1000000) return (num / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+    if (num >= 1000) return (num / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
+    return num.toString();
+  };
+
   const openFullscreen = (e: React.MouseEvent) => {
     e.stopPropagation();
     // Pause the inline video when opening fullscreen
@@ -526,14 +472,18 @@ const PostCard = ({
 
   const handleReact = async (type: string) => {
     if (type === "like") {
-       const newHearts = Array.from({ length: 12 }).map((_, i) => ({
+       const hearts = Array.from({ length: 10 }).map((_, i) => ({
          id: Date.now() + i,
-         x: Math.random() * 80 - 40, // spread around the button
-         delay: Math.random() * 0.4,
-         size: 10 + Math.random() * 14
+         x: Math.random() * 60 - 30, // Drift
+         y: Math.random() * -120 - 40, // Float up
+         rotation: Math.random() * 90 - 45,
+         scale: Math.random() * 0.4 + 0.6,
+         opacity: Math.random() * 0.5 + 0.5
        }));
-       setLikeHearts(newHearts);
-       setTimeout(() => setLikeHearts([]), 1500);
+       setFloatingHearts(prev => [...prev, ...hearts]);
+       setTimeout(() => {
+         setFloatingHearts(prev => prev.filter(h => !hearts.find(nh => nh.id === h.id)));
+       }, 1500);
     }
 
     try {
@@ -560,142 +510,140 @@ const PostCard = ({
 
   const totalReacts = Object.values(post.reactions || {}).reduce((a, b) => a + b, 0);
 
+  if (isHidden) {
+    return (
+      <div className="bg-[#0a0a0a] border border-dashed border-white/10 rounded-[20px] p-8 flex flex-col items-center justify-center gap-3 animate-in fade-in duration-500">
+        <EyeOff size={24} className="text-white/20" />
+        <p className="text-[13px] text-white/40 font-medium uppercase tracking-widest">Post Hidden</p>
+        <button onClick={() => setIsHidden(false)} className="text-[11px] text-[#0a84ff] font-bold hover:underline">Undo</button>
+      </div>
+    );
+  }
+
   return (
     <>
-      <div ref={postRef} className={`bg-[#111111]/90 md:backdrop-blur-xl shadow-xl border rounded-[24px] transition-transform duration-300 will-change-transform relative ${post.pinned ? "border-[#CB2729]/20" : "border-white/[0.04]"}`}>
-        
+      <div ref={postRef} id={`post-${post.id}`} className="bg-[#0a0a0a] border border-white/5 rounded-[20px] relative overflow-hidden">
         {/* Post Header */}
-        <div className="flex items-center gap-2.5 px-5 pt-5 pb-3">
-          <div className="w-9 h-9 rounded-full bg-[#CB2729]/10 border border-[#CB2729]/20 flex items-center justify-center shrink-0">
-             <span className="text-[#CB2729] font-black text-base">S</span>
+        <div className="flex items-center gap-3 px-4 pt-4 pb-3">
+          <div className="w-8 h-8 rounded-full bg-[#1a1a1a] flex items-center justify-center shrink-0 border border-white/10 overflow-hidden ring-1 ring-white/5">
+             {settings?.feedProfileImage ? (
+               <img src={settings.feedProfileImage} alt="" className="w-full h-full object-cover" />
+             ) : (
+               <span className="text-white/40 font-bold text-[13px]">{(settings?.feedProfileName || "S")[0]}</span>
+             )}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-[14px] font-bold text-white tracking-wide">
-              Sujan Gautam 
-              {post.textLayout === 'quote' && <span className="opacity-40 font-normal"> . thought</span>}
-              {post.linkPreview && <span className="opacity-40 font-normal"> . shipped</span>}
-            </p>
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <p className="text-[11px] text-white/40">{timeAgo(post.createdAt)}</p>
-              {post.musicVideoId && (
-                <>
-                  <span className="text-[10px] text-white/30">•</span>
-                  <div 
-                    className="flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity"
-                    onClick={() => {
-                      if (isMusicActive) setMusicData(null);
-                      else setMusicData({ id: post.id, videoId: post.musicVideoId!, startTime: post.musicStartTime || 0, endTime: post.musicEndTime || undefined });
-                    }}
-                  >
-                    <Music size={10} className={isMusicActive ? "text-[#CB2729] animate-pulse" : "text-white/50"} />
-                    <p className="text-[10px] text-white/60 truncate max-w-[120px] font-medium">{post.musicTitle || "Original Audio"}</p>
-                    {isMusicActive && (
-                      <div className="flex items-end gap-[1px] h-2 ml-0.5">
-                        {[0.3, 0.7, 1, 0.5].map((h, i) => (
-                          <div key={i} className="w-[1.5px] bg-[#CB2729] rounded-t-sm origin-bottom" style={{ height: `${h * 100}%`, animation: `music-bar ${0.3 + (i * 0.1)}s ease-in-out infinite alternate` }} />
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </>
+            <div className="flex items-center gap-1.5">
+              <p className="text-[14px] font-semibold text-white tracking-tight leading-none">
+                {settings?.feedProfileName || "Sujan"}
+              </p>
+              {post.pinned && (
+                <div className="flex items-center gap-1 text-[#8e8e93] bg-white/5 px-1.5 py-0.5 rounded-full border border-white/5 animate-in fade-in zoom-in duration-300">
+                  <Pin size={10} className="fill-[#8e8e93] rotate-45" />
+                  <span className="text-[9px] font-bold uppercase tracking-wider">Pinned</span>
+                </div>
               )}
+              {/* Optional verified-style dot or just clean space */}
+            </div>
+            <div className="flex items-center gap-1.5 mt-1">
+               <p className="text-[11px] text-[#8e8e93] font-normal opacity-80">
+                {timeAgo(post.createdAt)}
+               </p>
+               {post.musicVideoId && (
+                 <>
+                   <span className="text-[#8e8e93] text-[10px] opacity-40">•</span>
+                   <div className="flex items-center gap-1">
+                      <Music size={10} className={isMusicActive ? "text-[#ff3b30]" : "text-[#8e8e93]"} />
+                      <p className="text-[11px] text-[#8e8e93] font-medium truncate max-w-[140px]">
+                        {post.musicTitle || "Original Audio"}
+                      </p>
+                   </div>
+                 </>
+               )}
             </div>
           </div>
-          {post.pinned && (
-            <div className="flex items-center gap-1.5 bg-[#CB2729]/10 border border-[#CB2729]/25 rounded-full px-3 py-1">
-              <Pin size={10} className="text-[#CB2729]" />
-              <span className="text-[10px] text-[#CB2729] font-bold uppercase tracking-wider">Pinned</span>
-            </div>
-          )}
+          <div className="relative">
+            <button 
+              onClick={() => setMenuOpen(!menuOpen)}
+              className="text-[#8e8e93] hover:text-white transition-colors px-1 h-8 w-8 flex items-center justify-center rounded-full hover:bg-white/5"
+            >
+              <MoreHorizontal size={20} />
+            </button>
+
+            {/* Dropdown Menu */}
+            {menuOpen && (
+              <>
+                <div className="fixed inset-0 z-[999]" onClick={() => setMenuOpen(false)} />
+                <div className="absolute top-full right-0 mt-2 w-[190px] bg-[#1c1c1e]/95 backdrop-blur-xl border border-white/10 rounded-[18px] shadow-2xl z-[1000] overflow-hidden animate-in fade-in zoom-in-95 duration-200 origin-top-right">
+                  <div className="p-1.5 space-y-0.5">
+                    <button 
+                      onClick={() => {
+                        const url = `${window.location.origin}${window.location.pathname}?post=${post.id}`;
+                        navigator.clipboard.writeText(url);
+                        showAlert("Link copied! 🔗");
+                        setMenuOpen(false);
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-white/5 rounded-xl transition-all group"
+                    >
+                      <Link size={14} strokeWidth={2} className="text-white/40 group-hover:text-white" />
+                      <span className="text-[13px] font-medium text-white/80">Copy Link</span>
+                    </button>
+                    
+                    <a 
+                      href="/about" 
+                      className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-white/5 rounded-xl transition-all group"
+                      onClick={() => setMenuOpen(false)}
+                    >
+                      <User size={14} strokeWidth={2} className="text-white/40 group-hover:text-white" />
+                      <span className="text-[13px] font-medium text-white/80">About Account</span>
+                    </a>
+
+                    <button 
+                      onClick={() => {
+                        setIsHidden(true);
+                        setMenuOpen(false);
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-white/5 rounded-xl transition-all group"
+                    >
+                      <EyeOff size={14} strokeWidth={2} className="text-white/40 group-hover:text-white" />
+                      <span className="text-[13px] font-medium text-white/80">Not Interested</span>
+                    </button>
+
+                    <div className="h-[1px] bg-white/5 my-1 mx-2" />
+
+                    <button 
+                      onClick={() => {
+                        showAlert("Post reported! 🙏");
+                        setMenuOpen(false);
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-white/5 rounded-xl transition-all group"
+                    >
+                      <Flag size={14} strokeWidth={2} className="text-red-400/60 group-hover:text-red-400" />
+                      <span className="text-[13px] font-medium text-red-400/80">Report Post</span>
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
         </div>
 
         {/* Content */}
         {post.content && (
-          post.textLayout === "quote" ? (
-             <div className="px-12 pb-12 pt-6 relative flex flex-col items-center justify-center text-center">
-               <div className="absolute top-0 left-10 select-none opacity-[0.14] transform -translate-y-4">
-                 <span className="text-[#7c83fd] text-[120px] font-serif leading-none" style={{ fontFamily: 'Georgia, serif' }}>“</span>
-               </div>
-               <div className="relative z-10">
-                 <div className="font-['Caveat'] text-white text-[28px] md:text-[32px] leading-[1.25] font-bold tracking-tight">
-                    <SmartText text={post.content} />
-                 </div>
-               </div>
-               <div className="absolute inset-0 bg-gradient-to-br from-[#7c83fd]/[0.05] via-transparent to-transparent pointer-events-none rounded-[32px]" />
-            </div>
-          ) : (
-            (post.linkPreview?.url !== post.content.trim()) && (
-              <div className="px-5 pb-3 text-white/80 text-[13px] leading-snug whitespace-pre-wrap">
-                <SmartText text={post.content} />
-              </div>
-            )
-          )
-        )}
-
-        {/* Link Preview */}
-        {post.linkPreview && post.linkPreview.url && (
-          <div className="px-5 pb-4">
-            <a 
-              href={post.linkPreview.url} 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="group/link block bg-white/[0.03] border border-white/[0.08] rounded-2xl overflow-hidden hover:bg-white/[0.06] hover:border-white/20 transition-all duration-300 shadow-lg"
-            >
-              <div className="flex items-center p-3 gap-4">
-                {/* Preview Image */}
-                <div className="shrink-0 w-24 h-24 rounded-xl overflow-hidden bg-gradient-to-br from-[#CB2729] to-[#6a1516] flex items-center justify-center border border-white/[0.05]">
-                  {post.linkPreview.image ? (
-                    <img src={post.linkPreview.image} alt="" className="w-full h-full object-cover group-hover/link:scale-110 transition-transform duration-700" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center opacity-40 group-hover/link:opacity-60 transition-opacity">
-                       {/* Default brand icon or placeholder */}
-                       <div className="w-10 h-10 rounded-lg bg-white/10" />
-                    </div>
-                  )}
-                </div>
-
-                {/* Preview Info */}
-                <div className="flex-1 min-w-0 pr-2">
-                  <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] mb-1.5 truncate">
-                    {post.linkPreview.domain || (post.linkPreview.url ? new URL(post.linkPreview.url).hostname.replace('www.', '').toUpperCase() : "EXTERNAL LINK")}
-                  </p>
-                  <h3 className="text-[14px] font-bold text-white leading-tight mb-1 group-hover/link:text-[#CB2729] transition-colors line-clamp-2">
-                    {post.linkPreview.title || (post.linkPreview.url ? new URL(post.linkPreview.url).pathname.split('/').pop() : "Shared Link")}
-                  </h3>
-                  <p className="text-[11px] text-white/50 leading-snug line-clamp-2">
-                    {post.linkPreview.description || "Click to visit this site and explore more content."}
-                  </p>
-                </div>
-              </div>
-            </a>
+          <div className={`px-5 pb-5 text-white/90 text-[15px] leading-[1.6] font-['Inter'] ${post.textLayout === 'quote' ? 'italic font-medium text-[18px]' : ''}`}>
+            <SmartText text={post.content} />
           </div>
         )}
 
-        {/* Video / Reel — tap to open fullscreen */}
-        {(post.type === "video" || post.type === "reel") && post.videoUrl && (
-          <div
-            className="relative mb-3 overflow-hidden rounded-[20px] bg-black cursor-pointer group/reel"
-            onClick={openFullscreen}
-          >
-            {/* Inline preview (muted, autoplay, no controls) */}
-            <video
-              ref={videoRef}
-              src={post.videoUrl}
-              loop
-              playsInline
-              muted
-              autoPlay
-              className="w-full object-cover bg-black pointer-events-none"
-              style={{maxHeight:'34vh'}}
-            />
-            {/* Tap-to-expand hint visible on hover only, no play icon */}
-            <div className="absolute inset-0 bg-black/0 group-hover/reel:bg-black/10 transition-all duration-200 pointer-events-none" />
-            {/* Caption strip */}
-            {post.caption && (
-              <div className="absolute bottom-0 left-0 right-0 px-4 py-2.5 bg-gradient-to-t from-black/80 to-transparent pointer-events-none">
-                <p className="text-white/80 text-[11px] font-medium truncate">{post.caption}</p>
-              </div>
-            )}
+        {/* Video / Reel - Only show if not in carousel or if standalone */}
+        {mediaItems.length === 1 && mediaItems[0].type === "video" && (
+          <div className="relative mx-4 mb-5 overflow-hidden rounded-[16px] bg-black cursor-pointer shadow-lg border border-white/5" onClick={openFullscreen}>
+            <video ref={videoRef} src={post.videoUrl} loop playsInline muted autoPlay className="w-full object-cover bg-black" style={{maxHeight:'55vh'}} />
+            <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity bg-black/10">
+               <div className="w-14 h-14 rounded-full bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center">
+                  <Play size={24} fill="white" className="text-white translate-x-0.5" />
+               </div>
+            </div>
           </div>
         )}
 
@@ -768,41 +716,99 @@ const PostCard = ({
         )}
 
 
-        {/* Image / Carousel / Polaroid */}
-        {post.type === "image" && imagesList.length > 0 && (
-          <div className="w-full relative group">
-            {post.imageLayout === "polaroid" ? (
-              <PolaroidLayout images={imagesList} captions={post.imageCaptions} onExpand={setImgExpandedIndex} />
-            ) : (
-              <div className="relative mx-2.5 mb-3 overflow-hidden rounded-[18px] border border-white/[0.04]">
-                <div 
-                  className="flex transition-transform duration-500 ease-[cubic-bezier(0.25,1,0.5,1)]"
-                  style={{ transform: `translateX(-${activeIndex * 100}%)` }}
-                >
-                  {imagesList.map((img, i) => (
-                    <div key={i} className="min-w-full flex justify-center bg-[#111]" onClick={() => setImgExpandedIndex(i)}>
-                      <img src={img} alt="" className="w-full object-cover cursor-zoom-in" style={{maxHeight:'32vh'}} />
-                    </div>
-                  ))}
+        {/* Media Carousel (Images & Videos) */}
+        {mediaItems.length > 0 && (mediaItems.length > 1 || mediaItems[0].type === "image") && (
+          <div className="w-full relative group px-4 mb-5">
+            <div className="relative overflow-hidden rounded-[16px] border border-white/5 bg-[#0a0a0a]">
+              <div 
+                className="flex transition-transform duration-700 ease-[cubic-bezier(0.23,1,0.32,1)]"
+                style={{ transform: `translateX(-${activeIndex * 100}%)` }}
+              >
+                {mediaItems.map((item, i) => (
+                  <div key={i} className="min-w-full flex justify-center bg-[#0a0a0a]">
+                    {item.type === "image" ? (
+                      <img 
+                        src={item.url} 
+                        alt="" 
+                        className="w-full object-cover cursor-zoom-in" 
+                        style={{maxHeight:'55vh', minHeight:'30vh'}} 
+                        onClick={() => setImgExpandedIndex(imagesList.indexOf(item.url))}
+                      />
+                    ) : (
+                      <div className="w-full relative cursor-pointer" onClick={openFullscreen}>
+                         <video 
+                           src={item.url} 
+                           loop 
+                           playsInline 
+                           muted 
+                           autoPlay={i === activeIndex}
+                           className="w-full object-cover bg-black" 
+                           style={{maxHeight:'55vh', minHeight:'30vh'}} 
+                         />
+                         <div className="absolute top-4 right-4 w-8 h-8 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center text-white border border-white/10">
+                            <PlayCircle size={16} />
+                         </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+              
+              {mediaItems.length > 1 && (
+                 <>
+                   {activeIndex > 0 && (
+                     <button 
+                       onClick={(e) => { e.stopPropagation(); setActiveIndex(p => p - 1) }} 
+                       className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/10 backdrop-blur-xl flex items-center justify-center text-white hover:bg-white/20 transition-all border border-white/10 z-10 shadow-2xl"
+                     >
+                       <ChevronLeft size={16} />
+                     </button>
+                   )}
+                   {activeIndex < mediaItems.length - 1 && (
+                     <button 
+                       onClick={(e) => { e.stopPropagation(); setActiveIndex(p => p + 1) }} 
+                       className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/10 backdrop-blur-xl flex items-center justify-center text-white hover:bg-white/20 transition-all border border-white/10 z-10 shadow-2xl"
+                     >
+                       <ChevronRight size={16} />
+                     </button>
+                   )}
+                   <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-1.5 pointer-events-none">
+                     {mediaItems.map((_, i) => (
+                       <div key={i} className={`h-1 rounded-full transition-all duration-500 ${i === activeIndex ? 'w-5 bg-white' : 'w-1 bg-white/20'}`} />
+                     ))}
+                   </div>
+                 </>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Link Preview */}
+        {post.linkPreview?.url && (
+          <div className="px-4 mb-5">
+            <a 
+              href={post.linkPreview.url} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="block group/link overflow-hidden rounded-[16px] border border-white/5 bg-white/[0.02] hover:bg-white/[0.04] transition-colors"
+            >
+              {post.linkPreview.image && (
+                <div className="aspect-[1.91/1] w-full overflow-hidden border-b border-white/5 bg-black">
+                  <img src={post.linkPreview.image} alt="" className="w-full h-full object-cover transition-transform duration-700 group-hover/link:scale-105" />
                 </div>
-                
-                {imagesList.length > 1 && (
-                   <>
-                     <button onClick={(e) => { e.stopPropagation(); setActiveIndex(p => (p - 1 + imagesList.length) % imagesList.length) }} className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/60 backdrop-blur-md flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-all hover:bg-black/80 hover:scale-110 shadow-lg border border-white/10 z-10">
-                       <ChevronLeft size={18} />
-                     </button>
-                     <button onClick={(e) => { e.stopPropagation(); setActiveIndex(p => (p + 1) % imagesList.length) }} className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/60 backdrop-blur-md flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-all hover:bg-black/80 hover:scale-110 shadow-lg border border-white/10 z-10">
-                       <ChevronRight size={18} />
-                     </button>
-                     <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5 p-2 rounded-full bg-black/60 backdrop-blur-md border border-white/10 shadow-xl">
-                       {imagesList.map((_, i) => (
-                         <div key={i} className={`h-1.5 rounded-full transition-all duration-300 ${i === activeIndex ? 'w-4 bg-white' : 'w-1.5 bg-white/40'}`} />
-                       ))}
-                     </div>
-                   </>
+              )}
+              <div className="p-4 space-y-1">
+                <div className="flex items-center gap-2">
+                   <span className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em]">{post.linkPreview.domain || 'LINK'}</span>
+                </div>
+                <h4 className="text-[14px] font-bold text-white/90 line-clamp-1 leading-tight">{post.linkPreview.title || post.linkPreview.url}</h4>
+                {post.linkPreview.description && (
+                  <p className="text-[12px] text-[#8e8e93] line-clamp-2 leading-relaxed mt-1 font-medium">{post.linkPreview.description}</p>
                 )}
               </div>
-            )}
+            </a>
+          </div>
+        )}
             
             {post.caption && (
               <div className="px-6 pb-3">
@@ -816,8 +822,7 @@ const PostCard = ({
                 <MapPin size={13} className="text-[#CB2729]" />{post.location}
               </div>
             )}
-          </div>
-        )}
+
 
         {/* Poll */}
         {post.type === "poll" && (
@@ -838,70 +843,63 @@ const PostCard = ({
           @keyframes music-bar { 0% { transform: scaleY(0.3); } 100% { transform: scaleY(1); } }
         `}</style>
 
-        {/* ── Unified Action + Comment Row ── */}
-        <div className="px-4 pt-1 pb-3 space-y-3">
+        <div className="px-5 py-4 flex items-center justify-between border-t border-white/5 font-['Inter']">
+          <div className="flex items-center gap-7">
+            <div className="relative">
+              <button
+                onClick={() => handleReact("like")}
+                className="flex items-center gap-2.5 text-[#8e8e93] hover:text-[#ff3b30] transition-colors relative"
+              >
+                <Heart size={22} strokeWidth={1.5} className={post.reactions?.like ? "fill-[#ff3b30] text-[#ff3b30] animate-in zoom-in-125 duration-300" : ""} />
+                <span className="text-[13px] font-medium">{formatCount(totalReacts) || ""}</span>
+              </button>
 
-          {/* Action pill row */}
-          <div className="flex items-center gap-1.5">
-            {/* React button */}
-            <button
-              onClick={() => handleReact("like")}
-              className="relative flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.04] hover:bg-[#CB2729]/15 border border-white/[0.05] hover:border-[#CB2729]/30 text-white/50 hover:text-[#CB2729] transition-all text-[11px] font-medium"
-            >
-              <div className="absolute left-1/2 bottom-full -translate-x-1/2 mb-1 pointer-events-none w-0 h-0 overflow-visible z-50">
-                {likeHearts.map(h => (
-                  <div key={h.id} className="absolute animate-[float-heart_1.2s_ease-out_forwards]" style={{ left:`${h.x}px`, animationDelay:`${h.delay}s`, bottom:'0' }}>
-                    <div className="animate-[side-sway_1s_ease-in-out_infinite alternate]">
-                      <Heart size={h.size} className="text-[#CB2729] fill-[#CB2729]/80" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <Heart size={11} className={totalReacts > 0 ? "fill-[#CB2729] text-[#CB2729]" : ""} />
-              <span>{totalReacts > 0 ? totalReacts : "Like"}</span>
-            </button>
-
-            {/* Comment count pill */}
-            <div 
-              onClick={() => setCommentsOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.04] hover:bg-white/[0.08] transition-colors cursor-pointer border border-white/[0.05] text-white/40 hover:text-white/70 text-[11px] font-medium"
-            >
-              <MessageCircle size={11} />
-              <span>{post.comments?.length || 0}</span>
+              {/* Premium Floating Hearts */}
+              {floatingHearts.map(heart => (
+                <div
+                  key={heart.id}
+                  className="absolute left-1/2 bottom-full pointer-events-none z-50 text-[#ff3b30]/60"
+                  style={{
+                    '--dx': `${heart.x}px`,
+                    '--dy': `${heart.y}px`,
+                    '--dr': `${heart.rotation}deg`,
+                    animation: `float-heart 1.2s ease-out forwards`
+                  } as any}
+                >
+                  <Heart size={20} fill="currentColor" />
+                </div>
+              ))}
+              {/* Animation keyframes */}
+              <style>{`
+                @keyframes float-heart {
+                  0% { transform: translate(-50%, 0) scale(0.5); opacity: 0; }
+                  15% { opacity: 0.9; transform: translate(-50%, -15px) scale(1.1); }
+                  100% { transform: translate(calc(-50% + var(--dx)), var(--dy)) rotate(var(--dr)) scale(0.8); opacity: 0; }
+                }
+              `}</style>
             </div>
 
-            {/* Share */}
+            <button
+              onClick={() => setCommentsOpen(true)}
+              className="flex items-center gap-2.5 text-[#8e8e93] hover:text-white transition-colors"
+            >
+              <MessageCircle size={22} strokeWidth={1.5} />
+              <span className="text-[13px] font-medium">{formatCount(post.comments?.length || 0) || ""}</span>
+            </button>
+
             <button
               onClick={handleShare}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.05] text-white/40 hover:text-white/70 transition-all text-[11px] font-medium"
+              className="flex items-center text-[#8e8e93] hover:text-white transition-colors"
             >
-              <Share2 size={11} />
-              <span>{post.shares || 0}</span>
+              <Share2 size={22} strokeWidth={1.5} />
             </button>
-
-            {/* Views */}
-            <div className="flex items-center gap-1 px-2.5 py-1.5 text-white/20 text-[10px] ml-auto">
-              <Eye size={10} /> {post.views || 0}
-            </div>
-
-            {/* Music volume control – only on iOS according to same logic */}
-            {post.musicVideoId && isIOS && (
-              <button
-                onClick={() => setGlobalMute(!globalMute)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[11px] font-medium transition-all ${
-                  globalMute
-                    ? 'bg-white/[0.04] border-white/[0.05] text-white/30 hover:text-white/60'
-                    : 'bg-[#CB2729]/10 border-[#CB2729]/25 text-[#CB2729]'
-                }`}
-              >
-                {globalMute ? <VolumeX size={11} /> : <Volume2 size={11} />}
-              </button>
-            )}
           </div>
-
-          {/* Comments */}
-          <CommentSection post={post} onUpdate={setPost} showAlert={showAlert} openOverride={commentsOpen} setOpenOverride={setCommentsOpen} />
         </div>
+
+        {/* Comments Section */}
+        {commentsOpen && (
+          <CommentSection post={post} onUpdate={setPost} showAlert={showAlert} openOverride={commentsOpen} setOpenOverride={setCommentsOpen} />
+        )}
       </div>
 
       {/* Expanded image lightbox */}
@@ -948,6 +946,7 @@ const Feed = () => {
   const [musicData, setMusicData] = useState<MusicData | null>(null);
   const [ytPlayer, setYtPlayer] = useState<any>(null);
   const [isIOS, setIsIOS] = useState(false);
+  const [settings, setSettings] = useState<AdminSettings | null>(null);
 
   useEffect(() => {
     // Detect iOS
@@ -970,6 +969,8 @@ const Feed = () => {
         }, 300);
       }
     });
+
+    settingsDB.get().then(setSettings);
   }, []);
 
   // Handle global volume sync
@@ -1009,7 +1010,7 @@ const Feed = () => {
 
   return (
     <div 
-      className="h-screen w-full text-white font-sans overflow-y-auto snap-y snap-mandatory scroll-smooth relative no-scrollbar" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+      className="h-screen w-full text-white font-['Inter'] overflow-y-auto snap-y snap-mandatory scroll-smooth relative no-scrollbar" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
       
       {/* System Alert Popup */}
       {alertMessage && createPortal(
@@ -1028,119 +1029,45 @@ const Feed = () => {
       )}
 
       {/* Main Timeline Wrapper */}
-      <div className="max-w-6xl mx-auto w-full pb-36 px-4 pt-16 relative">
-        {/* Refined Silky Timeline */}
-        <div className="absolute left-[24px] md:left-1/2 top-0 bottom-0 w-12 -translate-x-1/2 z-0 pointer-events-none">
-           <svg width="100%" height="100%" className="opacity-10">
-             <path 
-               d="M 24 0 Q 34 200 14 400 Q 34 600 14 800 Q 34 1000 24 1200" 
-               fill="none" 
-               stroke="#CB2729" 
-               strokeWidth="2" 
-               strokeLinecap="round"
-             />
-           </svg>
-
-           {/* Tiny Drifting Sparkles */}
-           {[...Array(5)].map((_, i) => (
-             <div 
-               key={i}
-               className="absolute w-1 h-1 bg-white/40 rounded-full"
-               style={{ 
-                 left: '50%',
-                 top: `${20 * i}%`,
-                 animation: `sparkle-drift ${4 + i}s ease-in-out infinite`,
-                 animationDelay: `${i}s`
-               }}
-             />
-           ))}
-        </div>
-        
-        {/* Viewport Focus Glow - Simplified for performance */}
-        <div className="fixed top-1/2 left-[24px] md:left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 bg-[#CB2729]/5 blur-[40px] rounded-full pointer-events-none z-0 hidden md:block" />
-
-        {loading ? (
-          Array(2).fill(0).map((_, i) => (
-             <div key={i} className="h-screen flex items-center justify-center snap-start w-full px-4">
-                <div className="w-full md:w-[460px] lg:w-[520px] space-y-6">
-                  <div className="flex items-center gap-4">
-                    <Skeleton className="w-12 h-12 rounded-full opacity-20" />
-                    <div className="space-y-2">
-                       <Skeleton className="h-4 w-32 opacity-20" />
-                       <Skeleton className="h-3 w-16 opacity-10" />
-                    </div>
-                  </div>
-                  <Skeleton className="h-64 w-full rounded-3xl opacity-10" />
-                  <div className="space-y-3">
-                    <Skeleton className="h-4 w-full opacity-10" />
-                    <Skeleton className="h-4 w-2/3 opacity-10" />
-                  </div>
-                  <div className="flex gap-4 pt-2">
-                    {[1,2,3].map(j => <Skeleton key={j} className="h-6 w-12 rounded-full opacity-10" />)}
+      <div className="max-w-6xl mx-auto w-full pb-36 px-4 pt-4 md:pt-16 relative">
+        {/* Simple Feed Layout */}
+        <div className="flex flex-col items-center gap-10 w-full">
+          {loading ? (
+            Array(3).fill(0).map((_, i) => (
+              <div key={i} className="w-full md:w-[460px] lg:w-[500px] space-y-4">
+                <div className="flex items-center gap-3">
+                  <Skeleton className="w-10 h-10 rounded-full opacity-20" />
+                  <div className="space-y-1.5">
+                     <Skeleton className="h-3 w-24 opacity-20" />
+                     <Skeleton className="h-2 w-16 opacity-10" />
                   </div>
                 </div>
-             </div>
-          ))
-        ) : posts.length === 0 ? (
-          <div className="h-screen w-full flex flex-col items-center justify-center text-white/20 text-xs uppercase tracking-[0.3em] font-medium pt-24 snap-start">No posts here yet</div>
-        ) : (
-          posts.map((post, idx) => {
-            const isEven = idx % 2 === 0;
-            return (
-              <div id={`post-${post.id}`} key={post.id} className={`relative flex items-center w-full h-[100dvh] snap-start snap-always ${isEven ? 'md:justify-start' : 'md:justify-end'}`}>
-                 
-                 {/* Glowing Gem Node - Hide on mobile */}
-                 <div className="absolute left-[24px] md:left-1/2 top-1/2 -mt-12 -translate-y-1/2 -translate-x-1/2 z-0 hidden md:block">
-                    <div className="relative group animate-[gem-wobble_5s_ease-in-out_infinite]">
-                       {/* Subtle Glow Radius */}
-                       <div className="absolute inset-0 bg-[#CB2729]/10 blur-lg rounded-full scale-150" />
-                       
-                       {/* The Gem */}
-                       <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-[#CB2729] to-[#ff4d4d] border border-white/30 shadow-[0_2px_10px_rgba(203,39,41,0.3)] flex items-center justify-center group-hover:scale-125 transition-all duration-500">
-                          <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-                       </div>
-
-                       {/* Tiny Floating Accessory Icon (Hidden on mobile) */}
-                       <div className="absolute -top-3 -right-3 hidden md:block opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Heart size={10} className="text-[#CB2729] fill-[#CB2729]" />
-                       </div>
-                    </div>
-                </div>
-
-                {/* Minimalist Curved Connector */}
-                <div className={`hidden md:block absolute top-1/2 -mt-12 w-24 lg:w-40 h-8 pointer-events-none opacity-20
-                  ${isEven ? 'right-[50%] translate-x-2' : 'left-[50%] -translate-x-2'}
-                `}>
-                   <svg width="100%" height="100%" viewBox="0 0 100 20" preserveAspectRatio="none">
-                      <path 
-                        d={isEven ? "M 100 10 Q 70 0 0 10" : "M 0 10 Q 30 0 100 10"} 
-                        fill="none" 
-                        stroke="#CB2729" 
-                        strokeWidth="1.5" 
-                      />
-                   </svg>
-                </div>
-                 
-                 {/* Lifted card container - Centered on mobile without timeline margin */}
-                 <div className={`w-full max-w-[94%] md:max-w-none relative mx-auto ${isEven ? 'md:ml-0 md:mr-16 lg:mr-24' : 'md:mr-0 md:ml-16 lg:ml-24'} md:w-[460px] lg:w-[520px] group`} style={{maxHeight:`calc(100dvh - 90px)`}}>
-                    <div className="relative z-10 overflow-y-auto rounded-[24px] will-change-scroll transition-transform duration-500 group-hover:scale-[1.02] group-hover:-translate-y-1" style={{maxHeight:`calc(100dvh - 90px)`, scrollbarWidth:`none`}}>
-                       <PostCard 
-                         post={post} 
-                         showAlert={setAlertMessage} 
-                         globalMute={globalMute} 
-                         setGlobalMute={setGlobalMute} 
-                         setMusicData={setMusicData}
-                         playingMusicId={musicData?.id || null}
-                         isIOS={isIOS}
-                       />
-                    </div>
-                    {/* Shadow Decor */}
-                    <div className="absolute -inset-4 bg-white/[0.01] blur-3xl rounded-[40px] -z-10 group-hover:bg-[#CB2729]/[0.03] transition-colors duration-500" />
-                 </div>
+                <Skeleton className="h-72 w-full rounded-2xl opacity-10" />
               </div>
-            );
-          })
-        )}
+            ))
+          ) : posts.length === 0 ? (
+            <div className="py-20 text-white/20 text-xs uppercase tracking-[0.3em] font-medium">No posts here yet</div>
+          ) : (
+            posts.map((post) => (
+              <div 
+                id={`post-${post.id}`} 
+                key={post.id} 
+                className="w-full md:w-[460px] lg:w-[500px] snap-start snap-always py-4"
+              >
+                <PostCard 
+                  post={post} 
+                  showAlert={setAlertMessage} 
+                  globalMute={globalMute} 
+                  setGlobalMute={setGlobalMute} 
+                  setMusicData={setMusicData}
+                  playingMusicId={musicData?.id || null}
+                  isIOS={isIOS}
+                  settings={settings}
+                />
+              </div>
+            ))
+          )}
+        </div>
       </div>
 
 

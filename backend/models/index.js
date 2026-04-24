@@ -171,7 +171,9 @@ const SettingsSchema = new mongoose.Schema({
   ogImage: String, 
   seoThemeColor: String,
   ogType: { type: String, default: "website" },
-  twitterHandle: String
+  twitterHandle: String,
+  feedProfileName: { type: String, default: "Sujan Gautam" },
+  feedProfileImage: String
 });
 const CourtesySchema = new mongoose.Schema({
   name: String, role: String, message: String, image: String, socialLinks: [{ platform: String, url: String }], active: { type: Boolean, default: true }
@@ -194,7 +196,8 @@ const serialize = (schema) => {
 const schemas = [
   UserSchema, PortfolioSchema, EducationSchema, FeedSchema, SliderSchema, ServiceSchema, VideoSchema,
   FunWorkSchema, StorySchema, PopupSchema, AdSchema, ContactMessageSchema, VisitorRecordSchema,
-  AppSchema, CustomerSchema, WhatsNewSchema, MusicSchema, UpdateSchema, SkillSchema, AboutSchema, SettingsSchema, CourtesySchema
+  AppSchema, CustomerSchema, WhatsNewSchema, MusicSchema, UpdateSchema, SkillSchema, AboutSchema, SettingsSchema, CourtesySchema,
+  CommentSchema, PollOptionSchema
 ];
 schemas.forEach(serialize);
 

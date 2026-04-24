@@ -4,7 +4,7 @@ import axios from "axios";
 import { feedAPI, FeedPost } from "@/lib/adminData";
 import {
   Plus, Trash2, Loader2, Upload, X,
-  Send, Music, Search, Video, Scissors, ArrowLeft
+  Send, Music, Search, Video, Scissors, ArrowLeft, Heart
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,8 +37,10 @@ const AdminFeedForm = () => {
   const [published, setPublished] = useState(true);
   const [textLayout, setTextLayout] = useState<"default" | "quote">("default");
   const [pollQuestion, setPollQuestion] = useState("");
-  const [pollOptions, setPollOptions] = useState(["", ""]);
+  const [pollOptions, setPollOptions] = useState<{label: string, votes: number}[]>([{label: "", votes: 0}, {label: "", votes: 0}]);
   const [linkPreview, setLinkPreview] = useState({ url: "", title: "", description: "", image: "", domain: "" });
+  const [likeCount, setLikeCount] = useState(0);
+  const [shareCount, setShareCount] = useState(0);
 
   // Music
   const [musicVideoId, setMusicVideoId] = useState("");
@@ -69,13 +71,15 @@ const AdminFeedForm = () => {
         setPublished(post.published !== false);
         setTextLayout(post.textLayout || "default");
         setPollQuestion(post.pollQuestion || "");
-        setPollOptions(post.pollOptions?.map((o: any) => o.label) || ["", ""]);
+        setPollOptions(post.pollOptions?.map((o: any) => ({ label: o.label, votes: o.votes || 0 })) || [{label: "", votes: 0}, {label: "", votes: 0}]);
         setMusicVideoId(post.musicVideoId || "");
         setMusicTitle(post.musicTitle || "");
         setMusicArtist(post.musicArtist || "");
         setMusicStartTime(post.musicStartTime || 0);
         setMusicEndTime(post.musicEndTime || 0);
         setLinkPreview(post.linkPreview || { url: "", title: "", description: "", image: "", domain: "" });
+        setLikeCount(post.reactions?.like || 0);
+        setShareCount(post.shares || 0);
       })
       .catch(() => toast.error("Failed to load post"))
       .finally(() => setLoadingPost(false));
@@ -131,7 +135,9 @@ const AdminFeedForm = () => {
         type, pinned, published, content, images, imageCaptions, videoUrl,
         textLayout, musicVideoId, musicTitle, musicArtist,
         musicStartTime, musicEndTime, pollQuestion, linkPreview,
-        pollOptions: pollOptions.filter(Boolean).map(label => ({ label, votes: 0, voters: [] } as any))
+        pollOptions: pollOptions.filter(o => o.label).map(o => ({ label: o.label, votes: o.votes || 0, voters: [] } as any)),
+        reactions: { like: likeCount } as any,
+        shares: shareCount
       };
       if (id) await feedAPI.updatePost(id, payload);
       else await feedAPI.createPost(payload);
@@ -253,20 +259,35 @@ const AdminFeedForm = () => {
                       </div>
                     </div>
                   )}
-                  {type === "poll" && (
-                    <div className="space-y-3">
-                      <Input value={pollQuestion} onChange={e => setPollQuestion(e.target.value)} placeholder="Poll question..." className="h-10 rounded-md" />
-                      <div className="space-y-2">
-                        {pollOptions.map((opt, i) => (
-                          <div key={i} className="flex gap-2">
-                            <input value={opt} onChange={e => { const n = [...pollOptions]; n[i] = e.target.value; setPollOptions(n); }} className="flex-1 h-9 px-3 bg-white border border-slate-200 rounded-md text-sm outline-none" placeholder={`Option ${i + 1}`} />
-                            {i >= 2 && <button onClick={() => setPollOptions(p => p.filter((_, idx) => idx !== i))} className="p-1.5 text-red-400 hover:text-red-600"><X size={15} /></button>}
-                          </div>
-                        ))}
-                        <Button type="button" variant="ghost" className="h-8 text-sm text-slate-600 px-3" onClick={() => setPollOptions(p => [...p, ""])}>+ Add Option</Button>
-                      </div>
+                  {type === 'poll' && (
+                    <div className="space-y-4">
+                       <div className="space-y-1.5">
+                          <Label className="text-xs font-medium text-slate-700">Question</Label>
+                          <Input value={pollQuestion} onChange={e=>setPollQuestion(e.target.value)} placeholder="Poll question..." className="h-10 rounded-md" />
+                       </div>
+                       <div className="space-y-3">
+                          <Label className="text-xs font-medium text-slate-500 uppercase tracking-wider">Options & Votes</Label>
+                          {pollOptions.map((opt, i) => (
+                             <div key={i} className="flex gap-3 items-center">
+                                <div className="flex-1">
+                                   <Input value={opt.label} onChange={e=>{const n=[...pollOptions]; n[i].label=e.target.value; setPollOptions(n);}} className="h-10 bg-white border-slate-200 rounded-md text-sm" placeholder={`Option ${i+1}`} />
+                                </div>
+                                <div className="w-24">
+                                   <Input type="number" value={opt.votes} onChange={e=>{const n=[...pollOptions]; n[i].votes=Number(e.target.value); setPollOptions(n);}} className="h-10 bg-slate-50 border-slate-200 rounded-md text-sm font-medium" placeholder="Votes" />
+                                </div>
+                                {i>=2 && (
+                                   <button type="button" onClick={()=>setPollOptions(p=>p.filter((_,idx)=>idx!==i))} className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-md transition-all">
+                                      <X size={16}/>
+                                   </button>
+                                )}
+                             </div>
+                          ))}
+                          <Button type="button" variant="outline" className="w-full h-10 text-sm text-slate-600 border-dashed border-slate-300 hover:bg-slate-50 hover:border-slate-400 mt-2" onClick={()=>setPollOptions(p=>[...p, {label: "", votes: 0}])}>
+                             <Plus size={14} className="mr-2" /> Add Option
+                          </Button>
+                       </div>
                     </div>
-                  )}
+                 )}
                 </CardContent>
               </Card>
             )}
@@ -316,9 +337,30 @@ const AdminFeedForm = () => {
               </CardContent>
             </Card>
 
+            {/* Engagement Boost */}
+            <Card className="bg-white border border-slate-200 shadow-none rounded-lg overflow-hidden">
+               <CardHeader className="px-6 py-4 border-b border-slate-100">
+                  <CardTitle className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Engagement Boost</CardTitle>
+               </CardHeader>
+               <CardContent className="p-6 space-y-4">
+                  <div className="space-y-1.5">
+                     <Label className="text-xs font-medium text-slate-700 flex items-center gap-2">
+                        <Heart size={12} className="text-red-500" /> Like Count
+                     </Label>
+                     <Input type="number" value={likeCount} onChange={e=>setLikeCount(Number(e.target.value))} className="h-10 rounded-md" />
+                  </div>
+                  <div className="space-y-1.5">
+                     <Label className="text-xs font-medium text-slate-700 flex items-center gap-2">
+                        <Send size={12} className="text-blue-500" /> Share Count
+                     </Label>
+                     <Input type="number" value={shareCount} onChange={e=>setShareCount(Number(e.target.value))} className="h-10 rounded-md" />
+                  </div>
+               </CardContent>
+            </Card>
+
             {/* Settings */}
             <Card className="bg-white border border-slate-200 shadow-none rounded-lg overflow-hidden">
-              <CardHeader className="px-6 py-4 border-b border-slate-100">
+              <CardHeader className="px-4 sm:px-6 py-4 border-b border-slate-100">
                 <CardTitle className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Post Settings</CardTitle>
               </CardHeader>
               <CardContent className="p-4 sm:p-6 space-y-5">

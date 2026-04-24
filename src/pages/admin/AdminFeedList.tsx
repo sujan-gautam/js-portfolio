@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { feedAPI, FeedPost } from "@/lib/adminData";
-import { Plus, Trash2, Edit2, Search, AlignLeft, Video, Loader2 } from "lucide-react";
+import { Plus, Trash2, Edit2, Search, AlignLeft, Video, Loader2, Heart, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
@@ -36,6 +36,12 @@ const AdminFeedList = () => {
   };
 
   const filteredPosts = posts.filter(p => !search || p.content?.toLowerCase().includes(search.toLowerCase()));
+
+  const formatCount = (num: number) => {
+    if (num >= 1000000) return (num / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+    if (num >= 1000) return (num / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
+    return num.toString();
+  };
 
   return (
     <div className="space-y-5 animate-in fade-in duration-300 font-inter max-w-7xl mx-auto pb-16">
@@ -76,7 +82,8 @@ const AdminFeedList = () => {
               <TableRow className="border-slate-100 bg-slate-50/60">
                 <TableHead className="px-6 h-11 text-xs font-medium text-slate-500">Asset</TableHead>
                 <TableHead className="px-6 h-11 text-xs font-medium text-slate-500">Content</TableHead>
-                <TableHead className="px-6 h-11 text-xs font-medium text-slate-500">Type</TableHead>
+                <TableHead className="px-6 h-11 text-xs font-medium text-slate-500">Likes</TableHead>
+                <TableHead className="px-6 h-11 text-xs font-medium text-slate-500">Shares</TableHead>
                 <TableHead className="px-6 h-11 text-xs font-medium text-slate-500">Status</TableHead>
                 <TableHead className="px-6 h-11 text-xs font-medium text-slate-500">Date</TableHead>
                 <TableHead className="px-6 h-11 text-xs font-medium text-slate-500 text-right">Actions</TableHead>
@@ -115,7 +122,14 @@ const AdminFeedList = () => {
                       </span>
                     </TableCell>
                     <TableCell className="px-6 py-4">
-                      <span className="text-xs font-medium text-slate-500 capitalize">{post.type}</span>
+                      <div className="flex items-center gap-1.5 text-xs font-medium text-slate-600">
+                        <Heart size={12} className="text-red-400" /> {formatCount(post.reactions?.like || 0)}
+                      </div>
+                    </TableCell>
+                    <TableCell className="px-6 py-4">
+                      <div className="flex items-center gap-1.5 text-xs font-medium text-slate-600">
+                        <Send size={12} className="text-blue-400" /> {formatCount(post.shares || 0)}
+                      </div>
                     </TableCell>
                     <TableCell className="px-6 py-4">
                       <span className={cn(

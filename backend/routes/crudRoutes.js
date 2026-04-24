@@ -6,6 +6,149 @@ import jwt from "jsonwebtoken";
 
 const router = express.Router();
 
+// ── Debug Logger ──
+router.use((req, res, next) => {
+  console.log(`FEED_ROUTER_LOG: ${req.method} ${req.url}`);
+  next();
+});
+
+const BANNED_IPS = new Map();
+const GLOBAL_RATE_LIMITER = new Map(); // ip -> { count, lastReset }
+
+function checkBan(req, res, next) {
+  const ip = req.ip || req.connection.remoteAddress || "unknown";
+  
+  // 1. Check if explicitly banned
+  if (BANNED_IPS.has(ip) && BANNED_IPS.get(ip) > Date.now()) {
+    const minsLeft = Math.ceil((BANNED_IPS.get(ip) - Date.now()) / 60000);
+    return res.status(403).json({ error: `Oops! 🙈 You are interacting a bit too fast. Try again in ${minsLeft} minutes! ✨` });
+  }
+  
+  // 2. Clear expired bans
+  if (BANNED_IPS.has(ip) && BANNED_IPS.get(ip) <= Date.now()) BANNED_IPS.delete(ip);
+
+  // 3. Global Request Limiting
+  const now = Date.now();
+  const limiter = GLOBAL_RATE_LIMITER.get(ip) || { count: 0, lastReset: now };
+  
+  if (now - limiter.lastReset > 10000) { // Reset every 10s
+    limiter.count = 1;
+    limiter.lastReset = now;
+  } else {
+    limiter.count += 1;
+  }
+  
+  GLOBAL_RATE_LIMITER.set(ip, limiter);
+
+  if (limiter.count > 15) { // Slightly more lenient
+    BANNED_IPS.set(ip, now + 15 * 60 * 1000); // 15 min ban
+    return res.status(403).json({ error: "Woah! 🐾 You're moving way too fast! Take a deep breath and come back in 15 minutes. ✨" });
+  }
+
+  next();
+}
+
+// ═══════════════════════════════════════════════════
+// FEED — Dedicated interaction routes
+// ═══════════════════════════════════════════════════
+
+// GET published posts
+router.get("/feed/posts", async (req, res) => {
+  try {
+    const posts = await Models.Feed.find({ published: true })
+      .sort({ pinned: -1, createdAt: -1 });
+    res.json(posts);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// POST vote on a poll option
+router.post("/feed/posts/:id/poll/vote", async (req, res) => {
+  try {
+    console.log(`POLL_VOTE_PROCESS: ID=${req.params.id}`);
+    const post = await Models.Feed.findById(req.params.id);
+    if (!post || post.type !== "poll") {
+      return res.status(404).json({ error: "Poll post not found" });
+    }
+    
+    const ip = req.ip || req.connection.remoteAddress || "unknown";
+    const { optionId, voterId } = req.body;
+
+    const alreadyVotedByIP = post.pollOptions.some(o => o.voters.includes(ip));
+    const alreadyVotedBySession = post.pollOptions.some(o => o.voters.includes(voterId));
+    
+    if (alreadyVotedByIP || alreadyVotedBySession) {
+      return res.status(403).json({ error: "Voice already counted! 🗳️✨" });
+    }
+
+    const option = post.pollOptions.id(optionId);
+    if (!option) return res.status(404).json({ error: "Option not found" });
+    
+    option.votes += 1;
+    option.voters.push(voterId);
+    if (ip !== "unknown") option.voters.push(ip);
+    
+    await post.save();
+    res.json(post);
+  } catch (err) { 
+    console.error(`POLL_VOTE_CRASH:`, err);
+    res.status(500).json({ error: err.message }); 
+  }
+});
+
+// POST react to a post
+router.post("/feed/posts/:id/react", checkBan, async (req, res) => {
+  try {
+    const ip = req.ip || req.connection.remoteAddress || "unknown";
+    const postObj = await Models.Feed.findById(req.params.id);
+    if (!postObj) return res.status(404).json({ error: "Post not found" });
+    if (postObj.reactedIPs?.includes(ip)) return res.status(403).json({ error: "Already reacted! ✨" });
+
+    const { type } = req.body;
+    const allowed = ["heart", "fire", "like", "wow", "sad"];
+    if (!allowed.includes(type)) return res.status(400).json({ error: "Invalid reaction" });
+    
+    const inc = {};
+    inc[`reactions.${type}`] = 1;
+    const updated = await Models.Feed.findByIdAndUpdate(req.params.id, { 
+      $inc: inc,
+      $push: { reactedIPs: ip } 
+    }, { new: true });
+    res.json(updated);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Other feed routes (comment, view, share) follow...
+router.post("/feed/posts/:id/comment", checkBan, async (req, res) => {
+  try {
+    const ip = req.ip || req.connection.remoteAddress || "unknown";
+    const postObj = await Models.Feed.findById(req.params.id);
+    if (!postObj) return res.status(404).json({ error: "Post not found" });
+    const { text, author, avatar, votersId } = req.body;
+    if (!text) return res.status(400).json({ error: "Comment text required" });
+    
+    const updated = await Models.Feed.findByIdAndUpdate(
+      req.params.id,
+      { $push: { comments: { text, author: author || "Visitor", avatar, ip, votersId: votersId || "unknown", createdAt: new Date() } } },
+      { new: true }
+    );
+    res.json(updated);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post("/feed/posts/:id/view", async (req, res) => {
+  try {
+    const post = await Models.Feed.findByIdAndUpdate(req.params.id, { $inc: { views: 1 } }, { new: true });
+    res.json({ views: post.views });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post("/feed/posts/:id/share", async (req, res) => {
+  try {
+    const post = await Models.Feed.findByIdAndUpdate(req.params.id, { $inc: { shares: 1 } }, { new: true });
+    res.json({ shares: post.shares });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 router.get("/collection/stories/secure-media", async (req, res) => {
   const { url, token } = req.query;
   if (!url) return res.status(400).json({ error: "Missing url" });
@@ -78,6 +221,7 @@ router.post("/cv/upload", (req, res) => {
     }
   });
 });
+
 
 const collectionMap = {
   users: Models.User,
@@ -239,41 +383,7 @@ router.put("/collection/stories/:id/view", async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-const BANNED_IPS = new Map();
-const GLOBAL_RATE_LIMITER = new Map(); // ip -> { count, lastReset }
 
-function checkBan(req, res, next) {
-  const ip = req.ip || req.connection.remoteAddress || "unknown";
-  
-  // 1. Check if explicitly banned
-  if (BANNED_IPS.has(ip) && BANNED_IPS.get(ip) > Date.now()) {
-    const minsLeft = Math.ceil((BANNED_IPS.get(ip) - Date.now()) / 60000);
-    return res.status(403).json({ error: `Oops! 🙈 You are interacting a bit too fast. Try again in ${minsLeft} minutes! ✨` });
-  }
-  
-  // 2. Clear expired bans
-  if (BANNED_IPS.has(ip) && BANNED_IPS.get(ip) <= Date.now()) BANNED_IPS.delete(ip);
-
-  // 3. Global Request Limiting (e.g., max 10 Feed interactions per 10 seconds)
-  const now = Date.now();
-  const limiter = GLOBAL_RATE_LIMITER.get(ip) || { count: 0, lastReset: now };
-  
-  if (now - limiter.lastReset > 10000) { // Reset every 10s
-    limiter.count = 1;
-    limiter.lastReset = now;
-  } else {
-    limiter.count += 1;
-  }
-  
-  GLOBAL_RATE_LIMITER.set(ip, limiter);
-
-  if (limiter.count > 12) { // Allow slightly higher burst but block abuse
-    BANNED_IPS.set(ip, now + 15 * 60 * 1000); // 15 min ban
-    return res.status(403).json({ error: "Woah! 🐾 You're moving way too fast! Take a deep breath and come back in 15 minutes. ✨" });
-  }
-
-  next();
-}
 
 router.post("/collection/stories/:id/comment", checkBan, async (req, res) => {
   try {
@@ -340,141 +450,5 @@ router.put("/singleton/:name", async (req, res) => {
 });
 
 
-// ═══════════════════════════════════════════════════
-// FEED — Dedicated interaction routes
-// ═══════════════════════════════════════════════════
-
-// GET published posts (sorted: pinned first, then newest)
-router.get("/feed/posts", async (req, res) => {
-  try {
-    const posts = await Models.Feed.find({ published: true })
-      .sort({ pinned: -1, createdAt: -1 });
-    res.json(posts);
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-// POST react to a post  { type: "heart"|"fire"|"like"|"wow"|"sad" }
-router.post("/feed/posts/:id/react", checkBan, async (req, res) => {
-  try {
-    const ip = req.ip || req.connection.remoteAddress || "unknown";
-    const postObj = await Models.Feed.findById(req.params.id);
-    if (!postObj) return res.status(404).json({ error: "Post not found" });
-
-    // Limit to 1 reaction per IP per post
-    if (postObj.reactedIPs?.includes(ip)) {
-      BANNED_IPS.set(ip, Date.now() + 10 * 60 * 1000); // 10 min ban for trying to double react
-      return res.status(403).json({ error: "You've already shared your vibe on this post! ✨" });
-    }
-
-    const { type } = req.body;
-    const allowed = ["heart", "fire", "like", "wow", "sad"];
-    if (!allowed.includes(type)) return res.status(400).json({ error: "Invalid reaction" });
-    
-    const inc = {};
-    inc[`reactions.${type}`] = 1;
-    const updated = await Models.Feed.findByIdAndUpdate(req.params.id, { 
-      $inc: inc,
-      $push: { reactedIPs: ip } 
-    }, { new: true });
-    res.json(updated);
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-// POST add comment
-router.post("/feed/posts/:id/comment", checkBan, async (req, res) => {
-  try {
-    const ip = req.ip || req.connection.remoteAddress || "unknown";
-    const postObj = await Models.Feed.findById(req.params.id);
-    if (!postObj) return res.status(404).json({ error: "Post not found" });
-
-    const { text, author, avatar, votersId } = req.body;
-    
-    // Check by both IP and votersId
-    const hasCommentedByIP = (postObj.comments || []).some(c => c.ip === ip);
-    const hasCommentedBySession = votersId && (postObj.comments || []).some(c => c.votersId === votersId);
-
-    if (hasCommentedByIP || hasCommentedBySession) {
-      BANNED_IPS.set(ip, Date.now() + 15 * 60 * 1000); // 15 min ban for trying to double comment
-      return res.status(403).json({ error: "One definitive thought per post! You've already shared yours. ✨" });
-    }
-
-    if (!text) return res.status(400).json({ error: "Comment text required" });
-    
-    const updated = await Models.Feed.findByIdAndUpdate(
-      req.params.id,
-      { $push: { comments: { text, author: author || "Visitor", avatar, ip, votersId: votersId || "unknown", createdAt: new Date() } } },
-      { new: true }
-    );
-    res.json(updated);
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-// DELETE a comment from post
-router.delete("/feed/posts/:id/comment/:commentId", async (req, res) => {
-  try {
-    const post = await Models.Feed.findByIdAndUpdate(
-      req.params.id,
-      { $pull: { comments: { _id: req.params.commentId } } },
-      { new: true }
-    );
-    res.json(post);
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-// POST react to a comment  { type: "heart"|"fire"|"laugh" }
-router.post("/feed/posts/:id/comment/:commentId/react", async (req, res) => {
-  try {
-    const { type } = req.body;
-    const post = await Models.Feed.findById(req.params.id);
-    const comment = post.comments.id(req.params.commentId);
-    if (!comment) return res.status(404).json({ error: "Comment not found" });
-    comment.reactions[type] = (comment.reactions[type] || 0) + 1;
-    await post.save();
-    res.json(post);
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-// POST vote on a poll option  { optionId, voterId }
-router.post("/feed/posts/:id/poll/vote", checkBan, async (req, res) => {
-  try {
-    const ip = req.ip || req.connection.remoteAddress || "unknown";
-    const post = await Models.Feed.findById(req.params.id);
-    if (!post || post.type !== "poll") return res.status(400).json({ error: "Not a poll" });
-    
-    // Prevent double voting by IP as well as voterId
-    const alreadyVotedByIP = post.pollOptions.some(o => o.voters.includes(ip));
-    const { optionId, voterId } = req.body;
-    const alreadyVotedBySession = post.pollOptions.some(o => o.voters.includes(voterId));
-    
-    if (alreadyVotedByIP || alreadyVotedBySession) {
-      BANNED_IPS.set(ip, Date.now() + 15 * 60 * 1000); // 15 min ban for double voting attempt
-      return res.status(403).json({ error: "Your voice has already been counted in this poll! 🗳️✨" });
-    }
-
-    const option = post.pollOptions.id(optionId);
-    if (!option) return res.status(404).json({ error: "Option not found" });
-    option.votes += 1;
-    option.voters.push(voterId);
-    if (ip !== "unknown") option.voters.push(ip);
-    await post.save();
-    res.json(post);
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-// POST increment view count
-router.post("/feed/posts/:id/view", async (req, res) => {
-  try {
-    const post = await Models.Feed.findByIdAndUpdate(req.params.id, { $inc: { views: 1 } }, { new: true });
-    res.json({ views: post.views });
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-// POST increment share count
-router.post("/feed/posts/:id/share", async (req, res) => {
-  try {
-    const post = await Models.Feed.findByIdAndUpdate(req.params.id, { $inc: { shares: 1 } }, { new: true });
-    res.json({ shares: post.shares });
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
 
 export default router;

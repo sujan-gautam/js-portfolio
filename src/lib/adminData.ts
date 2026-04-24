@@ -87,7 +87,7 @@ export interface UpdateItem { id: string; title: string; description: string; ty
 export interface SkillItem { id: string; name: string; image: string; proficiency: number; }
 export interface CourtesyItem { id: string; name: string; role: string; message: string; socialLinks: { platform: string; url: string }[]; image?: string; active: boolean; }
 export interface AboutData { name: string; title: string; bio: string; phone: string; email: string; address: string; dob: string; nationality: string; languages: string; experience: string; clients: string; projects: string; }
-export interface AdminSettings { siteName: string; siteDescription: string; courtesyDescription: string; quoteEnabled: boolean; maintenanceMode: boolean; analyticsId: string; socialLinks: { platform: string; url: string }[]; seoKeywords?: string; seoAuthor?: string; ogImage?: string; seoThemeColor?: string; }
+export interface AdminSettings { siteName: string; siteDescription: string; courtesyDescription: string; quoteEnabled: boolean; maintenanceMode: boolean; analyticsId: string; socialLinks: { platform: string; url: string }[]; seoKeywords?: string; seoAuthor?: string; ogImage?: string; seoThemeColor?: string; feedProfileName?: string; feedProfileImage?: string; }
 
 export function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2);
