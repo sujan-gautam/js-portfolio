@@ -4,7 +4,7 @@ import axios from "axios";
 import { feedAPI, FeedPost } from "@/lib/adminData";
 import {
   Plus, Trash2, Loader2, Upload, X,
-  Send, Music, Search, Video, Scissors, ArrowLeft, Heart
+  Send, Music, Search, Video, Scissors, ArrowLeft, Heart, Lock
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,6 +35,7 @@ const AdminFeedForm = () => {
   const [videoUrl, setVideoUrl] = useState("");
   const [pinned, setPinned] = useState(false);
   const [published, setPublished] = useState(true);
+  const [membersOnly, setMembersOnly] = useState(false);
   const [textLayout, setTextLayout] = useState<"default" | "quote">("default");
   const [pollQuestion, setPollQuestion] = useState("");
   const [pollOptions, setPollOptions] = useState<{label: string, votes: number}[]>([{label: "", votes: 0}, {label: "", votes: 0}]);
@@ -69,6 +70,7 @@ const AdminFeedForm = () => {
         setVideoUrl(post.videoUrl || "");
         setPinned(post.pinned || false);
         setPublished(post.published !== false);
+        setMembersOnly(post.membersOnly || false);
         setTextLayout(post.textLayout || "default");
         setPollQuestion(post.pollQuestion || "");
         setPollOptions(post.pollOptions?.map((o: any) => ({ label: o.label, votes: o.votes || 0 })) || [{label: "", votes: 0}, {label: "", votes: 0}]);
@@ -132,7 +134,7 @@ const AdminFeedForm = () => {
     setSaving(true);
     try {
       const payload: Partial<FeedPost> = {
-        type, pinned, published, content, images, imageCaptions, videoUrl,
+        type, pinned, published, membersOnly, content, images, imageCaptions, videoUrl,
         textLayout, musicVideoId, musicTitle, musicArtist,
         musicStartTime, musicEndTime, pollQuestion, linkPreview,
         pollOptions: pollOptions.filter(o => o.label).map(o => ({ label: o.label, votes: o.votes || 0, voters: [] } as any)),
@@ -377,6 +379,15 @@ const AdminFeedForm = () => {
                     <p className="text-xs text-slate-500 mt-0.5">Make this post public</p>
                   </div>
                   <Switch checked={published} onCheckedChange={setPublished} />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-slate-800 flex items-center gap-2">
+                       Members Only <Lock size={12} className="text-slate-400" />
+                    </p>
+                    <p className="text-xs text-slate-500 mt-0.5">Require login to view content</p>
+                  </div>
+                  <Switch checked={membersOnly} onCheckedChange={setMembersOnly} />
                 </div>
               </CardContent>
             </Card>

@@ -6,9 +6,11 @@ import {
   Heart, MessageCircle, Share2, MoreHorizontal, Send, 
   ChevronLeft, ChevronRight, X, Play, Pause, Music, Volume2, VolumeX,
   PieChart, BarChart2, Eye, MapPin, Pin, Loader2, PlayCircle, Camera, Quote,
-  Link, Flag, User, EyeOff
+  Link, Flag, User, EyeOff, Lock
 } from "lucide-react";
 import YouTube from "react-youtube";
+import { useAuth } from "@/context/AuthContext";
+import { API_BASE } from "@/config";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const timelineStyles = `
@@ -330,6 +332,7 @@ const PostCard = ({
   isIOS: boolean;
   settings: AdminSettings | null;
 }) => {
+  const { user } = useAuth();
   const [post, setPost] = useState(initialPost);
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [imgExpandedIndex, setImgExpandedIndex] = useState<number | null>(null);
@@ -427,6 +430,11 @@ const PostCard = ({
     if (num >= 1000000) return (num / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
     if (num >= 1000) return (num / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
     return num.toString();
+  };
+
+  const handleGoogleLogin = () => {
+    localStorage.setItem("auth_return", window.location.pathname);
+    window.location.href = `${API_BASE}/auth/google`;
   };
 
   const openFullscreen = (e: React.MouseEvent) => {
@@ -549,7 +557,7 @@ const PostCard = ({
                <p className="text-[11px] text-[#8e8e93] font-normal opacity-80">
                 {timeAgo(post.createdAt)}
                </p>
-               {post.musicVideoId && (
+               {post.musicVideoId && !(post.membersOnly && !user) && (
                  <>
                    <span className="text-[#8e8e93] text-[10px] opacity-40">•</span>
                    <div className="flex items-center gap-1">
@@ -628,12 +636,35 @@ const PostCard = ({
           </div>
         </div>
 
-        {/* Content */}
-        {post.content && (
-          <div className={`px-5 pb-5 text-white/90 text-[15px] leading-[1.6] font-['Inter'] ${post.textLayout === 'quote' ? 'italic font-medium text-[18px]' : ''}`}>
-            <SmartText text={post.content} />
-          </div>
-        )}
+        {/* Members Only Gating */}
+        {post.membersOnly && !user ? (
+           <div className="relative overflow-hidden rounded-xl bg-[#121212] flex flex-col items-center justify-center py-20 px-8 text-center border border-white/5 mx-4 mb-4">
+              <div className="absolute inset-0 bg-[#0a0a0a]/40 backdrop-blur-2xl z-0" />
+              <div className="relative z-10 flex flex-col items-center">
+                 <div className="w-14 h-14 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-6 shadow-2xl">
+                    <Lock size={24} className="text-white/40" />
+                 </div>
+                 <h3 className="text-lg font-bold text-white mb-2 tracking-tight">Members Only Content</h3>
+                 <p className="text-white/40 text-[13px] mb-8 max-w-[240px] leading-relaxed">
+                    This post is exclusive to members. Please sign in to view the media and interactions.
+                 </p>
+                 <button 
+                   onClick={handleGoogleLogin}
+                   className="h-11 px-6 bg-white text-black font-bold text-[13px] rounded-full hover:bg-neutral-200 active:scale-95 transition-all shadow-xl flex items-center gap-3"
+                 >
+                    <img src="https://www.google.com/favicon.ico" className="w-4 h-4" alt="google" />
+                    Continue with Google
+                 </button>
+              </div>
+           </div>
+        ) : (
+          <>
+            {/* Content */}
+            {post.content && (
+              <div className={`px-5 pb-5 text-white/90 text-[15px] leading-[1.6] font-['Inter'] ${post.textLayout === 'quote' ? 'italic font-medium text-[18px]' : ''}`}>
+                <SmartText text={post.content} />
+              </div>
+            )}
 
         {/* Video / Reel - Only show if not in carousel or if standalone */}
         {mediaItems.length === 1 && mediaItems[0].type === "video" && (
@@ -842,8 +873,11 @@ const PostCard = ({
         <style>{`
           @keyframes music-bar { 0% { transform: scaleY(0.3); } 100% { transform: scaleY(1); } }
         `}</style>
+          </>
+        )}
 
-        <div className="px-5 py-4 flex items-center justify-between border-t border-white/5 font-['Inter']">
+        {!(post.membersOnly && !user) && (
+          <div className="px-5 py-4 flex items-center justify-between border-t border-white/5 font-['Inter']">
           <div className="flex items-center gap-7">
             <div className="relative">
               <button
@@ -895,6 +929,7 @@ const PostCard = ({
             </button>
           </div>
         </div>
+        )}
 
         {/* Comments Section */}
         {commentsOpen && (

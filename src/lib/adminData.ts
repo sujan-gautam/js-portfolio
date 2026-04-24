@@ -25,6 +25,7 @@ export interface FeedPost {
   tags?: string[];
   pinned?: boolean;
   published?: boolean;
+  membersOnly?: boolean;
   musicVideoId?: string;
   musicTitle?: string;
   musicArtist?: string;
