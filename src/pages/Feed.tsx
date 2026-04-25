@@ -321,7 +321,8 @@ const PostCard = ({
   setMusicData,
   playingMusicId,
   isIOS,
-  settings
+  settings,
+  ytPlayer
 }: { 
   post: FeedPost; 
   showAlert: (msg: string) => void; 
@@ -331,6 +332,7 @@ const PostCard = ({
   playingMusicId: string | null;
   isIOS: boolean;
   settings: AdminSettings | null;
+  ytPlayer: any;
 }) => {
   const { user } = useAuth();
   const [post, setPost] = useState(initialPost);
@@ -453,7 +455,19 @@ const PostCard = ({
 
   const handleMuteToggle = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setGlobalMute(!globalMute);
+    const nextMute = !globalMute;
+    setGlobalMute(nextMute);
+    if (ytPlayer && typeof ytPlayer.unMute === 'function') {
+      try {
+        if (nextMute) {
+          ytPlayer.mute();
+        } else {
+          ytPlayer.unMute();
+          ytPlayer.setVolume(100);
+          ytPlayer.playVideo(); // Force play explicitly on interaction for iOS
+        }
+      } catch (err) {}
+    }
   };
 
   const toggleFsPlay = () => {
@@ -1109,6 +1123,7 @@ const Feed = () => {
                   playingMusicId={musicData?.id || null}
                   isIOS={isIOS}
                   settings={settings}
+                  ytPlayer={ytPlayer}
                 />
               </div>
             ))
