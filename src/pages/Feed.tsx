@@ -1133,7 +1133,7 @@ const Feed = () => {
 
 
       {/* Global Shared YouTube Player (Fast Audio Switching) */}
-      <div className="fixed -top-[1000px] left-0 w-[1px] h-[1px] opacity-0 pointer-events-none z-[-1] overflow-hidden">
+      <div className="absolute opacity-0 pointer-events-none z-0">
         <YouTube 
           videoId="" // Video loaded dynamically via ytPlayer.loadVideoById
           opts={{ 
