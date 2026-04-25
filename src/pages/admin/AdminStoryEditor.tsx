@@ -773,7 +773,7 @@ const AdminStoryEditor = () => {
           <div className="flex-1" /> {/* Spacer */}
 
           {/* Music Sticker Mockup */}
-          <div className="w-[240px] bg-white rounded-xl p-3 shadow-2xl animate-in zoom-in-95 duration-500 flex items-center gap-3">
+          <div className="w-[90%] max-w-[280px] bg-white rounded-xl p-3 shadow-2xl animate-in zoom-in-95 duration-500 flex items-center gap-3">
              <img src={`https://img.youtube.com/vi/${item.musicVideoId}/mqdefault.jpg`} className="w-12 h-12 rounded-lg object-cover" />
              <div className="flex-1 overflow-hidden">
                 <p className="text-[13px] font-bold text-slate-900 truncate tracking-tight leading-tight">{item.musicTitle}</p>
@@ -797,10 +797,10 @@ const AdminStoryEditor = () => {
 
           {/* Bottom Trimmer Bar */}
           <div className="absolute bottom-8 sm:bottom-16 inset-x-0 px-4 sm:px-8 animate-in slide-in-from-bottom-8 duration-500">
-             <div className="relative h-16 flex items-center justify-center">
-                <div className="absolute inset-0 flex items-center justify-between px-2 gap-[3px]">
-                  {Array.from({ length: 60 }).map((_, i) => {
-                    return <div key={i} className="w-[2px] bg-white/10 h-5 rounded-full" />;
+              <div className="relative h-16 flex items-center justify-center w-full max-w-sm mx-auto">
+                <div className="absolute inset-0 flex items-center justify-between px-2 overflow-hidden">
+                  {Array.from({ length: 40 }).map((_, i) => {
+                    return <div key={i} className="w-[2px] sm:w-[3px] bg-white/10 h-5 rounded-full shrink-0 mx-[2px] sm:mx-1" />;
                   })}
                 </div>
                 
@@ -813,9 +813,9 @@ const AdminStoryEditor = () => {
                   }}
                 >
                    <div className="absolute inset-0 bg-gradient-to-r from-yellow-400 via-orange-500 to-purple-600 rounded-xl opacity-90" />
-                   <div className="absolute inset-[2.5px] bg-white rounded-lg flex items-center justify-between px-3 overflow-hidden shadow-inner">
+                   <div className="absolute inset-[2.5px] bg-white rounded-lg flex items-center justify-between px-2 sm:px-3 overflow-hidden shadow-inner">
                       {Array.from({ length: 12 }).map((_, i) => (
-                        <div key={i} className="w-[2px] bg-slate-100 h-6 rounded-full" />
+                        <div key={i} className="w-[2px] bg-slate-100 h-6 rounded-full shrink-0 mx-0.5 sm:mx-1" />
                       ))}
                    </div>
                 </div>
