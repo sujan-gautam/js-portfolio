@@ -1153,8 +1153,8 @@ const Feed = () => {
           }}
           onReady={(e) => setYtPlayer(e.target)}
           onStateChange={(e) => {
-             // 1=playing, 2=paused, 3=buffering
-             if (e.data === 1 || e.data === 2 || e.data === 3) {
+             // 1=playing, 2=paused, 3=buffering, 5=cued
+             if (e.data === 1 || e.data === 2 || e.data === 3 || e.data === 5) {
                 setIsMusicReady(true);
              } else {
                 setIsMusicReady(false);
