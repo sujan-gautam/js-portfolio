@@ -97,6 +97,8 @@
   body {
     @apply text-foreground antialiased;
     background: #050505;
+    overscroll-behavior-y: none;
+    -webkit-text-size-adjust: 100%;
   }
 }
 
