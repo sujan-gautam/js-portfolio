@@ -866,20 +866,52 @@ const AdminStoryEditor = () => {
             </div>
             <div className="flex-1 overflow-y-auto p-8 space-y-8 scrollbar-none">
               {activeDrawer === "settings" && (
-                <div className="space-y-8">
-                  <div className="space-y-2.5">
-                    <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Story Title</Label>
-                    <Input value={item.title || ""} onChange={e => setItem({ ...item, title: e.target.value })} className="h-12 rounded-2xl bg-slate-50 border-none text-sm font-bold" />
+                <div className="space-y-6">
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Story Title</Label>
+                    <Input 
+                      value={item.title || ""} 
+                      onChange={e => setItem({ ...item, title: e.target.value })} 
+                      className="h-12 border-0 border-b-2 border-slate-100 rounded-none bg-transparent px-0 text-base font-bold text-slate-900 focus-visible:ring-0 focus-visible:border-black transition-colors" 
+                      placeholder="Untitled Moment"
+                    />
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="p-4 bg-slate-50 rounded-[24px] flex flex-col gap-3">
-                      <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2"><Lock size={12}/> Members Only</Label>
+                  
+                  <div className="space-y-1 pt-4">
+                    <div className="flex items-center justify-between py-3 border-b border-slate-50">
+                      <div className="flex items-center gap-3">
+                        <Lock size={16} className="text-slate-400" />
+                        <span className="text-sm font-semibold text-slate-900">Members Only</span>
+                      </div>
                       <Switch checked={item.isMembersOnly} onCheckedChange={v => setItem({ ...item, isMembersOnly: v })} />
                     </div>
-                    <div className="p-4 bg-slate-50 rounded-[24px] flex flex-col gap-3">
-                      <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2"><MessageSquare size={12}/> Comments</Label>
+                    
+                    <div className="flex items-center justify-between py-3 border-b border-slate-50">
+                      <div className="flex items-center gap-3">
+                        <MessageSquare size={16} className="text-slate-400" />
+                        <span className="text-sm font-semibold text-slate-900">Allow Comments</span>
+                      </div>
                       <Switch checked={item.allowComments} onCheckedChange={v => setItem({ ...item, allowComments: v })} />
                     </div>
+                  </div>
+
+                  <div className="pt-8">
+                    <button 
+                      onClick={async () => {
+                        if (!id) return;
+                        if (!confirm("Are you sure you want to delete this story?")) return;
+                        try {
+                          await storiesDB.delete(id);
+                          toast.success("Story deleted");
+                          navigate("/admin/story");
+                        } catch (err) {
+                          toast.error("Failed to delete story");
+                        }
+                      }}
+                      className="w-full h-12 flex items-center justify-center gap-2 rounded-xl bg-red-50 text-red-500 font-bold text-sm hover:bg-red-100 transition-colors"
+                    >
+                      <Trash2 size={16} /> Delete Story
+                    </button>
                   </div>
                 </div>
               )}

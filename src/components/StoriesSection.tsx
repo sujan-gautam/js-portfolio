@@ -457,56 +457,50 @@ const StoriesSection = () => {
                       </div>
 
                       <div className="flex items-center gap-2 w-full">
-                        
-                        {currentViewerStory.musicVideoId && !(currentViewerStory.isMembersOnly && !user) && (
-                          <div className="flex items-center gap-2">
-                             <button 
-                               onClick={(e) => toggleMute(e)}
-                               className="flex items-center justify-center w-8 h-8 rounded-full bg-black/20 backdrop-blur-md border border-white/10 hover:bg-white/10 transition-colors flex-shrink-0 cursor-pointer"
-                               title={isMuted ? "Unmute Music" : "Mute Music"}
-                             >
-                               {isMuted ? <VolumeX size={14} className="text-white/60" /> : <Volume2 size={14} className="text-white/90" />}
-                             </button>
-                             
-                             {/* Only show marquee if sticker is HIDDEN (Style 3) */}
-                             {currentViewerStory.musicStyle === 3 && (
-                               <div className="bg-black/30 backdrop-blur-md pl-1.5 pr-2 py-[3px] rounded border border-white/10 overflow-hidden flex-1 max-w-[160px]">
-                                 <div className="flex whitespace-nowrap overflow-hidden relative w-full" style={{ WebkitMaskImage: 'linear-gradient(to right, black 85%, transparent 100%)' }}>
-                                   <div className="flex animate-marquee">
-                                     <span className="text-[9.5px] text-white/90 font-medium tracking-tight pr-6 drop-shadow-md">
-                                       {(() => {
-                                          if (currentViewerStory.musicTitle) return `${currentViewerStory.musicTitle} - ${currentViewerStory.musicArtist || 'Audio'}`;
-                                          const m = music.find(i => i.videoId === currentViewerStory.musicVideoId);
-                                          return m ? `${m.title} - ${m.artist}` : "Original Audio";
-                                       })()}
-                                     </span>
-                                     <span className="text-[9.5px] text-white/90 font-medium tracking-tight pr-6 drop-shadow-md" aria-hidden="true">
-                                       {(() => {
-                                          if (currentViewerStory.musicTitle) return `${currentViewerStory.musicTitle} - ${currentViewerStory.musicArtist || 'Audio'}`;
-                                          const m = music.find(i => i.videoId === currentViewerStory.musicVideoId);
-                                          return m ? `${m.title} - ${m.artist}` : "Original Audio";
-                                       })()}
-                                     </span>
+                        {(() => {
+                          const hasAudio = Boolean(currentViewerStory.musicVideoId || currentViewerStory.type === "video" || (currentViewerStory.image && currentViewerStory.image.match(/\.(mp4|webm|mov|ogg)$/i)));
+                          if (!hasAudio || (currentViewerStory.isMembersOnly && !user)) return null;
+                          return (
+                            <div className="flex items-center gap-2">
+                               <button 
+                                 onClick={(e) => toggleMute(e)}
+                                 className="flex items-center justify-center w-8 h-8 rounded-full bg-black/20 backdrop-blur-md border border-white/10 hover:bg-white/10 transition-colors flex-shrink-0 cursor-pointer"
+                                 title={isMuted ? "Unmute Audio" : "Mute Audio"}
+                               >
+                                 {isMuted ? <VolumeX size={14} className="text-white/60" /> : <Volume2 size={14} className="text-white/90" />}
+                               </button>
+                               
+                               {/* Only show marquee if sticker is HIDDEN (Style 3) and it has YouTube music */}
+                               {currentViewerStory.musicVideoId && currentViewerStory.musicStyle === 3 && (
+                                 <div className="bg-black/30 backdrop-blur-md pl-1.5 pr-2 py-[3px] rounded border border-white/10 overflow-hidden flex-1 max-w-[160px]">
+                                   <div className="flex whitespace-nowrap overflow-hidden relative w-full" style={{ WebkitMaskImage: 'linear-gradient(to right, black 85%, transparent 100%)' }}>
+                                     <div className="flex animate-marquee">
+                                       <span className="text-[9.5px] text-white/90 font-medium tracking-tight pr-6 drop-shadow-md">
+                                         {(() => {
+                                            if (currentViewerStory.musicTitle) return `${currentViewerStory.musicTitle} - ${currentViewerStory.musicArtist || 'Audio'}`;
+                                            const m = music.find(i => i.videoId === currentViewerStory.musicVideoId);
+                                            return m ? `${m.title} - ${m.artist}` : "Original Audio";
+                                         })()}
+                                       </span>
+                                       <span className="text-[9.5px] text-white/90 font-medium tracking-tight pr-6 drop-shadow-md" aria-hidden="true">
+                                         {(() => {
+                                            if (currentViewerStory.musicTitle) return `${currentViewerStory.musicTitle} - ${currentViewerStory.musicArtist || 'Audio'}`;
+                                            const m = music.find(i => i.videoId === currentViewerStory.musicVideoId);
+                                            return m ? `${m.title} - ${m.artist}` : "Original Audio";
+                                         })()}
+                                       </span>
+                                     </div>
                                    </div>
                                  </div>
-                               </div>
-                             )}
-                          </div>
-                        )}
+                               )}
+                            </div>
+                          );
+                        })()}
                       </div>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-2 pointer-events-auto">
-                     {isIOS && (
-                        <button 
-                          onClick={toggleMute} 
-                          className="w-10 h-10 flex items-center justify-center bg-white/5 backdrop-blur-md border border-white/10 rounded-full hover:bg-white/10 transition-colors"
-                          title={isMuted ? "Unmute" : "Mute"}
-                        >
-                           {isMuted ? <VolumeX size={18} className="text-white" /> : <Volume2 size={18} className="text-white" />}
-                        </button>
-                     )}
                      <button onClick={closeStories} className="w-10 h-10 flex items-center justify-center bg-white/5 backdrop-blur-md border border-white/10 rounded-full hover:bg-white/10 transition-colors">
                         <X size={18} className="text-white" />
                      </button>
@@ -539,15 +533,7 @@ const StoriesSection = () => {
                 )}
               </div>
 
-              {/* ── On-Canvas Sound Toggle ── */}
-              {currentViewerStory.musicVideoId && !(currentViewerStory.isMembersOnly && !user) && (
-                <button 
-                  onClick={toggleMute}
-                  className="absolute top-24 right-6 z-[310] w-10 h-10 rounded-full bg-black/20 backdrop-blur-md border border-white/10 flex items-center justify-center text-white/90 hover:bg-black/40 transition-all hover:scale-110 active:scale-95"
-                >
-                  {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
-                </button>
-              )}
+
 
               {/* Members Only Overlay */}
               {currentViewerStory.isMembersOnly && !user && (

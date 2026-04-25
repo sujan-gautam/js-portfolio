@@ -96,7 +96,7 @@ const AdminStoryList = () => {
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-90 transition-opacity" />
                 
                 {/* Top Status & Quick Stats */}
-                <div className="absolute top-4 left-4 right-4 flex items-center justify-between">
+                <div className="absolute top-4 left-4 right-4 flex items-center justify-between z-10 pointer-events-auto">
                    <div className="flex gap-2">
                      {story.isMembersOnly && (
                         <div className="h-6 px-2.5 rounded-full bg-blue-500/90 backdrop-blur-md text-[9px] font-black text-white flex items-center gap-1 shadow-lg">
@@ -120,7 +120,7 @@ const AdminStoryList = () => {
                 </div>
 
                 {/* Bottom Story Info */}
-                <div className="absolute bottom-6 left-6 right-6">
+                <div className="absolute bottom-6 left-6 right-6 z-10 pointer-events-auto">
                    <p className="text-sm font-black text-white leading-tight truncate mb-3 drop-shadow-md">{story.title || "Untitled Moment"}</p>
                    <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
