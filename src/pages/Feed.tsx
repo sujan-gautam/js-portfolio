@@ -322,7 +322,8 @@ const PostCard = ({
   playingMusicId,
   isIOS,
   settings,
-  ytPlayer
+  ytPlayer,
+  isMusicReady
 }: { 
   post: FeedPost; 
   showAlert: (msg: string) => void; 
@@ -333,7 +334,9 @@ const PostCard = ({
   isIOS: boolean;
   settings: AdminSettings | null;
   ytPlayer: any;
+  isMusicReady: boolean;
 }) => {
+  const showMusicUI = !isIOS || (playingMusicId === initialPost.id && isMusicReady);
   const { user } = useAuth();
   const [post, setPost] = useState(initialPost);
   const [commentsOpen, setCommentsOpen] = useState(false);
@@ -571,7 +574,7 @@ const PostCard = ({
                <p className="text-[11px] text-[#8e8e93] font-normal opacity-80">
                 {timeAgo(post.createdAt)}
                </p>
-               {post.musicVideoId && !(post.membersOnly && !user) && (
+               {post.musicVideoId && !(post.membersOnly && !user) && showMusicUI && (
                  <>
                    <span className="text-[#8e8e93] text-[10px] opacity-40">•</span>
                    <div className="flex items-center gap-1">
@@ -585,7 +588,7 @@ const PostCard = ({
             </div>
           </div>
           <div className="flex items-center gap-1">
-            {post.musicVideoId && !(post.membersOnly && !user) && (
+            {post.musicVideoId && !(post.membersOnly && !user) && showMusicUI && (
               <button 
                 onClick={handleMuteToggle}
                 className="text-[#8e8e93] hover:text-white transition-colors px-1 h-8 w-8 flex items-center justify-center rounded-full hover:bg-white/5"
@@ -1004,6 +1007,7 @@ const Feed = () => {
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
   const [globalMute, setGlobalMute] = useState(true);
   const [musicData, setMusicData] = useState<MusicData | null>(null);
+  const [isMusicReady, setIsMusicReady] = useState(false);
   const [ytPlayer, setYtPlayer] = useState<any>(null);
   const [isIOS, setIsIOS] = useState(false);
   const [settings, setSettings] = useState<AdminSettings | null>(null);
@@ -1045,6 +1049,7 @@ const Feed = () => {
 
   // Force play when video changes
   useEffect(() => {
+    setIsMusicReady(false); // Reset when track changes
     if (ytPlayer && musicData) {
       try {
         // Only call if iframe is still in DOM
@@ -1124,6 +1129,7 @@ const Feed = () => {
                   isIOS={isIOS}
                   settings={settings}
                   ytPlayer={ytPlayer}
+                  isMusicReady={isMusicReady}
                 />
               </div>
             ))
@@ -1146,8 +1152,16 @@ const Feed = () => {
             } 
           }}
           onReady={(e) => setYtPlayer(e.target)}
-          onEnd={() => setMusicData(null)}
-          onError={() => setMusicData(null)}
+          onStateChange={(e) => {
+             // 1=playing, 2=paused, 3=buffering
+             if (e.data === 1 || e.data === 2 || e.data === 3) {
+                setIsMusicReady(true);
+             } else {
+                setIsMusicReady(false);
+             }
+          }}
+          onEnd={() => { setMusicData(null); setIsMusicReady(false); }}
+          onError={() => { setMusicData(null); setIsMusicReady(false); }}
         />
       </div>
     </div>
