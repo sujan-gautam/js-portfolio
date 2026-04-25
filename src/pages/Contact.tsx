@@ -108,7 +108,7 @@ const Contact = () => {
         {/* Main Header */}
         <div className="text-center mb-6 md:mb-16">
           <h1 className="text-[36px] md:text-[75px] font-black uppercase tracking-tighter leading-none">
-            CONTACT <span className="text-[#CB2729]">Me</span>
+            <span className="sr-only">Sujan Gautam | </span>CONTACT <span className="text-[#CB2729]">Me</span>
           </h1>
         </div>
 

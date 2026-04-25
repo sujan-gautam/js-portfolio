@@ -129,9 +129,9 @@ INSTRUCTIONS:
           <span className="absolute inset-0 flex items-center justify-center text-[14vw] font-black opacity-[0.03] uppercase tracking-tighter select-none pointer-events-none">
             PORTFOLIO
           </span>
-          <h2 className="absolute inset-0 flex items-center justify-center text-4xl md:text-6xl font-black uppercase tracking-[0.15em]">
-            MY <span className="text-[#CB2729] ml-4">WORK</span>
-          </h2>
+          <h1 className="absolute inset-0 flex items-center justify-center text-4xl md:text-6xl font-black uppercase tracking-[0.15em]">
+            <span className="sr-only">Sujan Gautam | </span>MY <span className="text-[#CB2729] ml-4">WORK</span>
+          </h1>
         </div>
         <div className="w-12 h-[3px] bg-[#CB2729] mx-auto rounded-full mb-10 shadow-[0_0_20px_#CB2729]" />
 
@@ -408,7 +408,7 @@ const Card = ({ project, index, isWide, onView, onAsk }: {
     return (
       <div {...shared} className="relative group bg-[#151515] border border-white/[0.07] rounded-3xl overflow-hidden flex flex-col md:flex-row gap-0 cursor-help transition-all duration-500 hover:border-[#CB2729]/30 hover:shadow-[0_0_40px_rgba(203,39,41,0.1)]">
         <div className="md:w-1/2 h-56 md:h-auto relative overflow-hidden">
-          <img src={project.image} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" alt={project.title} />
+          <img src={project.image} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" alt={`${project.title} - Sujan Gautam Portfolio Project`} />
           <div className="absolute inset-0 bg-gradient-to-r from-transparent to-[#151515] opacity-0 md:opacity-80" />
           <div className="absolute top-5 left-5">
             <span className="bg-[#CB2729] text-[10px] font-bold uppercase tracking-[0.15em] px-3 py-1.5 rounded-full text-white">Featured</span>
@@ -440,7 +440,7 @@ const Card = ({ project, index, isWide, onView, onAsk }: {
     return (
       <div {...shared} className="group bg-[#141414] border border-white/[0.07] rounded-3xl overflow-hidden cursor-help transition-all duration-500 hover:border-[#CB2729]/30 hover:shadow-[0_0_30px_rgba(203,39,41,0.1)] hover:-translate-y-1">
         <div className="relative h-44 overflow-hidden">
-          <img src={project.image} alt={project.title} className="w-full h-full object-cover opacity-70 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700" />
+          <img src={project.image} alt={`${project.title} - Sujan Gautam Portfolio`} className="w-full h-full object-cover opacity-70 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700" />
           <div className="absolute inset-0 bg-gradient-to-t from-[#141414] via-[#141414]/20 to-transparent" />
           <div className="absolute top-4 left-4">
             <span className="bg-[#CB2729] text-[9px] font-black uppercase tracking-[0.15em] px-3 py-1 rounded-full text-white">{project.category || "Project"}</span>
@@ -470,7 +470,7 @@ const Card = ({ project, index, isWide, onView, onAsk }: {
       <div {...shared} className="group relative cursor-help">
         <div className="bg-[#f5f1e8] p-4 pb-8 shadow-2xl transition-all duration-500 hover:rotate-1 hover:-translate-y-1 rounded-sm">
           <div className="h-44 overflow-hidden mb-4 bg-black rounded-sm relative">
-            <img src={project.image} alt={project.title} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700" />
+            <img src={project.image} alt={`${project.title} - Sujan Gautam Full Stack Project`} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700" />
             <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-all" />
           </div>
           <p className="font-hand text-red-600 text-[22px] leading-none mb-1">{project.title}</p>
@@ -495,7 +495,7 @@ const Card = ({ project, index, isWide, onView, onAsk }: {
     return (
       <div {...shared} className="group bg-[#111] border border-white/[0.06] rounded-3xl overflow-hidden cursor-help transition-all duration-500 hover:border-[#CB2729]/30 hover:shadow-[0_0_30px_rgba(203,39,41,0.08)] hover:-translate-y-1">
         <div className="relative h-52 overflow-hidden">
-          <img src={project.image} alt={project.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+          <img src={project.image} alt={`${project.title} - Web Development by Sujan Gautam`} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
           <div className="absolute inset-0 bg-gradient-to-t from-[#111] via-[#111]/40 to-transparent" />
           <div className="absolute top-4 left-4">
             <span className="bg-white/10 backdrop-blur-md border border-white/10 text-white/70 text-[9px] font-bold uppercase tracking-[0.15em] px-3 py-1 rounded-full">

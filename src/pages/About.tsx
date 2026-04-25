@@ -338,7 +338,7 @@ const About = () => {
       <Reveal>
         <div className="text-center pt-16 pb-6">
           <h1 className="text-[5.5vw] font-bold tracking-tight uppercase leading-tight font-poppins">
-            ABOUT <span className="text-[#CB2729]">ME</span>
+            <span className="sr-only">Sujan Gautam | </span>ABOUT <span className="text-[#CB2729]">ME</span>
           </h1>
         </div>
       </Reveal>
@@ -405,7 +405,7 @@ const About = () => {
         <Reveal delay={200}>
           <div className="mb-24 text-center">
             <h2 className="text-[5.5vw] font-bold uppercase mb-12 leading-tight font-poppins">
-              MY <span className="text-[#CB2729]">SKILLS</span>
+              <span className="sr-only">Sujan Gautam's </span>MY <span className="text-[#CB2729]">SKILLS</span>
             </h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6">
               {skills.map((skill, idx) => (
@@ -433,7 +433,7 @@ const About = () => {
         <Reveal delay={300}>
           <div className="mb-10">
             <h2 className="text-[5.5vw] font-bold text-center uppercase mb-20 leading-tight font-poppins">
-              MY <span className="text-[#CB2729]">EDUCATION</span>
+              <span className="sr-only">Sujan Gautam's </span>MY <span className="text-[#CB2729]">EDUCATION</span>
             </h2>
           
           <div className="relative">

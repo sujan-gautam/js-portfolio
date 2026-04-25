@@ -1095,6 +1095,7 @@ const Feed = () => {
 
       {/* Main Timeline Wrapper */}
       <div className="max-w-6xl mx-auto w-full pb-36 px-4 pt-4 md:pt-16 relative">
+        <h1 className="sr-only">Sujan Gautam | Personal Feed & Professional Updates</h1>
         {/* Simple Feed Layout */}
         <div className="flex flex-col items-center gap-10 w-full">
           {loading ? (

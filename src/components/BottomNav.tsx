@@ -100,6 +100,7 @@ const BottomNav = () => {
               <Link
                 key={label}
                 to={path}
+                title={`${label} - Sujan Gautam Portfolio`}
                 onMouseEnter={(e) => setHoveredRect(e.currentTarget.getBoundingClientRect())}
                 onMouseLeave={() => setHoveredRect(null)}
                 className={`flex flex-col items-center gap-1.5 transition-all duration-300 relative group ${

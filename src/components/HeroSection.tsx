@@ -124,7 +124,7 @@ const HeroSection = () => {
       {/* Text Content */}
       <div className="flex-1 text-center lg:text-left">
         <h1 className="text-4xl md:text-5xl font-bold text-hero-title mb-2">
-          Hi, I Am {about?.name?.split(" ")[0] || "Sujan"}
+          Hi, I Am <span className="sr-only">Sujan Gautam | </span>{about?.name?.split(" ")[0] || "Sujan"}
         </h1>
         <h2 className="text-2xl md:text-3xl font-semibold mb-6">
           {roles.map((role, idx) => (
