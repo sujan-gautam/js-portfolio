@@ -73,8 +73,10 @@ const AdminStoryEditor = () => {
   const [isTrimmingMusic, setIsTrimmingMusic] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [draggingLayerId, setDraggingLayerId] = useState<string | null>(null);
+  const [textEditingId, setTextEditingId] = useState<string | null>(null);
 
   const playerRef = useRef<any>(null);
+  const lastTapRef = useRef<number>(0);
   const [lastPinchDist, setLastPinchDist] = useState<number | null>(null);
   const [lastPinchAngle, setLastPinchAngle] = useState<number | null>(null);
 
@@ -269,7 +271,16 @@ const AdminStoryEditor = () => {
   const [pointers, setPointers] = useState<Map<number, { x: number, y: number }>>(new Map());
 
   const handlePointerDown = (e: React.PointerEvent, id: string, initialLeft: number, initialTop: number) => {
-    if (id !== "music-sticker") setActiveLayer(id);
+    const now = Date.now();
+    const isDoubleTap = now - lastTapRef.current < 300;
+    lastTapRef.current = now;
+
+    if (id !== "music-sticker") {
+      setActiveLayer(id);
+      if (isDoubleTap && item.layers?.find(l => l.id === id)?.type === "text") {
+        setTextEditingId(id);
+      }
+    }
     setDraggingLayerId(id);
     const newPointers = new Map(pointers);
     newPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
@@ -453,8 +464,12 @@ const AdminStoryEditor = () => {
       {/* ── Main Canvas ── */}
       <div 
         className="relative shadow-[0_0_100px_rgba(0,0,0,0.8)] overflow-hidden bg-[#111] transition-transform duration-500"
-        onDoubleClick={(e) => {
-          if (e.target === e.currentTarget) addTextLayer();
+        onClick={(e) => {
+          // Tapping blank canvas deselects everything
+          if (e.target === e.currentTarget) {
+            setActiveLayer(null);
+            setTextEditingId(null);
+          }
         }}
         style={{ 
           filter: item.filter !== "none" ? item.filter : "none",
@@ -483,10 +498,16 @@ const AdminStoryEditor = () => {
 
         {item.layers?.map(l => (
           <div key={l.id} 
-            onPointerDown={e => handlePointerDown(e, l.id, l.left, l.top)} 
-            onPointerUp={handlePointerUp} 
+            onPointerDown={e => {
+              e.stopPropagation();
+              // If already in text edit mode for this layer, let pointer through for cursor
+              if (textEditingId === l.id) return;
+              handlePointerDown(e, l.id, l.left, l.top);
+            }}
+            onPointerUp={handlePointerUp}
             className={cn(
-              "absolute cursor-grab select-none touch-none active:cursor-grabbing group",
+              "absolute group",
+              textEditingId === l.id ? "cursor-text z-[60]" : "cursor-grab active:cursor-grabbing select-none touch-none",
               draggingLayerId === l.id ? "z-[60]" : activeLayer === l.id ? "z-50" : "z-10",
               draggingLayerId !== l.id && "transition-all duration-300 ease-out"
             )}
@@ -501,9 +522,12 @@ const AdminStoryEditor = () => {
             {l.type === "text" && (
                <div className="relative">
                   <div 
-                    contentEditable={activeLayer === l.id}
+                    contentEditable={textEditingId === l.id}
                     suppressContentEditableWarning
-                    onBlur={(e) => updateLayer(l.id, { content: e.currentTarget.textContent || "" })}
+                    onBlur={(e) => {
+                      updateLayer(l.id, { content: e.currentTarget.textContent || "" });
+                      setTextEditingId(null);
+                    }}
                     style={{ 
                       color: l.color, 
                       fontSize: `${l.fontSize}px`, 
@@ -516,12 +540,25 @@ const AdminStoryEditor = () => {
                     className={cn(
                       "px-8 py-4 tracking-tight text-center transition-all",
                       l.fontFamily,
-                      activeLayer === l.id && "cursor-text ring-2 ring-white/30 rounded-3xl bg-white/5 backdrop-blur-sm"
+                      activeLayer === l.id && textEditingId !== l.id && "ring-2 ring-white/30 rounded-3xl bg-white/5 backdrop-blur-sm",
+                      textEditingId === l.id && "cursor-text ring-2 ring-white/60 rounded-3xl bg-white/10 backdrop-blur-sm"
                     )}
                   >
                     {l.content}
                   </div>
-                  {activeLayer === l.id && <div className="absolute inset-0 border-2 border-white/40 rounded-2xl -m-1 animate-[pulse_2s_infinite] pointer-events-none" />}
+                  {activeLayer === l.id && textEditingId !== l.id && (
+                    <div className="absolute inset-0 border-2 border-white/40 rounded-2xl -m-1 animate-[pulse_2s_infinite] pointer-events-none" />
+                  )}
+                  {activeLayer === l.id && textEditingId !== l.id && (
+                    <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-black/60 text-white text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-xl whitespace-nowrap pointer-events-none backdrop-blur-md">
+                      Double Tap to Edit
+                    </div>
+                  )}
+                  {textEditingId === l.id && (
+                    <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 bg-white text-black text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-full shadow-xl whitespace-nowrap pointer-events-none">
+                      Tap outside to finish
+                    </div>
+                  )}
                </div>
             )}
             {l.type === "link" && (
