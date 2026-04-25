@@ -473,7 +473,7 @@ const About = () => {
                                 <span className="text-[12px] font-medium text-[#CB2729] uppercase tracking-[0.2em] block mb-1">
                                   {edu.year}
                                 </span>
-                                <h3 className="text-[18px] md:text-[20px] font-bold uppercase text-white group-hover:text-red-500 transition-colors truncate">
+                                <h3 className="text-[18px] md:text-[20px] font-bold uppercase text-white group-hover:text-red-500 transition-colors leading-tight">
                                   {edu.institution}
                                 </h3>
                                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
