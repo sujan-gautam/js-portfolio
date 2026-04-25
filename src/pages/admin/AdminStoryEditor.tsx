@@ -406,8 +406,8 @@ const AdminStoryEditor = () => {
         .story-font-script { font-family: 'Dancing Script', cursive !important; }
         .story-font-outfit { font-family: 'Outfit', sans-serif !important; }
         
-        /* Custom Cute Slider Thumb (Horizontal Bar) */
-        [role="slider"] {
+        /* Custom Cute Slider Thumb (Vertical Bar) */
+        .story-editor-vertical-slider [role="slider"] {
           width: 20px !important;
           height: 4px !important;
           border-radius: 9999px !important;
@@ -699,7 +699,7 @@ const AdminStoryEditor = () => {
                  min={8} 
                  max={200} 
                  step={1} 
-                 className="h-full z-10" 
+                 className="h-full z-10 story-editor-vertical-slider" 
                />
             </div>
 
@@ -797,41 +797,41 @@ const AdminStoryEditor = () => {
 
           {/* Bottom Trimmer Bar */}
           <div className="absolute bottom-8 sm:bottom-16 inset-x-0 px-4 sm:px-8 animate-in slide-in-from-bottom-8 duration-500">
-              <div className="relative h-16 flex items-center justify-center w-full max-w-sm mx-auto">
-                <div className="absolute inset-0 flex items-center justify-between px-2 overflow-hidden">
+              <div className="relative h-16 flex items-center justify-center w-full max-w-sm mx-auto px-4">
+                {/* Visual Track Background */}
+                <div className="absolute inset-0 flex items-center justify-between px-6 overflow-hidden pointer-events-none opacity-40">
                   {Array.from({ length: 40 }).map((_, i) => {
-                    return <div key={i} className="w-[2px] sm:w-[3px] bg-white/10 h-5 rounded-full shrink-0 mx-[2px] sm:mx-1" />;
+                    return <div key={i} className="w-[2px] sm:w-[3px] bg-white h-5 rounded-full shrink-0 mx-[2px] sm:mx-1" />;
                   })}
                 </div>
                 
                 {/* Visual Window with Gradient Background */}
                 <div 
-                  className="absolute inset-y-0 z-10 flex items-center justify-center shadow-2xl"
+                  className="absolute inset-y-0 z-10 flex items-center justify-center shadow-2xl pointer-events-none"
                   style={{ 
-                    left: `${((item.musicStartTime || 0) / 180) * 100}%`,
-                    width: `${(((item.musicEndTime || 15) - (item.musicStartTime || 0)) / 180) * 100}%`,
+                    left: `calc(1rem + ${((item.musicStartTime || 0) / 165) * (100 - 30)}%)`,
+                    width: `30%`,
                   }}
                 >
                    <div className="absolute inset-0 bg-gradient-to-r from-yellow-400 via-orange-500 to-purple-600 rounded-xl opacity-90" />
-                   <div className="absolute inset-[2.5px] bg-white rounded-lg flex items-center justify-between px-2 sm:px-3 overflow-hidden shadow-inner">
-                      {Array.from({ length: 12 }).map((_, i) => (
-                        <div key={i} className="w-[2px] bg-slate-100 h-6 rounded-full shrink-0 mx-0.5 sm:mx-1" />
+                   <div className="absolute inset-[2px] bg-white rounded-lg flex items-center justify-between px-2 sm:px-3 overflow-hidden shadow-inner">
+                      {Array.from({ length: 8 }).map((_, i) => (
+                        <div key={i} className="w-[2px] bg-slate-200 h-6 rounded-full shrink-0 mx-0.5 sm:mx-1" />
                       ))}
                    </div>
                 </div>
 
                 <Slider 
-                  value={[item.musicStartTime || 0, item.musicEndTime || 15]} 
+                  value={[item.musicStartTime || 0]} 
                   onValueChange={v => {
-                    const [s, e] = v;
-                    setItem(p => ({ ...p, musicStartTime: s, musicEndTime: e }));
+                    const s = v[0];
+                    setItem(p => ({ ...p, musicStartTime: s, musicEndTime: s + 15 }));
                     if (playerRef.current) playerRef.current.seekTo(s);
                   }} 
                   min={0} 
-                  max={180} 
+                  max={165} 
                   step={1} 
-                  minStepsBetweenThumbs={1}
-                  className="absolute inset-0 z-20"
+                  className="absolute inset-0 z-20 mx-4"
                 />
              </div>
           </div>
