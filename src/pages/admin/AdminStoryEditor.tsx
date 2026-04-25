@@ -278,7 +278,6 @@ const AdminStoryEditor = () => {
     if (newPointers.size === 1) {
       setDragInfo({ id, startX: e.clientX, startY: e.clientY, initialLeft, initialTop });
     }
-    (e.currentTarget as any).setPointerCapture(e.pointerId);
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
@@ -382,7 +381,7 @@ const AdminStoryEditor = () => {
 
   return (
     <div 
-      className="fixed inset-0 z-[100] bg-black flex flex-col items-center justify-center overflow-hidden font-inter select-none"
+      className="fixed inset-0 z-[100] bg-black flex flex-col items-center justify-center overflow-hidden font-inter select-none touch-none"
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerLeave={handlePointerUp}
@@ -569,7 +568,7 @@ const AdminStoryEditor = () => {
         {item.musicVideoId && (
           <div 
             className={cn(
-              "absolute z-[300] cursor-move group select-none touch-none",
+              "absolute z-[70] cursor-move group select-none touch-none",
               draggingLayerId !== "music-sticker" && "transition-all duration-300 ease-out"
             )}
             style={{ 
