@@ -72,6 +72,8 @@ export interface StoryLayer {
   width?: number;
   height?: number;
   filter?: string; 
+  contentX?: number;
+  contentY?: number;
 }
 export interface StoryComment { id: string; text: string; createdAt: string; ip: string; device: string; }
 export interface StoryAnalytics { type: string; ip: string; device: string; timestamp: string; }
