@@ -570,13 +570,23 @@ const PostCard = ({
                )}
             </div>
           </div>
-          <div className="relative">
-            <button 
-              onClick={() => setMenuOpen(!menuOpen)}
-              className="text-[#8e8e93] hover:text-white transition-colors px-1 h-8 w-8 flex items-center justify-center rounded-full hover:bg-white/5"
-            >
-              <MoreHorizontal size={20} />
-            </button>
+          <div className="flex items-center gap-1">
+            {post.musicVideoId && !(post.membersOnly && !user) && (
+              <button 
+                onClick={handleMuteToggle}
+                className="text-[#8e8e93] hover:text-white transition-colors px-1 h-8 w-8 flex items-center justify-center rounded-full hover:bg-white/5"
+                title={globalMute ? "Unmute Audio" : "Mute Audio"}
+              >
+                {globalMute ? <VolumeX size={16} /> : <Volume2 size={16} />}
+              </button>
+            )}
+            <div className="relative">
+              <button 
+                onClick={() => setMenuOpen(!menuOpen)}
+                className="text-[#8e8e93] hover:text-white transition-colors px-1 h-8 w-8 flex items-center justify-center rounded-full hover:bg-white/5"
+              >
+                <MoreHorizontal size={20} />
+              </button>
 
             {/* Dropdown Menu */}
             {menuOpen && (
@@ -633,6 +643,7 @@ const PostCard = ({
                 </div>
               </>
             )}
+          </div>
           </div>
         </div>
 
@@ -977,7 +988,7 @@ const Feed = () => {
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
-  const [globalMute, setGlobalMute] = useState(false);
+  const [globalMute, setGlobalMute] = useState(true);
   const [musicData, setMusicData] = useState<MusicData | null>(null);
   const [ytPlayer, setYtPlayer] = useState<any>(null);
   const [isIOS, setIsIOS] = useState(false);
@@ -1107,7 +1118,7 @@ const Feed = () => {
 
 
       {/* Global Shared YouTube Player (Fast Audio Switching) */}
-      <div className="hidden pointer-events-none overflow-hidden h-0 w-0">
+      <div className="fixed -top-[1000px] left-0 w-[1px] h-[1px] opacity-0 pointer-events-none z-[-1] overflow-hidden">
         <YouTube 
           videoId="" // Video loaded dynamically via ytPlayer.loadVideoById
           opts={{ 
