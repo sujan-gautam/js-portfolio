@@ -765,9 +765,9 @@ const AdminStoryEditor = () => {
       {/* ── Music Trimmer Overlay (Directly on Canvas) ── */}
       {isTrimmingMusic && item.musicVideoId && (
         <div className="fixed inset-0 z-[250] bg-black/60 backdrop-blur-sm animate-in fade-in duration-300 flex flex-col items-center justify-center">
-          <div className="absolute top-4 sm:top-8 left-0 right-0 px-4 sm:px-8 flex items-center justify-between">
-             <button onClick={() => setIsTrimmingMusic(false)} className="p-2 text-white/40 hover:text-white transition-colors"><X size={24}/></button>
-             <button onClick={() => setIsTrimmingMusic(false)} className="px-6 py-2 bg-white text-black text-[11px] font-black uppercase tracking-widest rounded-full">Done</button>
+          <div className="absolute top-12 sm:top-16 left-0 right-0 px-6 sm:px-8 flex items-center justify-between z-10">
+             <button onClick={() => setIsTrimmingMusic(false)} className="w-12 h-12 flex items-center justify-center text-white/80 hover:text-white transition-colors bg-white/10 rounded-full backdrop-blur-md shadow-xl border border-white/10"><X size={24}/></button>
+             <button onClick={() => setIsTrimmingMusic(false)} className="px-8 py-3.5 bg-white text-black text-[12px] font-black uppercase tracking-widest rounded-full shadow-2xl active:scale-95 transition-transform border border-white">Done</button>
           </div>
 
           <div className="flex-1" /> {/* Spacer */}
@@ -796,7 +796,7 @@ const AdminStoryEditor = () => {
           </div>
 
           {/* Bottom Trimmer Bar */}
-          <div className="absolute bottom-8 sm:bottom-16 inset-x-0 px-4 sm:px-8 animate-in slide-in-from-bottom-8 duration-500">
+          <div className="absolute bottom-12 sm:bottom-20 inset-x-0 px-4 sm:px-8 animate-in slide-in-from-bottom-8 duration-500">
               <div className="relative h-16 flex items-center justify-center w-full max-w-sm mx-auto px-4">
                 {/* Visual Track Background */}
                 <div className="absolute inset-0 flex items-center justify-between px-6 overflow-hidden pointer-events-none opacity-40">
