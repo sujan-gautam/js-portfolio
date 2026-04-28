@@ -379,14 +379,12 @@ const AdminVisitors = () => {
                           <p className="text-[10px] text-slate-400 truncate max-w-[180px]">{v.browser} · {v.os}</p>
                         </td>
                         <td className="px-5 py-3">
-                          {v.location?.city ? (
-                            <>
-                              <p className="text-sm text-slate-700">{v.location.city}, {v.location.countryCode}</p>
-                              <p className="text-[10px] text-slate-400 truncate max-w-[160px]">{v.location.isp || v.location.country}</p>
-                            </>
-                          ) : (
-                            <span className="text-xs text-slate-400 italic">Resolving…</span>
-                          )}
+                          <p className="text-sm text-slate-700">
+                            {v.location?.city ? `${v.location.city}, ${v.location.countryCode}` : v.location?.country || "Unknown"}
+                          </p>
+                          <p className="text-[10px] text-slate-400 truncate max-w-[160px]">
+                            {v.location?.isp || v.location?.country || "—"}
+                          </p>
                         </td>
                         <td className="px-5 py-3">
                           <span className="text-xs bg-slate-100 text-slate-700 px-2 py-0.5 rounded font-mono">{v.page}</span>

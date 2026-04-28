@@ -354,33 +354,39 @@ router.get("/visitors/count", async (req, res) => {
 
 router.post("/visitors/track", async (req, res) => {
   try {
-    let ip = req.headers['x-real-ip'] || req.headers['x-forwarded-for'] || req.ip || req.connection.remoteAddress || "unknown";
+    // Use the real IP resolved by the client's browser (via ipwho.is on the frontend)
+    // Fall back to server-side headers only if frontend didn't send it
+    let ip = req.body.resolvedIp || req.headers['x-real-ip'] || req.headers['x-forwarded-for'] || req.ip || "unknown";
     if (ip && ip.includes(',')) ip = ip.split(',')[0].trim();
     if (ip.includes("::ffff:")) ip = ip.split(":").pop();
-    if (ip === "::1" || ip === "127.0.0.1") ip = "103.10.28.162"; // Fallback for local testing (Nepal IP)
 
-    let location = {};
-    try {
-      // Detailed geo query from ip-api.com
-      const geo = await axios.get(`http://ip-api.com/json/${ip}?fields=status,message,country,countryCode,regionName,city,lat,lon,isp,query`);
-      if (geo.data && geo.data.status === "success") {
-        location = {
-          city: geo.data.city,
-          country: geo.data.country,
-          countryCode: geo.data.countryCode,
-          region: geo.data.regionName,
-          lat: geo.data.lat,
-          lon: geo.data.lon,
-          isp: geo.data.isp
-        };
-      }
-    } catch (e) { console.error("Geo lookup failed:", e.message); }
+    // Location is already resolved by the frontend browser (real visitor IP)
+    // If not provided, attempt backend fallback
+    let location = req.body.location && req.body.location.city ? req.body.location : {};
 
-    const trackData = {
+    if (!location.city) {
+      // Backend fallback only for bots/crawlers that bypass the frontend
+      try {
+        const geo = await axios.get(`https://ipwho.is/${ip}`);
+        if (geo.data?.success) {
+          location = {
+            city: geo.data.city,
+            country: geo.data.country,
+            countryCode: geo.data.country_code,
+            region: geo.data.region,
+            lat: geo.data.latitude,
+            lon: geo.data.longitude,
+            isp: geo.data.connection?.isp || geo.data.connection?.org || ""
+          };
+        }
+      } catch (e) { console.error("Geo fallback failed:", e.message); }
+    }
+
+    await Models.VisitorRecord.create({
       ip,
       location,
       page: req.body.page || "/",
-      device: req.body.device || "browser",
+      device: req.body.device || "desktop",
       browser: req.body.browser || "unknown",
       os: req.body.os || "unknown",
       userAgent: req.headers['user-agent'] || "unknown",
@@ -390,9 +396,8 @@ router.post("/visitors/track", async (req, res) => {
       language: req.body.language || "unknown",
       sessionID: req.body.sessionID || "unknown",
       timestamp: new Date()
-    };
+    });
 
-    await Models.VisitorRecord.create(trackData);
     const count = await Models.VisitorRecord.countDocuments({});
     res.json({ count: 56170 + count });
   } catch (error) {
