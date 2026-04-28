@@ -359,30 +359,39 @@ router.post("/visitors/track", async (req, res) => {
     if (ip.includes("::ffff:")) ip = ip.split(":").pop();
     if (ip === "::1" || ip === "127.0.0.1") ip = "103.10.28.162"; // Fallback for local testing (Nepal IP)
 
-    let location = {};
     try {
-      // Use ipapi.co as it supports HTTPS and is reliable
-      const geo = await axios.get(`https://ipapi.co/${ip}/json/`);
-      if (geo.data && !geo.data.error) {
+      // Detailed geo query from ip-api.com (HTTP is often more reliable in serverless environments for free tier)
+      const geo = await axios.get(`http://ip-api.com/json/${ip}?fields=status,message,country,countryCode,regionName,city,lat,lon,isp,query`);
+      if (geo.data && geo.data.status === "success") {
         location = {
           city: geo.data.city,
-          country: geo.data.country_name,
-          countryCode: geo.data.country_code,
-          region: geo.data.region,
-          lat: geo.data.latitude,
-          lon: geo.data.longitude
+          country: geo.data.country,
+          countryCode: geo.data.countryCode,
+          region: geo.data.regionName,
+          lat: geo.data.lat,
+          lon: geo.data.lon,
+          isp: geo.data.isp
         };
       }
     } catch (e) { console.error("Geo lookup failed:", e.message); }
 
-    await Models.VisitorRecord.create({
+    const trackData = {
       ip,
       location,
       page: req.body.page || "/",
       device: req.body.device || "browser",
       browser: req.body.browser || "unknown",
+      os: req.body.os || "unknown",
+      userAgent: req.headers['user-agent'] || "unknown",
+      referrer: req.body.referrer || req.headers['referer'] || "direct",
+      utm: req.body.utm || {},
+      screenResolution: req.body.screenResolution || "unknown",
+      language: req.body.language || "unknown",
+      sessionID: req.body.sessionID || "unknown",
       timestamp: new Date()
-    });
+    };
+
+    await Models.VisitorRecord.create(trackData);
     const count = await Models.VisitorRecord.countDocuments({});
     res.json({ count: 56170 + count });
   } catch (error) {

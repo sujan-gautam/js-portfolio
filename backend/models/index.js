@@ -128,14 +128,26 @@ const VisitorRecordSchema = new mongoose.Schema({
   page: String,
   device: String,
   browser: String,
+  os: String,
+  userAgent: String,
+  referrer: String,
+  utm: {
+    source: String,
+    medium: String,
+    campaign: String
+  },
   location: {
     city: String,
     country: String,
     countryCode: String,
     region: String,
     lat: Number,
-    lon: Number
+    lon: Number,
+    isp: String
   },
+  screenResolution: String,
+  language: String,
+  sessionID: String,
   timestamp: { type: Date, default: Date.now }
 });
 const AppSchema = new mongoose.Schema({

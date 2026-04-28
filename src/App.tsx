@@ -68,6 +68,7 @@ import { AdminVideosList, AdminVideosForm } from "@/pages/admin/AdminVideos";
 import AdminVisitors from "@/pages/admin/AdminVisitors";
 
 import SEO from "@/components/SEO";
+import AnalyticsTracker from "@/components/AnalyticsTracker";
 
 import { AuthProvider } from "@/context/AuthContext";
 import ProtectedRoute from "@/components/admin/ProtectedRoute";
@@ -84,6 +85,7 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          <AnalyticsTracker />
           <Routes>
             {/* ── Public ────────────────────────────────── */}
             <Route path="/" element={<Index />} />

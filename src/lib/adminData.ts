@@ -86,7 +86,11 @@ export interface VisitorRecord {
   ip: string; 
   page: string; 
   device: string; 
-  browser: string; 
+  browser: string;
+  os?: string;
+  userAgent?: string;
+  referrer?: string;
+  utm?: { source?: string; medium?: string; campaign?: string; };
   location?: {
     city?: string;
     country?: string;
@@ -94,7 +98,11 @@ export interface VisitorRecord {
     region?: string;
     lat?: number;
     lon?: number;
+    isp?: string;
   };
+  screenResolution?: string;
+  language?: string;
+  sessionID?: string;
   timestamp: string; 
 }
 export interface AppItem { id: string; name: string; platform: string; downloadUrl: string; icon: string; description: string; active: boolean; }
