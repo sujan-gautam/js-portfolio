@@ -101,11 +101,47 @@ const AdminFeedForm = () => {
     fd.append("file", file);
     try {
       const r = await axios.post(`${API_BASE}/upload`, fd);
-      if (file.type.startsWith("video/")) setVideoUrl(r.data.url);
-      else { setImages(p => [...p, r.data.url]); setImageCaptions(p => [...p, ""]); }
+      const url = r.data.url;
+      setImages(p => [...p, url]);
+      setImageCaptions(p => [...p, ""]);
+      
+      // Also set videoUrl if it's the first video and it's a video type
+      if (file.type.startsWith("video/") && !videoUrl) {
+        setVideoUrl(url);
+      }
+      
       toast.success("Upload successful");
     } catch { toast.error("Upload failed"); }
     setUploading(false);
+  };
+
+  const isVideo = (url: string) => {
+    return url.match(/\.(mp4|webm|ogg|mov|m4v)$|^https?:\/\/(www\.)?(youtube\.com|youtu\.be)/i);
+  };
+
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    e.dataTransfer.setData("index", index.toString());
+  };
+
+  const handleDrop = (e: React.DragEvent, index: number) => {
+    const fromIndex = parseInt(e.dataTransfer.getData("index"));
+    if (isNaN(fromIndex)) return;
+    
+    const newImages = [...images];
+    const newCaptions = [...imageCaptions];
+    
+    const [movedImage] = newImages.splice(fromIndex, 1);
+    const [movedCaption] = newCaptions.splice(fromIndex, 1);
+    
+    newImages.splice(index, 0, movedImage);
+    newCaptions.splice(index, 0, movedCaption);
+    
+    setImages(newImages);
+    setImageCaptions(newCaptions);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
   };
 
   const searchYT = async () => {
@@ -234,31 +270,86 @@ const AdminFeedForm = () => {
                 </CardHeader>
                 <CardContent className="p-4 sm:p-6">
                   {type === "image" && (
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                       {images.map((img, i) => (
-                        <div key={i} className="space-y-2">
-                          <div className="aspect-video relative rounded-md overflow-hidden border border-slate-200">
-                            <img src={img} className="w-full h-full object-cover" />
-                            <button type="button" onClick={() => setImages(prev => prev.filter((_, idx) => idx !== i))} className="absolute top-2 right-2 bg-white/90 p-1.5 rounded-md text-red-500 shadow-sm"><X size={13} /></button>
+                        <div 
+                          key={i} 
+                          className="space-y-2 group relative"
+                          draggable
+                          onDragStart={(e) => handleDragStart(e, i)}
+                          onDrop={(e) => handleDrop(e, i)}
+                          onDragOver={handleDragOver}
+                        >
+                          <div className="aspect-square relative rounded-md overflow-hidden border border-slate-200 bg-slate-50 cursor-move group-hover:border-slate-400 transition-all">
+                            {isVideo(img) ? (
+                              <div className="w-full h-full flex items-center justify-center bg-slate-900">
+                                <Video className="text-white/50" size={32} />
+                                <video src={img} className="absolute inset-0 w-full h-full object-cover opacity-60" />
+                              </div>
+                            ) : (
+                              <img src={img} className="w-full h-full object-cover" />
+                            )}
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                               <button type="button" onClick={() => setImages(prev => prev.filter((_, idx) => idx !== i))} className="bg-white/90 p-1.5 rounded-md text-red-500 shadow-sm"><Trash2 size={13} /></button>
+                            </div>
+                            <div className="absolute top-1 left-1 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded uppercase font-bold">
+                              {i + 1}
+                            </div>
                           </div>
                           <Input value={imageCaptions[i]} onChange={e => { const n = [...imageCaptions]; n[i] = e.target.value; setImageCaptions(n); }} placeholder="Caption..." className="h-8 text-xs" />
                         </div>
                       ))}
-                      <label className="aspect-video bg-slate-50 rounded-md border border-dashed border-slate-300 flex flex-col items-center justify-center cursor-pointer hover:bg-slate-100 transition-colors text-slate-400 gap-2">
-                        {uploading ? <Loader2 size={20} className="animate-spin" /> : <><Upload size={20} /><span className="text-xs">Add Image</span></>}
+                      <label className="aspect-square bg-slate-50 rounded-md border border-dashed border-slate-300 flex flex-col items-center justify-center cursor-pointer hover:bg-slate-100 transition-colors text-slate-400 gap-2">
+                        {uploading ? <Loader2 size={20} className="animate-spin" /> : <><Upload size={20} /><span className="text-xs">Add Media</span></>}
                         <input type="file" multiple className="hidden" onChange={e => e.target.files && Array.from(e.target.files).forEach(uploadFile)} />
                       </label>
                     </div>
                   )}
                   {type === "video" && (
-                    <div className="space-y-3">
-                      <div className="grid grid-cols-2 gap-3">
-                        <label className="flex items-center justify-center gap-2 h-10 bg-slate-50 border border-dashed border-slate-300 rounded-md cursor-pointer hover:bg-slate-100 transition-colors text-slate-500 text-sm">
-                          {uploading ? <Loader2 size={15} className="animate-spin" /> : <Video size={15} />} Upload Video
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <label className="flex flex-col items-center justify-center gap-2 h-32 bg-slate-50 border border-dashed border-slate-300 rounded-md cursor-pointer hover:bg-slate-100 transition-colors text-slate-500">
+                          {uploading ? <Loader2 size={20} className="animate-spin" /> : <Video size={20} />}
+                          <span className="text-sm font-medium">Upload Video</span>
                           <input type="file" accept="video/*" className="hidden" onChange={e => e.target.files?.[0] && uploadFile(e.target.files[0])} />
                         </label>
-                        <Input value={videoUrl} onChange={e => setVideoUrl(e.target.value)} placeholder="YouTube URL..." className="h-10 rounded-md" />
+                        <div className="space-y-2">
+                          <Label className="text-xs font-medium text-slate-500">Video URL (YouTube/Direct)</Label>
+                          <Input value={videoUrl} onChange={e => { setVideoUrl(e.target.value); if (e.target.value && !images.includes(e.target.value)) setImages(p => [...p, e.target.value]); }} placeholder="https://..." className="h-10 rounded-md" />
+                          <p className="text-[10px] text-slate-400">Directly adding to gallery</p>
+                        </div>
                       </div>
+                      
+                      {images.length > 0 && (
+                        <div className="pt-4 border-t border-slate-100">
+                           <Label className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-3 block">Media Order (Drag to reorder)</Label>
+                           <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
+                              {images.map((img, i) => (
+                                <div 
+                                  key={i} 
+                                  className="aspect-square relative rounded-md overflow-hidden border border-slate-200 bg-slate-50 cursor-move group hover:border-slate-400 transition-all"
+                                  draggable
+                                  onDragStart={(e) => handleDragStart(e, i)}
+                                  onDrop={(e) => handleDrop(e, i)}
+                                  onDragOver={handleDragOver}
+                                >
+                                  {isVideo(img) ? (
+                                    <div className="w-full h-full flex items-center justify-center bg-slate-900">
+                                       <Video className="text-white/30" size={20} />
+                                       <video src={img} className="absolute inset-0 w-full h-full object-cover opacity-50" />
+                                    </div>
+                                  ) : (
+                                    <img src={img} className="w-full h-full object-cover" />
+                                  )}
+                                  <button type="button" onClick={() => setImages(p => p.filter((_, idx) => idx !== i))} className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 bg-white/90 p-1 rounded text-red-500 shadow-sm transition-opacity"><X size={10} /></button>
+                                  <div className="absolute bottom-0 left-0 right-0 bg-black/40 text-white text-[9px] py-0.5 text-center font-bold">
+                                    {i + 1}
+                                  </div>
+                                </div>
+                              ))}
+                           </div>
+                        </div>
+                      )}
                     </div>
                   )}
                   {type === 'poll' && (

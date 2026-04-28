@@ -342,6 +342,7 @@ const PostCard = ({
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [imgExpandedIndex, setImgExpandedIndex] = useState<number | null>(null);
   const [videoFullscreen, setVideoFullscreen] = useState(false);
+  const [activeVideoUrl, setActiveVideoUrl] = useState(post.videoUrl || "");
   const [fsPlaying, setFsPlaying] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
   const [isHidden, setIsHidden] = useState(false);
@@ -359,11 +360,31 @@ const PostCard = ({
 
   const isMusicActive = playingMusicId === post.id;
 
+  const isVideo = (url: string) => {
+    if (!url) return false;
+    return url.match(/\.(mp4|webm|ogg|mov|m4v)$|^https?:\/\/(www\.)?(youtube\.com|youtu\.be)/i);
+  };
+
+  const getYTThumbnail = (url: string) => {
+    const idMatch = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i);
+    if (idMatch && idMatch[1]) {
+      return `https://img.youtube.com/vi/${idMatch[1]}/maxresdefault.jpg`;
+    }
+    return null;
+  };
+
   const imagesList = post.images?.length ? post.images : (post.image ? [post.image] : []);
-  const mediaItems = [
-    ...imagesList.map(url => ({ type: 'image' as const, url })),
-    ...(post.videoUrl ? [{ type: 'video' as const, url: post.videoUrl }] : [])
-  ];
+  
+  // Create a unified list of media items from both images array and videoUrl
+  const allMediaUrls = [...imagesList];
+  if (post.videoUrl && !allMediaUrls.includes(post.videoUrl)) {
+    allMediaUrls.push(post.videoUrl);
+  }
+
+  const mediaItems = allMediaUrls.map(url => ({
+    type: isVideo(url) ? 'video' as const : 'image' as const,
+    url
+  }));
 
   // Keyboard navigation for image lightbox
   useEffect(() => {
@@ -442,8 +463,10 @@ const PostCard = ({
     window.location.href = `${API_BASE}/auth/google`;
   };
 
-  const openFullscreen = (e: React.MouseEvent) => {
+  const openFullscreen = (e: React.MouseEvent, url?: string) => {
     e.stopPropagation();
+    if (url) setActiveVideoUrl(url);
+    else setActiveVideoUrl(post.videoUrl || "");
     // Pause the inline video when opening fullscreen
     videoRef.current?.pause();
     setFsPlaying(true);
@@ -707,30 +730,42 @@ const PostCard = ({
         )}
 
         {/* Fullscreen Video Player */}
-        {videoFullscreen && post.videoUrl && createPortal(
+        {videoFullscreen && activeVideoUrl && createPortal(
           <div
             className="fixed inset-0 z-[9999] bg-black flex flex-col items-center justify-center"
             onClick={e => { if (e.target === e.currentTarget) setVideoFullscreen(false); }}
           >
             {/* Video */}
-            <video
-              ref={fsVideoRef}
-              src={post.videoUrl}
-              loop
-              playsInline
-              muted={fsMuted}
-              autoPlay
-              className="w-full h-full object-contain"
-              onClick={toggleFsPlay}
-            />
-
-            {/* Play/pause flash indicator centered */}
-            {fsFlash && (
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-50">
-                <div className="w-20 h-20 rounded-full bg-black/60 backdrop-blur-md border border-white/20 flex items-center justify-center animate-in zoom-in-50 fade-in duration-200">
-                  {fsFlash === 'play' ? <Play size={32} className="translate-x-0.5 text-white" /> : <Pause size={32} className="text-white" />}
-                </div>
+            {activeVideoUrl.includes('youtube.com') || activeVideoUrl.includes('youtu.be') ? (
+              <div className="w-full aspect-video">
+                <YouTube 
+                  videoId={activeVideoUrl.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i)?.[1] || ""} 
+                  opts={{ width: "100%", height: "100%", playerVars: { autoplay: 1 } }} 
+                  className="w-full h-full"
+                />
               </div>
+            ) : (
+              <>
+                <video
+                  ref={fsVideoRef}
+                  src={activeVideoUrl}
+                  loop
+                  playsInline
+                  muted={fsMuted}
+                  autoPlay
+                  className="w-full h-full object-contain"
+                  onClick={toggleFsPlay}
+                />
+
+                {/* Play/pause flash indicator centered */}
+                {fsFlash && (
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-50">
+                    <div className="w-20 h-20 rounded-full bg-black/60 backdrop-blur-md border border-white/20 flex items-center justify-center animate-in zoom-in-50 fade-in duration-200">
+                      {fsFlash === 'play' ? <Play size={32} className="translate-x-0.5 text-white" /> : <Pause size={32} className="text-white" />}
+                    </div>
+                  </div>
+                )}
+              </>
             )}
 
             {/* Top bar: close */}
@@ -744,32 +779,34 @@ const PostCard = ({
             </div>
 
             {/* Bottom controls */}
-            <div className="absolute bottom-0 left-0 right-0 px-6 pb-10 pt-20 bg-gradient-to-t from-black/80 to-transparent flex flex-col justify-end">
-              {/* Caption */}
-              {post.caption && (
-                <p className="text-white text-[14px] font-medium leading-relaxed mb-4 line-clamp-3">
-                  {post.caption}
-                </p>
-              )}
-              
-              <div className="flex items-center justify-between gap-4">
-                {/* Play/Pause */}
-                <button
-                  onClick={toggleFsPlay}
-                  className="w-12 h-12 rounded-full bg-white/15 backdrop-blur-sm border border-white/20 flex items-center justify-center text-white hover:bg-white/25 transition-all"
-                >
-                  {fsPlaying ? <Pause size={20} /> : <Play size={20} className="translate-x-0.5" />}
-                </button>
+            {!(activeVideoUrl.includes('youtube.com') || activeVideoUrl.includes('youtu.be')) && (
+              <div className="absolute bottom-0 left-0 right-0 px-6 pb-10 pt-20 bg-gradient-to-t from-black/80 to-transparent flex flex-col justify-end">
+                {/* Caption */}
+                {post.caption && (
+                  <p className="text-white text-[14px] font-medium leading-relaxed mb-4 line-clamp-3">
+                    {post.caption}
+                  </p>
+                )}
+                
+                <div className="flex items-center justify-between gap-4">
+                  {/* Play/Pause */}
+                  <button
+                    onClick={toggleFsPlay}
+                    className="w-12 h-12 rounded-full bg-white/15 backdrop-blur-sm border border-white/20 flex items-center justify-center text-white hover:bg-white/25 transition-all"
+                  >
+                    {fsPlaying ? <Pause size={20} /> : <Play size={20} className="translate-x-0.5" />}
+                  </button>
 
-                {/* Mute */}
-                <button
-                  onClick={toggleFsMute}
-                  className="w-12 h-12 rounded-full bg-white/15 backdrop-blur-sm border border-white/20 flex items-center justify-center text-white hover:bg-white/25 transition-all"
-                >
-                  {fsMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
-                </button>
+                  {/* Mute */}
+                  <button
+                    onClick={toggleFsMute}
+                    className="w-12 h-12 rounded-full bg-white/15 backdrop-blur-sm border border-white/20 flex items-center justify-center text-white hover:bg-white/25 transition-all"
+                  >
+                    {fsMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
           </div>,
           document.body
         )}
@@ -794,19 +831,32 @@ const PostCard = ({
                         onClick={() => setImgExpandedIndex(imagesList.indexOf(item.url))}
                       />
                     ) : (
-                      <div className="w-full relative cursor-pointer" onClick={openFullscreen}>
-                         <video 
-                           src={item.url} 
-                           loop 
-                           playsInline 
-                           muted 
-                           autoPlay={i === activeIndex}
-                           className="w-full object-cover bg-black" 
-                           style={{maxHeight:'55vh', minHeight:'30vh'}} 
-                         />
-                         <div className="absolute top-4 right-4 w-8 h-8 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center text-white border border-white/10">
-                            <PlayCircle size={16} />
-                         </div>
+                      <div className="w-full relative cursor-pointer" onClick={(e) => { e.stopPropagation(); openFullscreen(e, item.url); }}>
+                         {item.url.includes('youtube.com') || item.url.includes('youtu.be') ? (
+                           <div className="w-full relative">
+                             <img src={getYTThumbnail(item.url) || ""} className="w-full object-cover" style={{maxHeight:'55vh', minHeight:'30vh'}} />
+                             <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+                                <div className="w-14 h-14 rounded-full bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center">
+                                   <PlayCircle size={24} className="text-white" />
+                                </div>
+                             </div>
+                           </div>
+                         ) : (
+                           <>
+                             <video 
+                               src={item.url} 
+                               loop 
+                               playsInline 
+                               muted 
+                               autoPlay={i === activeIndex}
+                               className="w-full object-cover bg-black" 
+                               style={{maxHeight:'55vh', minHeight:'30vh'}} 
+                             />
+                             <div className="absolute top-4 right-4 w-8 h-8 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center text-white border border-white/10">
+                                <PlayCircle size={16} />
+                             </div>
+                           </>
+                         )}
                       </div>
                     )}
                   </div>

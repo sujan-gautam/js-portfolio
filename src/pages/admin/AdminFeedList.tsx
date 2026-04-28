@@ -107,9 +107,13 @@ const AdminFeedList = () => {
                   <TableRow key={post.id} className="border-slate-100 hover:bg-slate-50 transition-colors">
                     <TableCell className="px-6 py-4">
                       <div className="w-10 h-10 bg-slate-100 rounded-md overflow-hidden border border-slate-200 flex items-center justify-center">
-                        {post.type === "image" && post.images?.[0] ? (
-                          <img src={post.images[0]} className="w-full h-full object-cover" />
-                        ) : post.type === "video" ? (
+                        {post.images?.[0] ? (
+                          post.images[0].match(/\.(mp4|webm|ogg|mov|m4v)$|^https?:\/\/(www\.)?(youtube\.com|youtu\.be)/i) ? (
+                            <Video size={14} className="text-slate-400" />
+                          ) : (
+                            <img src={post.images[0]} className="w-full h-full object-cover" />
+                          )
+                        ) : post.videoUrl ? (
                           <Video size={14} className="text-slate-400" />
                         ) : (
                           <AlignLeft size={14} className="text-slate-300" />
@@ -176,9 +180,13 @@ const AdminFeedList = () => {
           ) : filteredPosts.map(post => (
             <div key={post.id} className="flex items-start gap-3 p-4 hover:bg-slate-50 transition-colors">
               <div className="w-12 h-12 bg-slate-100 rounded-md overflow-hidden border border-slate-200 flex items-center justify-center shrink-0">
-                {post.type === "image" && post.images?.[0] ? (
-                  <img src={post.images[0]} className="w-full h-full object-cover" />
-                ) : post.type === "video" ? (
+                {post.images?.[0] ? (
+                  post.images[0].match(/\.(mp4|webm|ogg|mov|m4v)$|^https?:\/\/(www\.)?(youtube\.com|youtu\.be)/i) ? (
+                    <Video size={16} className="text-slate-400" />
+                  ) : (
+                    <img src={post.images[0]} className="w-full h-full object-cover" />
+                  )
+                ) : post.videoUrl ? (
                   <Video size={16} className="text-slate-400" />
                 ) : (
                   <AlignLeft size={16} className="text-slate-300" />
