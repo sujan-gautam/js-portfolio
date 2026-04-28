@@ -92,25 +92,47 @@ const AnalyticsTracker = () => {
       }).catch(() => {});
     };
 
-    // ── Step 2: Fallback — IP-based geo from browser (still real IP, not Vercel)
+    // ── Step 2: Fallback — IP-based geo from browser (real IP, not Vercel proxy)
     const sendWithIP = async () => {
       let geoLocation: Record<string, any> = {};
       try {
-        const geo = await axios.get("https://ipwho.is/");
-        if (geo.data?.success) {
+        // Try ipapi.co first (HTTPS, browser-safe, returns city/country/isp)
+        const geo = await axios.get("https://ipapi.co/json/", { timeout: 5000 });
+        if (geo.data && !geo.data.error && geo.data.city) {
           geoLocation = {
             ip: geo.data.ip,
             city: geo.data.city,
-            country: geo.data.country,
+            country: geo.data.country_name,
             countryCode: geo.data.country_code,
             region: geo.data.region,
             lat: geo.data.latitude,
             lon: geo.data.longitude,
-            isp: geo.data.connection?.isp || geo.data.connection?.org || "",
+            isp: geo.data.org || "",
             source: "ip"
           };
         }
-      } catch { /* geo failed silently */ }
+      } catch { /* try next */ }
+
+      // Fallback: ipinfo.io
+      if (!geoLocation.city) {
+        try {
+          const geo2 = await axios.get("https://ipinfo.io/json", { timeout: 5000 });
+          if (geo2.data && geo2.data.city) {
+            const [lat, lon] = (geo2.data.loc || "0,0").split(",").map(Number);
+            geoLocation = {
+              ip: geo2.data.ip,
+              city: geo2.data.city,
+              country: geo2.data.country,
+              countryCode: geo2.data.country,
+              region: geo2.data.region,
+              lat,
+              lon,
+              isp: geo2.data.org || "",
+              source: "ip"
+            };
+          }
+        } catch { /* geo failed entirely */ }
+      }
 
       await axios.post(`${API_BASE}/visitors/track`, {
         ...basePayload,

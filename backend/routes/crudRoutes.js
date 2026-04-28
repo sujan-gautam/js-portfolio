@@ -365,18 +365,18 @@ router.post("/visitors/track", async (req, res) => {
     let location = req.body.location && req.body.location.city ? req.body.location : {};
 
     if (!location.city) {
-      // Backend fallback only for bots/crawlers that bypass the frontend
+      // Backend fallback for bots/crawlers (uses ipapi.co)
       try {
-        const geo = await axios.get(`https://ipwho.is/${ip}`);
-        if (geo.data?.success) {
+        const geo = await axios.get(`https://ipapi.co/${ip}/json/`);
+        if (geo.data && !geo.data.error) {
           location = {
             city: geo.data.city,
-            country: geo.data.country,
+            country: geo.data.country_name,
             countryCode: geo.data.country_code,
             region: geo.data.region,
             lat: geo.data.latitude,
             lon: geo.data.longitude,
-            isp: geo.data.connection?.isp || geo.data.connection?.org || ""
+            isp: geo.data.org || ""
           };
         }
       } catch (e) { console.error("Geo fallback failed:", e.message); }
