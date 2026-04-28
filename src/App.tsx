@@ -65,7 +65,7 @@ import { AdminUsersList, AdminUsersForm } from "@/pages/admin/AdminUsers";
 import { AdminVideosList, AdminVideosForm } from "@/pages/admin/AdminVideos";
 
 // Visitors
-import { AdminVisitorsList, AdminVisitorsForm } from "@/pages/admin/AdminVisitors";
+import AdminVisitors from "@/pages/admin/AdminVisitors";
 
 import SEO from "@/components/SEO";
 
@@ -171,9 +171,7 @@ const App = () => (
                 <Route path="videos/edit/:id" element={<AdminVideosForm />} />
 
                 {/* Visitors */}
-                <Route path="visitors"          element={<AdminVisitorsList />} />
-                <Route path="visitors/add"      element={<AdminVisitorsForm />} />
-                <Route path="visitors/edit/:id" element={<AdminVisitorsForm />} />
+                <Route path="visitors"          element={<AdminVisitors />} />
               </Route>
             </Route>
 
