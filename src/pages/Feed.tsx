@@ -424,7 +424,7 @@ const PostCard = ({
             // Dynamically update the browser URL for deep-linking/sharing
             window.history.replaceState(null, '', `?post=${post.id}`);
 
-            if (videoRef.current && (post.type === "video" || post.type === "reel")) {
+            if (videoRef.current) {
               videoRef.current.play().catch(() => {});
             }
             if (post.musicVideoId) {
@@ -436,7 +436,7 @@ const PostCard = ({
               });
             }
           } else {
-            if (videoRef.current && (post.type === "video" || post.type === "reel")) {
+            if (videoRef.current) {
               videoRef.current.pause();
             }
             if (playingMusicId === post.id) {
@@ -450,7 +450,14 @@ const PostCard = ({
 
     if (postRef.current) observer.observe(postRef.current);
     return () => observer.disconnect();
-  }, [post.type, post.musicVideoId, post.id, playingMusicId]);
+  }, [post.type, post.musicVideoId, post.id, playingMusicId, activeIndex]);
+
+  // Handle auto-play when carousel index changes
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.play().catch(() => {});
+    }
+  }, [activeIndex]);
 
   const formatCount = (num: number) => {
     if (num >= 1000000) return (num / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
@@ -844,6 +851,7 @@ const PostCard = ({
                          ) : (
                            <>
                              <video 
+                               ref={i === activeIndex ? videoRef : null}
                                src={item.url} 
                                loop 
                                playsInline 
