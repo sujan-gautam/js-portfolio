@@ -379,12 +379,20 @@ const AdminVisitors = () => {
                           <p className="text-[10px] text-slate-400 truncate max-w-[180px]">{v.browser} · {v.os}</p>
                         </td>
                         <td className="px-5 py-3">
-                          <p className="text-sm text-slate-700">
-                            {v.location?.city ? `${v.location.city}, ${v.location.countryCode}` : v.location?.country || "Unknown"}
-                          </p>
+                          <div className="flex items-center gap-1.5 mb-0.5">
+                            <p className="text-sm text-slate-700">
+                              {v.location?.city ? `${v.location.city}, ${v.location.countryCode}` : v.location?.country || "Unknown"}
+                            </p>
+                            {v.location?.source === 'gps' && (
+                              <span className="text-[9px] font-semibold bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full">GPS</span>
+                            )}
+                          </div>
                           <p className="text-[10px] text-slate-400 truncate max-w-[160px]">
-                            {v.location?.isp || v.location?.country || "—"}
+                            {v.location?.isp || v.location?.region || v.location?.country || "—"}
                           </p>
+                          {v.location?.accuracy && (
+                            <p className="text-[9px] text-emerald-500">±{Math.round(v.location.accuracy)}m accuracy</p>
+                          )}
                         </td>
                         <td className="px-5 py-3">
                           <span className="text-xs bg-slate-100 text-slate-700 px-2 py-0.5 rounded font-mono">{v.page}</span>
@@ -448,8 +456,11 @@ const AdminVisitors = () => {
                                 <p className="text-[10px] font-semibold text-slate-400 uppercase mb-1">Geo</p>
                                 <p className="text-slate-600">{v.location?.city}, {v.location?.region}</p>
                                 <p className="text-slate-600">{v.location?.country} ({v.location?.countryCode})</p>
-                                {v.location?.lat && <p className="text-slate-500 text-[10px]">{v.location.lat.toFixed(2)}, {v.location.lon?.toFixed(2)}</p>}
-                                <p className="text-slate-500 text-[10px] mt-1">{v.location?.isp}</p>
+                                {v.location?.postcode && <p className="text-slate-500">Post: {v.location.postcode}</p>}
+                                {v.location?.accuracy && <p className="text-emerald-600 text-[10px]">GPS ±{Math.round(v.location.accuracy)}m</p>}
+                                {v.location?.lat && <p className="text-slate-400 text-[10px]">{v.location.lat.toFixed(4)}, {v.location.lon?.toFixed(4)}</p>}
+                                <p className="text-slate-400 text-[10px]">{v.location?.isp}</p>
+                                {v.location?.displayName && <p className="text-slate-400 text-[10px] mt-0.5 leading-relaxed">{v.location.displayName}</p>}
                               </div>
                             </div>
                           </td>

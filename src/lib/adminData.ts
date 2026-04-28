@@ -99,6 +99,10 @@ export interface VisitorRecord {
     lat?: number;
     lon?: number;
     isp?: string;
+    accuracy?: number;
+    postcode?: string;
+    displayName?: string;
+    source?: 'gps' | 'ip';
   };
   screenResolution?: string;
   language?: string;

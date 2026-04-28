@@ -131,11 +131,7 @@ const VisitorRecordSchema = new mongoose.Schema({
   os: String,
   userAgent: String,
   referrer: String,
-  utm: {
-    source: String,
-    medium: String,
-    campaign: String
-  },
+  utm: { source: String, medium: String, campaign: String },
   location: {
     city: String,
     country: String,
@@ -143,7 +139,11 @@ const VisitorRecordSchema = new mongoose.Schema({
     region: String,
     lat: Number,
     lon: Number,
-    isp: String
+    isp: String,
+    postcode: String,
+    displayName: String,
+    accuracy: Number,
+    source: String   // 'gps' | 'ip'
   },
   screenResolution: String,
   language: String,
