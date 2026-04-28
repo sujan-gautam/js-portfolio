@@ -109,11 +109,11 @@ const AdminVisitors = () => {
   ];
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500 font-inter max-w-7xl mx-auto pb-20 px-4">
+    <div className="space-y-6 animate-in fade-in duration-500 max-w-7xl mx-auto pb-20 px-4">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pt-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Visitor Insights</h1>
+          <h1 className="text-2xl font-semibold text-slate-900">Visitor Insights</h1>
           <p className="text-sm text-slate-500">Monitor your global reach and engagement metrics</p>
         </div>
         <div className="flex items-center gap-2">
@@ -146,8 +146,8 @@ const AdminVisitors = () => {
                  <div>
                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{stat.title}</p>
                    <div className="flex items-baseline gap-2 mt-0.5">
-                     <h3 className="text-xl font-bold text-slate-900">{stat.value}</h3>
-                     <span className={cn("text-[10px] font-bold px-1 py-0.5 rounded", stat.sub.toString().startsWith('-') ? "bg-rose-50 text-rose-600" : "bg-emerald-50 text-emerald-600")}>
+                     <h3 className="text-xl font-semibold text-slate-900">{stat.value}</h3>
+                     <span className={cn("text-[10px] font-semibold px-1 py-0.5 rounded", stat.sub.toString().startsWith('-') ? "bg-rose-50 text-rose-600" : "bg-emerald-50 text-emerald-600")}>
                         {stat.sub}
                      </span>
                    </div>
@@ -183,12 +183,12 @@ const AdminVisitors = () => {
             <Card className="lg:col-span-2 border-slate-200 shadow-sm bg-white">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <div>
-                  <CardTitle className="text-base font-bold">Traffic Trend</CardTitle>
+                  <CardTitle className="text-base font-semibold">Traffic Trend</CardTitle>
                   <CardDescription className="text-xs">Daily visits over time</CardDescription>
                 </div>
                 <div className="flex bg-slate-100 p-1 rounded-md">
-                   <button className="px-2 py-1 text-[10px] font-bold bg-white rounded shadow-sm text-slate-700">7D</button>
-                   <button className="px-2 py-1 text-[10px] font-bold text-slate-500">30D</button>
+                   <button className="px-2 py-1 text-[10px] font-semibold bg-white rounded shadow-sm text-slate-700">7D</button>
+                   <button className="px-2 py-1 text-[10px] font-semibold text-slate-500">30D</button>
                 </div>
               </CardHeader>
               <CardContent className="h-[280px] pt-4">
@@ -212,7 +212,7 @@ const AdminVisitors = () => {
 
             <Card className="border-slate-200 shadow-sm bg-white">
                <CardHeader>
-                  <CardTitle className="text-base font-bold">Popular Entry Points</CardTitle>
+                  <CardTitle className="text-base font-semibold">Popular Entry Points</CardTitle>
                   <CardDescription className="text-xs">Most frequent landing pages</CardDescription>
                </CardHeader>
                <CardContent className="p-0">
@@ -220,10 +220,10 @@ const AdminVisitors = () => {
                     {stats.pageData.map((p, i) => (
                       <div key={i} className="flex items-center justify-between p-4 hover:bg-slate-50 transition-colors">
                         <div className="flex items-center gap-3">
-                          <span className="text-xs font-bold text-slate-400">#{i+1}</span>
+                          <span className="text-xs font-semibold text-slate-400">#{i+1}</span>
                           <span className="text-sm font-medium text-slate-700 truncate max-w-[140px]">{p.name}</span>
                         </div>
-                        <span className="text-xs font-bold text-indigo-600">{p.value} visits</span>
+                        <span className="text-xs font-semibold text-indigo-600">{p.value} visits</span>
                       </div>
                     ))}
                   </div>
@@ -237,7 +237,7 @@ const AdminVisitors = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card className="border-slate-200 shadow-sm bg-white">
               <CardHeader>
-                <CardTitle className="text-base font-bold">Global Distribution</CardTitle>
+                <CardTitle className="text-base font-semibold">Global Distribution</CardTitle>
                 <CardDescription className="text-xs">Visitor density by country</CardDescription>
               </CardHeader>
               <CardContent className="h-[300px]">
@@ -254,7 +254,7 @@ const AdminVisitors = () => {
 
             <Card className="border-slate-200 shadow-sm bg-white">
               <CardHeader>
-                <CardTitle className="text-base font-bold">Detailed Geo Stats</CardTitle>
+                <CardTitle className="text-base font-semibold">Detailed Geo Stats</CardTitle>
                 <CardDescription className="text-xs">Top 10 performing regions</CardDescription>
               </CardHeader>
               <CardContent className="p-0">
@@ -268,7 +268,7 @@ const AdminVisitors = () => {
                             <span className="text-sm font-semibold text-slate-700">{c.name}</span>
                          </div>
                          <div className="flex items-center gap-4">
-                            <span className="text-xs font-bold text-slate-500">{c.value} visits</span>
+                            <span className="text-xs font-semibold text-slate-500">{c.value} visits</span>
                             <div className="w-20 h-1.5 bg-slate-100 rounded-full overflow-hidden">
                                <div className="h-full bg-indigo-500 rounded-full" style={{ width: `${(c.value / stats.countryData[0].value) * 100}%` }} />
                             </div>
@@ -286,7 +286,7 @@ const AdminVisitors = () => {
            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               <Card className="border-slate-200 shadow-sm bg-white">
                  <CardHeader>
-                    <CardTitle className="text-base font-bold">Device Split</CardTitle>
+                    <CardTitle className="text-base font-semibold">Device Split</CardTitle>
                     <CardDescription className="text-xs">Mobile vs Desktop usage</CardDescription>
                  </CardHeader>
                  <CardContent className="h-[250px] flex items-center justify-center">
@@ -303,7 +303,7 @@ const AdminVisitors = () => {
                     {stats.deviceData.map((d, i) => (
                        <div key={i} className="flex items-center gap-2">
                           <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-                          <span className="text-[10px] font-bold text-slate-500 uppercase">{d.name}: {d.value}</span>
+                          <span className="text-[10px] font-semibold text-slate-500 uppercase">{d.name}: {d.value}</span>
                        </div>
                     ))}
                  </div>
@@ -311,7 +311,7 @@ const AdminVisitors = () => {
 
               <Card className="lg:col-span-2 border-slate-200 shadow-sm bg-white">
                  <CardHeader>
-                    <CardTitle className="text-base font-bold">Browser Preference</CardTitle>
+                    <CardTitle className="text-base font-semibold">Browser Preference</CardTitle>
                     <CardDescription className="text-xs">Software environment metrics</CardDescription>
                  </CardHeader>
                  <CardContent className="h-[280px]">
@@ -336,11 +336,11 @@ const AdminVisitors = () => {
                  <table className="w-full text-left">
                     <thead>
                        <tr className="bg-slate-50 border-b border-slate-100">
-                          <th className="px-6 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Visitor</th>
-                          <th className="px-6 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Location</th>
-                          <th className="px-6 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Page</th>
-                          <th className="px-6 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Time</th>
-                          <th className="px-6 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider text-right">Delete</th>
+                          <th className="px-6 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Visitor</th>
+                          <th className="px-6 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Location</th>
+                          <th className="px-6 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Page</th>
+                          <th className="px-6 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Time</th>
+                          <th className="px-6 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider text-right">Delete</th>
                        </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -348,7 +348,7 @@ const AdminVisitors = () => {
                           <tr key={v.id} className="hover:bg-slate-50 transition-colors group">
                              <td className="px-6 py-4">
                                 <div className="flex flex-col">
-                                   <span className="text-sm font-bold text-slate-900">{v.ip}</span>
+                                   <span className="text-sm font-semibold text-slate-900">{v.ip}</span>
                                    <span className="text-[10px] text-slate-400 font-medium">{v.device} • {v.browser}</span>
                                 </div>
                              </td>
@@ -356,7 +356,7 @@ const AdminVisitors = () => {
                                 <span className="text-xs font-semibold text-slate-700">{v.location?.city || "Unknown"}, {v.location?.countryCode || "??"}</span>
                              </td>
                              <td className="px-6 py-4">
-                                <span className="text-[10px] font-bold bg-slate-100 px-2 py-1 rounded text-slate-600">{v.page}</span>
+                                <span className="text-[10px] font-semibold bg-slate-100 px-2 py-1 rounded text-slate-600">{v.page}</span>
                              </td>
                              <td className="px-6 py-4">
                                 <span className="text-xs text-slate-500">{new Date(v.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
