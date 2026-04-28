@@ -354,15 +354,34 @@ router.get("/visitors/count", async (req, res) => {
 
 router.post("/visitors/track", async (req, res) => {
   try {
+    let ip = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress || "unknown";
+    if (ip.includes("::ffff:")) ip = ip.split(":").pop();
+    if (ip === "::1" || ip === "127.0.0.1") ip = "103.10.28.162"; // Fallback for local testing (Nepal IP)
+
+    let location = {};
+    try {
+      const geo = await axios.get(`http://ip-api.com/json/${ip}?fields=status,country,countryCode,regionName,city,lat,lon`);
+      if (geo.data.status === "success") {
+        location = {
+          city: geo.data.city,
+          country: geo.data.country,
+          countryCode: geo.data.countryCode,
+          region: geo.data.regionName,
+          lat: geo.data.lat,
+          lon: geo.data.lon
+        };
+      }
+    } catch (e) { console.error("Geo lookup failed:", e.message); }
+
     await Models.VisitorRecord.create({
-      ip: req.ip || "unknown",
+      ip,
+      location,
       page: req.body.page || "/",
       device: req.body.device || "browser",
       browser: req.body.browser || "unknown",
       timestamp: new Date()
     });
     const count = await Models.VisitorRecord.countDocuments({});
-    // Add real database count to the base "legacy" count so it increases on every visit
     res.json({ count: 56170 + count });
   } catch (error) {
     res.status(500).json({ error: error.message });

@@ -81,7 +81,22 @@ export interface StoryItem { id: string; title: string; image: string; type?: "i
 export interface PopupItem { id: string; title: string; content: string; image: string; active: boolean; startDate: string; endDate: string; }
 export interface AdItem { id: string; title: string; image: string; link: string; position: string; active: boolean; impressions: number; clicks: number; }
 export interface ContactMessage { id: string; name: string; email: string; subject: string; message: string; read: boolean; createdAt: string; }
-export interface VisitorRecord { id: string; ip: string; page: string; device: string; browser: string; timestamp: string; }
+export interface VisitorRecord { 
+  id: string; 
+  ip: string; 
+  page: string; 
+  device: string; 
+  browser: string; 
+  location?: {
+    city?: string;
+    country?: string;
+    countryCode?: string;
+    region?: string;
+    lat?: number;
+    lon?: number;
+  };
+  timestamp: string; 
+}
 export interface AppItem { id: string; name: string; platform: string; downloadUrl: string; icon: string; description: string; active: boolean; }
 export interface CustomerItem { id: string; name: string; email: string; company: string; project: string; status: "active" | "completed" | "pending"; }
 export interface WhatsNewItem { id: string; title: string; description: string; version: string; createdAt: string; }

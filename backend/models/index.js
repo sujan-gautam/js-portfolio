@@ -124,7 +124,19 @@ const ContactMessageSchema = new mongoose.Schema({
   name: String, email: String, subject: String, message: String, read: Boolean, createdAt: Date
 });
 const VisitorRecordSchema = new mongoose.Schema({
-  ip: String, page: String, device: String, browser: String, timestamp: Date
+  ip: String,
+  page: String,
+  device: String,
+  browser: String,
+  location: {
+    city: String,
+    country: String,
+    countryCode: String,
+    region: String,
+    lat: Number,
+    lon: Number
+  },
+  timestamp: { type: Date, default: Date.now }
 });
 const AppSchema = new mongoose.Schema({
   name: String, platform: String, downloadUrl: String, icon: String, description: String, active: Boolean
