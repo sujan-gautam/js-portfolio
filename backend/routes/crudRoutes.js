@@ -354,21 +354,23 @@ router.get("/visitors/count", async (req, res) => {
 
 router.post("/visitors/track", async (req, res) => {
   try {
-    let ip = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress || "unknown";
+    let ip = req.headers['x-real-ip'] || req.headers['x-forwarded-for'] || req.ip || req.connection.remoteAddress || "unknown";
+    if (ip && ip.includes(',')) ip = ip.split(',')[0].trim();
     if (ip.includes("::ffff:")) ip = ip.split(":").pop();
     if (ip === "::1" || ip === "127.0.0.1") ip = "103.10.28.162"; // Fallback for local testing (Nepal IP)
 
     let location = {};
     try {
-      const geo = await axios.get(`http://ip-api.com/json/${ip}?fields=status,country,countryCode,regionName,city,lat,lon`);
-      if (geo.data.status === "success") {
+      // Use ipapi.co as it supports HTTPS and is reliable
+      const geo = await axios.get(`https://ipapi.co/${ip}/json/`);
+      if (geo.data && !geo.data.error) {
         location = {
           city: geo.data.city,
-          country: geo.data.country,
-          countryCode: geo.data.countryCode,
-          region: geo.data.regionName,
-          lat: geo.data.lat,
-          lon: geo.data.lon
+          country: geo.data.country_name,
+          countryCode: geo.data.country_code,
+          region: geo.data.region,
+          lat: geo.data.latitude,
+          lon: geo.data.longitude
         };
       }
     } catch (e) { console.error("Geo lookup failed:", e.message); }
