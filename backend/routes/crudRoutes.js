@@ -359,8 +359,9 @@ router.post("/visitors/track", async (req, res) => {
     if (ip.includes("::ffff:")) ip = ip.split(":").pop();
     if (ip === "::1" || ip === "127.0.0.1") ip = "103.10.28.162"; // Fallback for local testing (Nepal IP)
 
+    let location = {};
     try {
-      // Detailed geo query from ip-api.com (HTTP is often more reliable in serverless environments for free tier)
+      // Detailed geo query from ip-api.com
       const geo = await axios.get(`http://ip-api.com/json/${ip}?fields=status,message,country,countryCode,regionName,city,lat,lon,isp,query`);
       if (geo.data && geo.data.status === "success") {
         location = {
