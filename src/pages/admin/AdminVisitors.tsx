@@ -4,7 +4,8 @@ import {
   Users, Globe, Monitor, MapPin, 
   ArrowUpRight, ArrowDownRight, Activity, 
   BarChart3, PieChart as PieChartIcon, Clock, Filter,
-  RefreshCcw, Trash2, Search, MoreVertical, Flag
+  RefreshCcw, Trash2, Search, MoreVertical, Flag,
+  ChevronLeft, ChevronRight, LayoutDashboard, Globe2, Laptop
 } from "lucide-react";
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
@@ -12,6 +13,7 @@ import {
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -21,7 +23,10 @@ const AdminVisitors = () => {
   const [visitors, setVisitors] = useState<VisitorRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [timeRange, setTimeRange] = useState("all");
+  const [activeTab, setActiveTab] = useState("overview");
+
+  // Carousel state for top cards on mobile
+  const [carouselIndex, setCarouselIndex] = useState(0);
 
   const fetchData = async () => {
     setLoading(true);
@@ -69,24 +74,24 @@ const AdminVisitors = () => {
     const countryData = Object.entries(countries)
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => b.value - a.value)
-      .slice(0, 8);
+      .slice(0, 10); // Limit to 10
 
     const deviceData = Object.entries(devices).map(([name, value]) => ({ name, value }));
-    const browserData = Object.entries(browsers).map(([name, value]) => ({ name, value }));
-    const pageData = Object.entries(pages).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 5);
+    const browserData = Object.entries(browsers).map(([name, value]) => ({ name, value })).sort((a,b) => b.value - a.value).slice(0, 8);
+    const pageData = Object.entries(pages).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 10); // Limit to 10
     const timelineData = Object.entries(timeline).map(([name, visits]) => ({ name, visits })).reverse().slice(-7);
 
     return { total, countryData, deviceData, browserData, pageData, timelineData };
   }, [visitors]);
 
   const deleteRecord = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this record?")) return;
+    if (!confirm("Are you sure?")) return;
     try {
       await visitorsDB.delete(id);
       setVisitors(prev => prev.filter(v => v.id !== id));
-      toast.success("Record deleted");
+      toast.success("Deleted");
     } catch {
-      toast.error("Failed to delete record");
+      toast.error("Failed");
     }
   };
 
@@ -96,334 +101,282 @@ const AdminVisitors = () => {
     v.location?.city?.toLowerCase().includes(search.toLowerCase())
   );
 
+  const quickStats = [
+    { title: "Total Traffic", value: stats.total.toLocaleString(), sub: "+12.5%", icon: Users, color: "text-indigo-600", bg: "bg-indigo-50" },
+    { title: "Top Region", value: stats.countryData[0]?.name || "N/A", sub: stats.countryData[0]?.value || 0, icon: Globe, color: "text-emerald-600", bg: "bg-emerald-50" },
+    { title: "Avg Session", value: "2m 45s", sub: "-4%", icon: Clock, color: "text-amber-600", bg: "bg-amber-50" },
+    { title: "Active Now", value: "24", sub: "Live", icon: Activity, color: "text-rose-600", bg: "bg-rose-50" },
+  ];
+
   return (
-    <div className="space-y-8 animate-in fade-in duration-500 font-inter max-w-7xl mx-auto pb-20">
+    <div className="space-y-6 animate-in fade-in duration-500 font-inter max-w-7xl mx-auto pb-20 px-4">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pt-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900 flex items-center gap-3">
-            <Activity className="text-indigo-600" size={32} />
-            Visitor Analytics
-          </h1>
-          <p className="text-slate-500 mt-1">Comprehensive tracking and traffic analysis dashboard</p>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Visitor Insights</h1>
+          <p className="text-sm text-slate-500">Monitor your global reach and engagement metrics</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={fetchData} disabled={loading} className="h-10 bg-white">
-            <RefreshCcw size={16} className={cn("mr-2", loading && "animate-spin")} />
-            Refresh Data
+          <Button variant="outline" size="sm" onClick={fetchData} disabled={loading} className="h-9 bg-white shadow-sm border-slate-200">
+            <RefreshCcw size={14} className={cn("mr-2", loading && "animate-spin")} />
+            Sync
           </Button>
-          <Button className="h-10 bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-200">
-            <Filter size={16} className="mr-2" />
-            Filter View
-          </Button>
+          <div className="relative w-48 sm:w-64">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+            <input 
+              type="text" 
+              placeholder="Search..." 
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="w-full h-9 pl-9 pr-4 rounded-md border border-slate-200 bg-white text-sm focus:ring-2 focus:ring-indigo-500/20 transition-all outline-none"
+            />
+          </div>
         </div>
       </div>
 
-      {/* Top Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="bg-white border-slate-200 shadow-sm overflow-hidden relative group">
-          <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-            <Users size={64} />
-          </div>
-          <CardContent className="p-6">
-            <p className="text-sm font-medium text-slate-500 uppercase tracking-wider">Total Visitors</p>
-            <div className="flex items-baseline gap-2 mt-2">
-              <h2 className="text-3xl font-bold text-slate-900">{stats.total.toLocaleString()}</h2>
-              <span className="text-emerald-500 text-xs font-bold flex items-center bg-emerald-50 px-1.5 py-0.5 rounded">
-                <ArrowUpRight size={12} /> 12%
-              </span>
-            </div>
-            <p className="text-xs text-slate-400 mt-2">from 56,170 legacy base</p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-white border-slate-200 shadow-sm overflow-hidden relative group">
-          <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-            <Globe size={64} />
-          </div>
-          <CardContent className="p-6">
-            <p className="text-sm font-medium text-slate-500 uppercase tracking-wider">Top Region</p>
-            <div className="flex items-baseline gap-2 mt-2">
-              <h2 className="text-3xl font-bold text-slate-900">{stats.countryData[0]?.name || "N/A"}</h2>
-            </div>
-            <p className="text-xs text-slate-400 mt-2">{stats.countryData[0]?.value || 0} unique visits</p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-white border-slate-200 shadow-sm overflow-hidden relative group">
-          <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-            <Monitor size={64} />
-          </div>
-          <CardContent className="p-6">
-            <p className="text-sm font-medium text-slate-500 uppercase tracking-wider">Avg Session</p>
-            <div className="flex items-baseline gap-2 mt-2">
-              <h2 className="text-3xl font-bold text-slate-900">2m 45s</h2>
-              <span className="text-rose-500 text-xs font-bold flex items-center bg-rose-50 px-1.5 py-0.5 rounded">
-                <ArrowDownRight size={12} /> 4%
-              </span>
-            </div>
-            <p className="text-xs text-slate-400 mt-2">estimated duration</p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-white border-slate-200 shadow-sm overflow-hidden relative group">
-          <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-            <Activity size={64} />
-          </div>
-          <CardContent className="p-6">
-            <p className="text-sm font-medium text-slate-500 uppercase tracking-wider">Active Now</p>
-            <div className="flex items-baseline gap-2 mt-2">
-              <h2 className="text-3xl font-bold text-emerald-600">24</h2>
-              <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-            </div>
-            <p className="text-xs text-slate-400 mt-2">real-time tracking</p>
-          </CardContent>
-        </Card>
+      {/* Quick Stats Carousel (Mobile) / Grid (Desktop) */}
+      <div className="relative">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+           {quickStats.map((stat, i) => (
+             <Card key={i} className="border-slate-200 shadow-sm overflow-hidden transition-all hover:shadow-md">
+               <CardContent className="p-5 flex items-center gap-4">
+                 <div className={cn("p-3 rounded-xl", stat.bg, stat.color)}>
+                   <stat.icon size={20} />
+                 </div>
+                 <div>
+                   <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{stat.title}</p>
+                   <div className="flex items-baseline gap-2 mt-0.5">
+                     <h3 className="text-xl font-bold text-slate-900">{stat.value}</h3>
+                     <span className={cn("text-[10px] font-bold px-1 py-0.5 rounded", stat.sub.toString().startsWith('-') ? "bg-rose-50 text-rose-600" : "bg-emerald-50 text-emerald-600")}>
+                        {stat.sub}
+                     </span>
+                   </div>
+                 </div>
+               </CardContent>
+             </Card>
+           ))}
+        </div>
       </div>
 
-      {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Traffic Chart */}
-        <Card className="lg:col-span-2 bg-white border-slate-200 shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-lg font-bold flex items-center gap-2">
-              <BarChart3 size={18} className="text-indigo-500" />
-              Traffic Overview
-            </CardTitle>
-            <CardDescription>Daily visitor frequency for the past 7 days</CardDescription>
-          </CardHeader>
-          <CardContent className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={stats.timelineData}>
-                <defs>
-                  <linearGradient id="colorVisits" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.1}/>
-                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="name" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
-                <Tooltip 
-                  contentStyle={{ backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                  itemStyle={{ color: '#6366f1', fontWeight: 'bold' }}
-                />
-                <Area type="monotone" dataKey="visits" stroke="#6366f1" strokeWidth={3} fillOpacity={1} fill="url(#colorVisits)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+      {/* Main Tabs Container */}
+      <Tabs defaultValue="overview" className="w-full" onValueChange={setActiveTab}>
+        <div className="flex items-center justify-between mb-4 border-b border-slate-200 overflow-x-auto no-scrollbar">
+          <TabsList className="bg-transparent h-auto p-0 gap-6">
+            <TabsTrigger value="overview" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-indigo-600 rounded-none px-0 py-3 text-sm font-semibold transition-all">
+              <LayoutDashboard size={14} className="mr-2" /> Overview
+            </TabsTrigger>
+            <TabsTrigger value="audience" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-indigo-600 rounded-none px-0 py-3 text-sm font-semibold transition-all">
+              <Globe2 size={14} className="mr-2" /> Audience
+            </TabsTrigger>
+            <TabsTrigger value="technology" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-indigo-600 rounded-none px-0 py-3 text-sm font-semibold transition-all">
+              <Laptop size={14} className="mr-2" /> Technology
+            </TabsTrigger>
+            <TabsTrigger value="logs" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-indigo-600 rounded-none px-0 py-3 text-sm font-semibold transition-all">
+              <Clock size={14} className="mr-2" /> Access Logs
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
-        {/* Device Breakdown */}
-        <Card className="bg-white border-slate-200 shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-lg font-bold flex items-center gap-2">
-              <PieChartIcon size={18} className="text-indigo-500" />
-              Device Distribution
-            </CardTitle>
-            <CardDescription>Breakdown by visitor device type</CardDescription>
-          </CardHeader>
-          <CardContent className="h-[300px] flex flex-col justify-center items-center">
-            <ResponsiveContainer width="100%" height={220}>
-              <PieChart>
-                <Pie
-                  data={stats.deviceData}
-                  innerRadius={60}
-                  outerRadius={80}
-                  paddingAngle={5}
-                  dataKey="value"
-                >
-                  {stats.deviceData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="grid grid-cols-2 gap-x-8 gap-y-2 mt-4">
-              {stats.deviceData.map((d, i) => (
-                <div key={d.name} className="flex items-center gap-2">
-                  <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-                  <span className="text-xs text-slate-600 font-medium">{d.name}: {d.value}</span>
+        {/* Tab Content: Overview */}
+        <TabsContent value="overview" className="space-y-6 mt-0">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <Card className="lg:col-span-2 border-slate-200 shadow-sm bg-white">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <div>
+                  <CardTitle className="text-base font-bold">Traffic Trend</CardTitle>
+                  <CardDescription className="text-xs">Daily visits over time</CardDescription>
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Geographical Data */}
-        <Card className="bg-white border-slate-200 shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-lg font-bold flex items-center gap-2">
-              <MapPin size={18} className="text-indigo-500" />
-              Top Locations
-            </CardTitle>
-            <CardDescription>Visitors by country</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {stats.countryData.map((c, i) => (
-              <div key={c.name} className="space-y-1.5">
-                <div className="flex justify-between text-xs font-semibold text-slate-700">
-                  <span className="flex items-center gap-2">
-                    <Flag size={12} className="text-slate-400" />
-                    {c.name}
-                  </span>
-                  <span>{c.value} ({Math.round(c.value / stats.total * 100)}%)</span>
+                <div className="flex bg-slate-100 p-1 rounded-md">
+                   <button className="px-2 py-1 text-[10px] font-bold bg-white rounded shadow-sm text-slate-700">7D</button>
+                   <button className="px-2 py-1 text-[10px] font-bold text-slate-500">30D</button>
                 </div>
-                <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-indigo-500 rounded-full transition-all duration-1000" 
-                    style={{ width: `${(c.value / stats.countryData[0].value) * 100}%` }} 
-                  />
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
+              </CardHeader>
+              <CardContent className="h-[280px] pt-4">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={stats.timelineData}>
+                    <defs>
+                      <linearGradient id="overGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#6366f1" stopOpacity={0.1}/>
+                        <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                    <XAxis dataKey="name" stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} dy={10} />
+                    <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} />
+                    <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
+                    <Area type="monotone" dataKey="visits" stroke="#6366f1" strokeWidth={3} fillOpacity={1} fill="url(#overGrad)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
 
-        {/* Browser Stats */}
-        <Card className="bg-white border-slate-200 shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-lg font-bold flex items-center gap-2">
-               <Globe size={18} className="text-indigo-500" />
-               Top Browsers
-            </CardTitle>
-            <CardDescription>Browser preference analysis</CardDescription>
-          </CardHeader>
-          <CardContent className="h-[250px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={stats.browserData} layout="vertical">
-                <XAxis type="number" hide />
-                <YAxis dataKey="name" type="category" stroke="#94a3b8" fontSize={11} width={80} tickLine={false} axisLine={false} />
-                <Tooltip cursor={{fill: 'transparent'}} />
-                <Bar dataKey="value" fill="#6366f1" radius={[0, 4, 4, 0]} barSize={20} />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        {/* Popular Pages */}
-        <Card className="bg-white border-slate-200 shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-lg font-bold flex items-center gap-2">
-               <Activity size={18} className="text-indigo-500" />
-               Active Entry Points
-            </CardTitle>
-            <CardDescription>Most visited pages/sections</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {stats.pageData.map((p, i) => (
-                <div key={p.name} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors border border-slate-100">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded bg-white flex items-center justify-center text-xs font-bold text-indigo-600 shadow-sm">
-                       {i + 1}
-                    </div>
-                    <span className="text-sm font-semibold text-slate-700 truncate max-w-[120px]">{p.name}</span>
+            <Card className="border-slate-200 shadow-sm bg-white">
+               <CardHeader>
+                  <CardTitle className="text-base font-bold">Popular Entry Points</CardTitle>
+                  <CardDescription className="text-xs">Most frequent landing pages</CardDescription>
+               </CardHeader>
+               <CardContent className="p-0">
+                  <div className="divide-y divide-slate-100">
+                    {stats.pageData.map((p, i) => (
+                      <div key={i} className="flex items-center justify-between p-4 hover:bg-slate-50 transition-colors">
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs font-bold text-slate-400">#{i+1}</span>
+                          <span className="text-sm font-medium text-slate-700 truncate max-w-[140px]">{p.name}</span>
+                        </div>
+                        <span className="text-xs font-bold text-indigo-600">{p.value} visits</span>
+                      </div>
+                    ))}
                   </div>
-                  <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded">{p.value} visits</span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Visitors Table */}
-      <Card className="bg-white border-slate-200 shadow-sm overflow-hidden">
-        <CardHeader className="border-b border-slate-100">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <CardTitle className="text-lg font-bold">Recent Traffic Log</CardTitle>
-              <CardDescription>Raw access logs for detailed analysis</CardDescription>
-            </div>
-            <div className="relative w-full md:w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-              <input 
-                type="text" 
-                placeholder="Search IP, Country..." 
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                className="w-full h-10 pl-10 pr-4 rounded-md border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-white transition-all"
-              />
-            </div>
+               </CardContent>
+            </Card>
           </div>
-        </CardHeader>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="bg-slate-50 border-b border-slate-100">
-                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Visitor Info</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Location</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Session Details</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Timestamp</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {loading ? (
-                <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center">
-                    <RefreshCcw className="animate-spin mx-auto text-slate-400" size={24} />
-                  </td>
-                </tr>
-              ) : filteredVisitors.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-slate-400">No records found</td>
-                </tr>
-              ) : (
-                filteredVisitors.slice(0, 100).map(v => (
-                  <tr key={v.id} className="hover:bg-slate-50 transition-colors group">
-                    <td className="px-6 py-4">
-                      <div className="flex flex-col">
-                        <span className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                          {v.ip}
-                          {v.ip === "103.10.28.162" && <span className="text-[10px] bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded uppercase">Test</span>}
-                        </span>
-                        <span className="text-xs text-slate-500">{v.device} • {v.browser}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                         <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-indigo-500">
-                            <MapPin size={14} />
+        </TabsContent>
+
+        {/* Tab Content: Audience */}
+        <TabsContent value="audience" className="space-y-6 mt-0">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card className="border-slate-200 shadow-sm bg-white">
+              <CardHeader>
+                <CardTitle className="text-base font-bold">Global Distribution</CardTitle>
+                <CardDescription className="text-xs">Visitor density by country</CardDescription>
+              </CardHeader>
+              <CardContent className="h-[300px]">
+                 <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={stats.countryData} layout="vertical">
+                       <XAxis type="number" hide />
+                       <YAxis dataKey="name" type="category" stroke="#94a3b8" fontSize={11} width={100} tickLine={false} axisLine={false} />
+                       <Tooltip cursor={{fill: 'rgba(99, 102, 241, 0.05)'}} />
+                       <Bar dataKey="value" fill="#6366f1" radius={[0, 4, 4, 0]} barSize={16} />
+                    </BarChart>
+                 </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            <Card className="border-slate-200 shadow-sm bg-white">
+              <CardHeader>
+                <CardTitle className="text-base font-bold">Detailed Geo Stats</CardTitle>
+                <CardDescription className="text-xs">Top 10 performing regions</CardDescription>
+              </CardHeader>
+              <CardContent className="p-0">
+                 <div className="divide-y divide-slate-100">
+                   {stats.countryData.map((c, i) => (
+                      <div key={i} className="flex items-center justify-between p-4 group">
+                         <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center text-xs group-hover:bg-indigo-50 transition-colors">
+                               <Flag size={14} className="text-slate-400 group-hover:text-indigo-500" />
+                            </div>
+                            <span className="text-sm font-semibold text-slate-700">{c.name}</span>
                          </div>
-                         <div className="flex flex-col">
-                            <span className="text-sm font-semibold text-slate-700">{v.location?.city || "Unknown"}, {v.location?.countryCode || "??"}</span>
-                            <span className="text-xs text-slate-500">{v.location?.country || "Earth"}</span>
+                         <div className="flex items-center gap-4">
+                            <span className="text-xs font-bold text-slate-500">{c.value} visits</span>
+                            <div className="w-20 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                               <div className="h-full bg-indigo-500 rounded-full" style={{ width: `${(c.value / stats.countryData[0].value) * 100}%` }} />
+                            </div>
                          </div>
                       </div>
-                    </td>
-                    <td className="px-6 py-4">
-                       <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold bg-white border border-slate-200 px-2 py-1 rounded text-slate-600">{v.page}</span>
+                   ))}
+                 </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        {/* Tab Content: Technology */}
+        <TabsContent value="technology" className="space-y-6 mt-0">
+           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <Card className="border-slate-200 shadow-sm bg-white">
+                 <CardHeader>
+                    <CardTitle className="text-base font-bold">Device Split</CardTitle>
+                    <CardDescription className="text-xs">Mobile vs Desktop usage</CardDescription>
+                 </CardHeader>
+                 <CardContent className="h-[250px] flex items-center justify-center">
+                    <ResponsiveContainer width="100%" height="100%">
+                       <PieChart>
+                          <Pie data={stats.deviceData} innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
+                             {stats.deviceData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                          </Pie>
+                          <Tooltip />
+                       </PieChart>
+                    </ResponsiveContainer>
+                 </CardContent>
+                 <div className="px-6 pb-6 grid grid-cols-2 gap-2">
+                    {stats.deviceData.map((d, i) => (
+                       <div key={i} className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+                          <span className="text-[10px] font-bold text-slate-500 uppercase">{d.name}: {d.value}</span>
                        </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
-                        <Clock size={12} />
-                        {new Date(v.timestamp).toLocaleString([], { hour: '2-digit', minute: '2-digit', month: 'short', day: 'numeric' })}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <button onClick={() => deleteRecord(v.id)} className="p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-md transition-all">
-                        <Trash2 size={16} />
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-        <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-between items-center text-xs text-slate-500 font-medium">
-           <span>Showing top {Math.min(filteredVisitors.length, 100)} records</span>
-           <div className="flex gap-2">
-              <Button variant="ghost" size="sm" className="h-8 px-3">Previous</Button>
-              <Button variant="ghost" size="sm" className="h-8 px-3">Next</Button>
+                    ))}
+                 </div>
+              </Card>
+
+              <Card className="lg:col-span-2 border-slate-200 shadow-sm bg-white">
+                 <CardHeader>
+                    <CardTitle className="text-base font-bold">Browser Preference</CardTitle>
+                    <CardDescription className="text-xs">Software environment metrics</CardDescription>
+                 </CardHeader>
+                 <CardContent className="h-[280px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                       <BarChart data={stats.browserData}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                          <XAxis dataKey="name" stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} />
+                          <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} />
+                          <Tooltip cursor={{fill: 'rgba(99, 102, 241, 0.05)'}} />
+                          <Bar dataKey="value" fill="#8b5cf6" radius={[4, 4, 0, 0]} barSize={32} />
+                       </BarChart>
+                    </ResponsiveContainer>
+                 </CardContent>
+              </Card>
            </div>
-        </div>
-      </Card>
+        </TabsContent>
+
+        {/* Tab Content: Logs */}
+        <TabsContent value="logs" className="mt-0">
+           <Card className="border-slate-200 shadow-sm bg-white overflow-hidden">
+              <div className="overflow-x-auto">
+                 <table className="w-full text-left">
+                    <thead>
+                       <tr className="bg-slate-50 border-b border-slate-100">
+                          <th className="px-6 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Visitor</th>
+                          <th className="px-6 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Location</th>
+                          <th className="px-6 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Page</th>
+                          <th className="px-6 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider">Time</th>
+                          <th className="px-6 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider text-right">Delete</th>
+                       </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                       {filteredVisitors.slice(0, 50).map((v) => (
+                          <tr key={v.id} className="hover:bg-slate-50 transition-colors group">
+                             <td className="px-6 py-4">
+                                <div className="flex flex-col">
+                                   <span className="text-sm font-bold text-slate-900">{v.ip}</span>
+                                   <span className="text-[10px] text-slate-400 font-medium">{v.device} • {v.browser}</span>
+                                </div>
+                             </td>
+                             <td className="px-6 py-4">
+                                <span className="text-xs font-semibold text-slate-700">{v.location?.city || "Unknown"}, {v.location?.countryCode || "??"}</span>
+                             </td>
+                             <td className="px-6 py-4">
+                                <span className="text-[10px] font-bold bg-slate-100 px-2 py-1 rounded text-slate-600">{v.page}</span>
+                             </td>
+                             <td className="px-6 py-4">
+                                <span className="text-xs text-slate-500">{new Date(v.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                             </td>
+                             <td className="px-6 py-4 text-right">
+                                <button onClick={() => deleteRecord(v.id)} className="p-2 text-slate-300 hover:text-rose-500 transition-colors">
+                                   <Trash2 size={14} />
+                                </button>
+                             </td>
+                          </tr>
+                       ))}
+                    </tbody>
+                 </table>
+              </div>
+              <div className="p-4 bg-slate-50 text-center border-t border-slate-100">
+                 <p className="text-xs text-slate-500 font-medium">Viewing last 50 entries. Data refresh synced.</p>
+              </div>
+           </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
