@@ -1,6 +1,9 @@
 User-agent: *
 Allow: /
-Disallow: /admin/
-Disallow: /admin
 
-Sitemap: https://sujan1919.com.np/sitemap.xml
+# Block admin
+Disallow: /admin/
+Disallow: /admin/*
+
+# Sitemap
+Sitemap: https://sujan1919.com.np/api/sitemap.xml

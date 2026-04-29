@@ -15,6 +15,7 @@ import Contact from "./pages/Contact.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import Privacy from "./pages/Privacy.tsx";
 import Terms from "./pages/Terms.tsx";
+import { FeedPostPage, StoryPage } from "./pages/PostPage.tsx";
 
 // Admin layout
 import AdminLayout from "@/components/admin/AdminLayout";
@@ -95,6 +96,10 @@ const App = () => (
             <Route path="/contact/" element={<Contact />} />
             <Route path="/privacy/" element={<Privacy />} />
             <Route path="/terms/" element={<Terms />} />
+
+            {/* ── SEO: Individual Post & Story Pages (Google indexable) ── */}
+            <Route path="/feed/post/:id" element={<FeedPostPage />} />
+            <Route path="/story/:id" element={<StoryPage />} />
 
             {/* ── Admin Login (Unprotected) ──────────────── */}
             <Route path="/admin/login" element={<Login />} />

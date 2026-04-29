@@ -105,6 +105,74 @@ app.use(passport.session()); // Session support for passport handshake
 app.use("/api", crudRoutes);
 app.use("/api/auth", authRoutes);
 
+// ── Dynamic Sitemap (Google SEO) ─────────────────────────────────────────────
+import * as Models from "./models/index.js";
+
+app.get("/api/sitemap.xml", async (req, res) => {
+  const SITE = "https://sujan1919.com.np";
+  const today = new Date().toISOString().split("T")[0];
+
+  // Static pages
+  const staticPages = [
+    { url: `${SITE}/`,          priority: "1.0", freq: "daily" },
+    { url: `${SITE}/about/`,    priority: "0.8", freq: "monthly" },
+    { url: `${SITE}/feed/`,     priority: "0.9", freq: "daily" },
+    { url: `${SITE}/portfolio/`,priority: "0.9", freq: "weekly" },
+    { url: `${SITE}/contact/`,  priority: "0.7", freq: "yearly" },
+  ];
+
+  let feedUrls = [], storyUrls = [];
+  try {
+    const posts = await Models.Feed.find({ published: true }, "_id createdAt caption images image").lean();
+    feedUrls = posts.map(p => ({
+      url: `${SITE}/feed/post/${p._id}`,
+      lastmod: p.createdAt ? new Date(p.createdAt).toISOString().split("T")[0] : today,
+      priority: "0.8",
+      freq: "weekly",
+      image: p.images?.[0] || p.image || null,
+      title: p.caption?.slice(0, 80) || null
+    }));
+  } catch (e) { console.error("Sitemap feed error:", e.message); }
+
+  try {
+    const stories = await Models.Story.find({}, "_id createdAt title mediaUrl").lean();
+    storyUrls = stories.map(s => ({
+      url: `${SITE}/story/${s._id}`,
+      lastmod: s.createdAt ? new Date(s.createdAt).toISOString().split("T")[0] : today,
+      priority: "0.7",
+      freq: "weekly",
+      image: s.mediaUrl || null,
+      title: s.title || null
+    }));
+  } catch (e) { console.error("Sitemap story error:", e.message); }
+
+  const renderUrl = (entry) => `
+  <url>
+    <loc>${entry.url}</loc>
+    <lastmod>${entry.lastmod || today}</lastmod>
+    <changefreq>${entry.freq}</changefreq>
+    <priority>${entry.priority}</priority>${entry.image ? `
+    <image:image>
+      <image:loc>${entry.image}</image:loc>${entry.title ? `
+      <image:title>${entry.title.replace(/&/g, "&amp;").replace(/</g, "&lt;")}</image:title>` : ""}
+    </image:image>` : ""}
+  </url>`;
+
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset
+  xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+  xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+${staticPages.map(p => renderUrl({ ...p, lastmod: today })).join("")}
+${feedUrls.map(renderUrl).join("")}
+${storyUrls.map(renderUrl).join("")}
+</urlset>`;
+
+  res.setHeader("Content-Type", "application/xml");
+  res.setHeader("Cache-Control", "public, max-age=3600"); // Cache 1 hour
+  res.send(xml);
+});
+
+
 // Link Preview Utils Endpoint
 app.get("/api/utils/link-preview", async (req, res) => {
   const { url } = req.query;
