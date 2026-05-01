@@ -22,6 +22,8 @@ import { AIRefineButton } from "@/components/admin/AIRefineButton";
 import { 
   Slider 
 } from "@/components/ui/slider";
+import { uploadFileChunked, UploadProgress } from "@/lib/upload";
+import { Progress } from "@/components/ui/progress";
 
 const PRESETS: Record<string, string> = {
   None: "none",
@@ -63,6 +65,7 @@ const AdminStoryEditor = () => {
 
   const [activeLayer, setActiveLayer] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null);
   const [ytQuery, setYtQuery] = useState("");
   const [ytResults, setYtResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -120,16 +123,25 @@ const AdminStoryEditor = () => {
   const handleUploadBg = async (e: any) => {
     const file = e.target.files?.[0]; if (!file) return;
     setUploading(true);
+    setUploadProgress({ loaded: 0, total: file.size, percent: 0 });
+    
     let type: "image" | "video" | "gif" = "image";
     if (file.type.startsWith("video/")) type = "video";
     else if (file.type === "image/gif") type = "gif";
 
-    const fd = new FormData(); fd.append("file", file);
     try {
-      const res = await axios.post(`${API_BASE}/upload`, fd);
-      setItem(prev => prev ? { ...prev, image: res.data.url, type } : null);
-    } catch { toast.error("Upload failed"); }
-    setUploading(false);
+      const url = await uploadFileChunked(file, (progress) => {
+        setUploadProgress(progress);
+      });
+      setItem(prev => prev ? { ...prev, image: url, type } : null);
+      toast.success("Background uploaded");
+    } catch (err: any) { 
+      console.error("Upload error:", err);
+      toast.error(err.message || "Upload failed"); 
+    } finally {
+      setUploading(false);
+      setUploadProgress(null);
+    }
   };
 
   const addTextLayer = () => {
@@ -171,15 +183,25 @@ const AdminStoryEditor = () => {
     input.onchange = async (e: any) => {
       const file = e.target.files?.[0];
       if (!file) return;
-      const fd = new FormData(); fd.append("file", file);
+      
       setUploading(true);
+      setUploadProgress({ loaded: 0, total: file.size, percent: 0 });
+      
       try {
-        const res = await axios.post(`${API_BASE}/upload`, fd);
-        const newLayer: StoryLayer = { id: Date.now().toString(), type: "image", content: res.data.url, top: 50, left: 50, scale: 0.5, rotation: 0 };
+        const url = await uploadFileChunked(file, (progress) => {
+          setUploadProgress(progress);
+        });
+        const newLayer: StoryLayer = { id: Date.now().toString(), type: "image", content: url, top: 50, left: 50, scale: 0.5, rotation: 0 };
         setItem(prev => prev ? { ...prev, layers: [...(prev.layers || []), newLayer] } : null);
         setActiveLayer(newLayer.id);
-      } catch { toast.error("Upload failed"); }
-      setUploading(false);
+        toast.success("Layer added");
+      } catch (err: any) { 
+        console.error("Layer upload error:", err);
+        toast.error(err.message || "Upload failed"); 
+      } finally {
+        setUploading(false);
+        setUploadProgress(null);
+      }
     };
     input.click();
   };
@@ -725,7 +747,15 @@ const AdminStoryEditor = () => {
              {item.image ? <img src={item.image} className="w-full h-full object-cover opacity-60" /> : <ImageIcon size={22} className="text-white/60" />}
              <input type="file" accept="image/*,video/*" onChange={handleUploadBg} className="absolute inset-0 opacity-0 cursor-pointer z-10" />
            </button>
-           {uploading && <div className="absolute -top-1 -right-1"><Loader2 size={16} className="animate-spin text-blue-500" /></div>}
+           {uploading && (
+             <div className="absolute -top-1 -right-1 flex flex-col items-center">
+               <Loader2 size={16} className="animate-spin text-blue-500" />
+               <div className="absolute top-12 left-1/2 -translate-x-1/2 bg-black/60 backdrop-blur-md px-2 py-0.5 rounded text-[8px] font-bold text-white whitespace-nowrap">
+                 {uploadProgress?.percent || 0}%
+               </div>
+               <Progress value={uploadProgress?.percent || 0} className="absolute -bottom-2 w-14 h-1" />
+             </div>
+           )}
         </div>
       </div>
 

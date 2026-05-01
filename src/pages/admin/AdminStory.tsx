@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { API_BASE, YT_KEYS } from "@/config";
 import { Plus, Trash2, Pencil, Image as ImageIcon, Music, Loader2, ArrowLeft, Eye, BarChart3, MessageSquare, Smartphone, Search, X, Sparkles, UserCheck, Scissors } from "lucide-react";
+import { uploadFileChunked, UploadProgress } from "@/lib/upload";
+import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -20,6 +22,7 @@ const AdminStory = () => {
 
   const [activeLayer, setActiveLayer] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null);
 
   const [ytOpen, setYtOpen] = useState(false);
   const [ytQuery, setYtQuery] = useState("");
@@ -78,12 +81,21 @@ const AdminStory = () => {
   const handleUploadBg = async (e: any) => {
     const file = e.target.files?.[0]; if (!file) return;
     setUploading(true);
-    const fd = new FormData(); fd.append("file", file);
+    setUploadProgress({ loaded: 0, total: file.size, percent: 0 });
+    
     try {
-      const res = await axios.post(`${API_BASE}/upload`, fd);
-      setItem(prev => prev ? { ...prev, image: res.data.url } : null);
-    } catch { toast.error("Upload failed"); }
-    setUploading(false);
+      const url = await uploadFileChunked(file, (progress) => {
+        setUploadProgress(progress);
+      });
+      setItem(prev => prev ? { ...prev, image: url } : null);
+      toast.success("Background uploaded");
+    } catch (err: any) { 
+      console.error("Upload error:", err);
+      toast.error(err.message || "Upload failed"); 
+    } finally {
+      setUploading(false);
+      setUploadProgress(null);
+    }
   };
 
   const addTextLayer = () => {
@@ -205,7 +217,12 @@ const AdminStory = () => {
                 <ImageIcon size={13} className="text-slate-400"/>
                 <span>{item.image ? 'Change BG' : 'Upload BG'}</span>
                 <input type="file" onChange={handleUploadBg} className="absolute inset-0 opacity-0 cursor-pointer" />
-                {uploading && <Loader2 size={13} className="animate-spin text-slate-400"/>}
+                {uploading && (
+                  <div className="flex flex-col items-center gap-1">
+                    <Loader2 size={13} className="animate-spin text-slate-400"/>
+                    <Progress value={uploadProgress?.percent || 0} className="w-10 h-0.5" />
+                  </div>
+                )}
               </div>
               <button onClick={addTextLayer} className="h-9 px-3 bg-white rounded-md border border-slate-200 text-xs font-medium text-slate-600 flex items-center gap-1.5">
                 <Plus size={13}/> Text
@@ -239,7 +256,12 @@ const AdminStory = () => {
                     <ImageIcon size={15} className="text-slate-400 shrink-0"/>
                     <span className="text-sm text-slate-600">{item.image ? 'Change Background' : 'Upload Background'}</span>
                     <input type="file" onChange={handleUploadBg} className="absolute inset-0 opacity-0 cursor-pointer" />
-                    {uploading && <Loader2 size={15} className="ml-auto animate-spin text-slate-400"/>}
+                    {uploading && (
+                       <div className="ml-auto flex flex-col items-end gap-1">
+                          <Loader2 size={15} className="animate-spin text-slate-400"/>
+                          <Progress value={uploadProgress?.percent || 0} className="w-20 h-1" />
+                       </div>
+                    )}
                   </div>
                 </div>
               </section>

@@ -9,6 +9,8 @@ import { toast } from "sonner";
 import axios from "axios";
 import { API_BASE } from "@/config";
 import { Trash2, Plus, Globe, Loader2, Settings as SettingsIcon, CheckCircle2, X, Heart, Upload, Camera } from "lucide-react";
+import { uploadFileChunked, UploadProgress } from "@/lib/upload";
+import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { AIRefineButton } from "@/components/admin/AIRefineButton";
 
@@ -18,21 +20,26 @@ const AdminSettingsPage = () => {
   const [courtesy, setCourtesy] = useState<CourtesyItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploadingOG, setUploadingOG] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null);
 
   const handleUploadOG = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploadingOG(true);
-    const fd = new FormData();
-    fd.append("file", file);
+    setUploadProgress({ loaded: 0, total: file.size, percent: 0 });
     try {
-                             const { data } = await axios.post(`${API_BASE}/upload`, fd);
-      setSettings(prev => ({ ...prev, ogImage: data.url }));
+      const url = await uploadFileChunked(file, (progress) => {
+        setUploadProgress(progress);
+      });
+      setSettings(prev => ({ ...prev, ogImage: url }));
       toast.success("OG Image uploaded!");
-    } catch {
-      toast.error("Upload failed");
+    } catch (err: any) {
+      console.error("OG Upload error:", err);
+      toast.error(err.message || "Upload failed");
+    } finally {
+      setUploadingOG(false);
+      setUploadProgress(null);
     }
-    setUploadingOG(false);
   };
 
   useEffect(() => {
@@ -224,16 +231,18 @@ const AdminSettingsPage = () => {
                                 onChange={e => setSettings({ ...settings, feedProfileImage: e.target.value })} 
                                 className="h-9 bg-white border-slate-200 rounded-md text-sm" 
                               />
-                              <label className="h-9 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md cursor-pointer transition-colors border border-slate-200 flex items-center justify-center shrink-0">
+                              <label className="h-9 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md cursor-pointer transition-colors border border-slate-200 flex items-center justify-center shrink-0 relative overflow-hidden">
                                  <Upload size={14} />
                                  <input type="file" className="hidden" onChange={async (e) => {
                                    const f = e.target.files?.[0]; if (!f) return;
-                                   const fd = new FormData(); fd.append("file", f);
+                                   toast.info("Uploading profile image...");
                                    try {
-                                     const { data } = await axios.post(`${API_BASE}/upload`, fd);
-                                     setSettings({ ...settings, feedProfileImage: data.url });
+                                     const url = await uploadFileChunked(f);
+                                     setSettings({ ...settings, feedProfileImage: url });
                                      toast.success("Profile image uploaded");
-                                   } catch { toast.error("Upload failed"); }
+                                   } catch (err: any) {
+                                     toast.error(err.message || "Upload failed");
+                                   }
                                  }} />
                               </label>
                            </div>

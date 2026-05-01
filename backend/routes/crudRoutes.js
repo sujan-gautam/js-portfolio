@@ -195,6 +195,34 @@ router.post("/upload", (req, res) => {
   });
 });
 
+// Cloudinary Signature for Direct Frontend Uploads (Chunked)
+router.get("/upload/sign", (req, res) => {
+  try {
+    const timestamp = Math.round(new Date().getTime() / 1000);
+    const params = {
+      timestamp: timestamp,
+      folder: "exact-echo",
+      upload_preset: process.env.CLOUDINARY_UPLOAD_PRESET || "exact_echo_preset",
+    };
+
+    const signature = cloudinary.utils.api_sign_request(
+      params,
+      process.env.CLOUDINARY_API_SECRET
+    );
+
+    res.json({
+      signature,
+      timestamp,
+      api_key: process.env.CLOUDINARY_API_KEY,
+      cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+      folder: "exact-echo",
+      upload_preset: params.upload_preset
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 router.post("/cv/upload", (req, res) => {
   // Use a custom parser call for CV to allow PDFs as raw files if needed
   parser.single("file")(req, res, async (err) => {

@@ -17,6 +17,8 @@ import YouTube from "react-youtube";
 import { AIRefineButton } from "@/components/admin/AIRefineButton";
 
 import { API_BASE, YT_KEYS } from "@/config";
+import { uploadFileChunked, UploadProgress } from "@/lib/upload";
+import { Progress } from "@/components/ui/progress";
 
 const AdminFeedForm = () => {
   const navigate = useNavigate();
@@ -26,6 +28,7 @@ const AdminFeedForm = () => {
   const [loadingPost, setLoadingPost] = useState(isEdit);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null);
 
   // Form state
   const [type, setType] = useState<"text" | "image" | "poll" | "video">("text");
@@ -97,11 +100,13 @@ const AdminFeedForm = () => {
 
   const uploadFile = async (file: File) => {
     setUploading(true);
-    const fd = new FormData();
-    fd.append("file", file);
+    setUploadProgress({ loaded: 0, total: file.size, percent: 0 });
+    
     try {
-      const r = await axios.post(`${API_BASE}/upload`, fd);
-      const url = r.data.url;
+      const url = await uploadFileChunked(file, (progress) => {
+        setUploadProgress(progress);
+      });
+      
       setImages(p => [...p, url]);
       setImageCaptions(p => [...p, ""]);
       
@@ -111,8 +116,13 @@ const AdminFeedForm = () => {
       }
       
       toast.success("Upload successful");
-    } catch { toast.error("Upload failed"); }
-    setUploading(false);
+    } catch (err: any) { 
+      console.error("Upload error:", err);
+      toast.error(err.message || "Upload failed"); 
+    } finally {
+      setUploading(false);
+      setUploadProgress(null);
+    }
   };
 
   const isVideo = (url: string) => {
@@ -299,8 +309,16 @@ const AdminFeedForm = () => {
                           <Input value={imageCaptions[i]} onChange={e => { const n = [...imageCaptions]; n[i] = e.target.value; setImageCaptions(n); }} placeholder="Caption..." className="h-8 text-xs" />
                         </div>
                       ))}
-                      <label className="aspect-square bg-slate-50 rounded-md border border-dashed border-slate-300 flex flex-col items-center justify-center cursor-pointer hover:bg-slate-100 transition-colors text-slate-400 gap-2">
-                        {uploading ? <Loader2 size={20} className="animate-spin" /> : <><Upload size={20} /><span className="text-xs">Add Media</span></>}
+                      <label className="aspect-square bg-slate-50 rounded-md border border-dashed border-slate-300 flex flex-col items-center justify-center cursor-pointer hover:bg-slate-100 transition-colors text-slate-400 gap-2 relative overflow-hidden">
+                        {uploading ? (
+                          <div className="flex flex-col items-center gap-2 p-4 w-full">
+                            <Loader2 size={20} className="animate-spin text-indigo-500" />
+                            <span className="text-[10px] font-medium text-slate-600">{uploadProgress?.percent || 0}%</span>
+                            <Progress value={uploadProgress?.percent || 0} className="h-1 w-full" />
+                          </div>
+                        ) : (
+                          <><Upload size={20} /><span className="text-xs">Add Media</span></>
+                        )}
                         <input type="file" multiple className="hidden" onChange={e => e.target.files && Array.from(e.target.files).forEach(uploadFile)} />
                       </label>
                     </div>

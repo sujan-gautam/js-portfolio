@@ -63,7 +63,7 @@ export const FeedPostPage = () => {
     canonical.href = url;
 
     // JSON-LD Article structured data
-    injectJsonLd("ld-feed-post", {
+    const articleSchema = {
       "@context": "https://schema.org",
       "@type": "Article",
       headline: post.caption || post.content || "Post",
@@ -75,7 +75,27 @@ export const FeedPostPage = () => {
       publisher: { "@type": "Person", name: "Sujan Gautam", logo: { "@type": "ImageObject", url: `${SITE}/favicon.ico` } },
       url,
       mainEntityOfPage: { "@type": "WebPage", "@id": url }
-    });
+    };
+
+    // JSON-LD VideoObject if video exists
+    let videoSchema: any = null;
+    const youtubeId = post.videoUrl?.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/)?.[1];
+    
+    if (youtubeId || post.videoUrl?.match(/\.(mp4|webm|mov)$/i)) {
+      videoSchema = {
+        "@context": "https://schema.org",
+        "@type": "VideoObject",
+        name: post.caption || "Video by Sujan Gautam",
+        description: desc,
+        thumbnailUrl: youtubeId ? `https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg` : image,
+        uploadDate: post.createdAt,
+        contentUrl: post.videoUrl,
+        embedUrl: youtubeId ? `https://www.youtube.com/embed/${youtubeId}` : post.videoUrl,
+        author: { "@type": "Person", name: "Sujan Gautam" }
+      };
+    }
+
+    injectJsonLd("ld-feed-post", videoSchema ? [articleSchema, videoSchema] : articleSchema);
 
     return () => removeJsonLd("ld-feed-post");
   }, [post]);
@@ -95,7 +115,18 @@ export const FeedPostPage = () => {
         {/* Media */}
         {images[0] && <img src={images[0]} alt={post.caption || "Post image"} className="w-full rounded-2xl object-cover mb-6 max-h-[60vh]" loading="eager" />}
         {!images[0] && post.videoUrl && (
-          <video src={post.videoUrl} controls className="w-full rounded-2xl mb-6 max-h-[60vh] bg-black" />
+          post.videoUrl.includes("youtube.com") || post.videoUrl.includes("youtu.be") ? (
+            <div className="aspect-video w-full rounded-2xl overflow-hidden mb-6 bg-black">
+              <iframe 
+                src={`https://www.youtube.com/embed/${post.videoUrl.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/)?.[1]}`}
+                className="w-full h-full border-0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            </div>
+          ) : (
+            <video src={post.videoUrl} controls className="w-full rounded-2xl mb-6 max-h-[60vh] bg-black" />
+          )
         )}
 
         {/* Content */}
@@ -168,7 +199,7 @@ export const StoryPage = () => {
     if (!canonical) { canonical = document.createElement("link"); canonical.rel = "canonical"; document.head.appendChild(canonical); }
     canonical.href = url;
 
-    injectJsonLd("ld-story", {
+    const articleSchema = {
       "@context": "https://schema.org",
       "@type": "Article",
       headline: story.title || "Story",
@@ -179,7 +210,23 @@ export const StoryPage = () => {
       publisher: { "@type": "Person", name: "Sujan Gautam" },
       url,
       mainEntityOfPage: { "@type": "WebPage", "@id": url }
-    });
+    };
+
+    let videoSchema: any = null;
+    if (story.mediaUrl?.match(/\.(mp4|webm|mov)$/i)) {
+      videoSchema = {
+        "@context": "https://schema.org",
+        "@type": "VideoObject",
+        name: story.title || "Story Video by Sujan Gautam",
+        description: desc,
+        thumbnailUrl: image,
+        uploadDate: story.createdAt,
+        contentUrl: story.mediaUrl,
+        author: { "@type": "Person", name: "Sujan Gautam" }
+      };
+    }
+
+    injectJsonLd("ld-story", videoSchema ? [articleSchema, videoSchema] : articleSchema);
 
     return () => removeJsonLd("ld-story");
   }, [story]);
