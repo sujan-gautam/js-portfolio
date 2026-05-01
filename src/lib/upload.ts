@@ -40,7 +40,6 @@ export async function uploadFileChunked(
     formData.append("signature", signature);
     if (upload_preset) formData.append("upload_preset", upload_preset);
     formData.append("folder", folder);
-    if (resource_type) formData.append("resource_type", resource_type);
     
     // Cloudinary specific chunking headers
     const contentRange = `bytes ${start}-${end - 1}/${file.size}`;

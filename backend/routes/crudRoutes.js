@@ -202,7 +202,6 @@ router.get("/upload/sign", (req, res) => {
     const params = {
       timestamp: timestamp,
       folder: "exact-echo",
-      resource_type: "auto"
     };
     
     if (process.env.CLOUDINARY_UPLOAD_PRESET) {
@@ -220,7 +219,6 @@ router.get("/upload/sign", (req, res) => {
       api_key: process.env.CLOUDINARY_API_KEY,
       cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
       folder: "exact-echo",
-      resource_type: "auto",
       upload_preset: params.upload_preset || ""
     });
   } catch (error) {
