@@ -202,8 +202,12 @@ router.get("/upload/sign", (req, res) => {
     const params = {
       timestamp: timestamp,
       folder: "exact-echo",
-      upload_preset: process.env.CLOUDINARY_UPLOAD_PRESET || "exact_echo_preset",
+      resource_type: "auto"
     };
+    
+    if (process.env.CLOUDINARY_UPLOAD_PRESET) {
+      params.upload_preset = process.env.CLOUDINARY_UPLOAD_PRESET;
+    }
 
     const signature = cloudinary.utils.api_sign_request(
       params,
@@ -216,7 +220,8 @@ router.get("/upload/sign", (req, res) => {
       api_key: process.env.CLOUDINARY_API_KEY,
       cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
       folder: "exact-echo",
-      upload_preset: params.upload_preset
+      resource_type: "auto",
+      upload_preset: params.upload_preset || ""
     });
   } catch (error) {
     res.status(500).json({ error: error.message });

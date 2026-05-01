@@ -19,7 +19,7 @@ export async function uploadFileChunked(
 ): Promise<string> {
   // 1. Get signing details from our backend
   const { data: signData } = await axios.get(`${API_BASE}/upload/sign`);
-  const { signature, timestamp, api_key, cloud_name, upload_preset, folder } = signData;
+  const { signature, timestamp, api_key, cloud_name, upload_preset, folder, resource_type } = signData;
 
   const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunks
   const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
@@ -38,8 +38,9 @@ export async function uploadFileChunked(
     formData.append("api_key", api_key);
     formData.append("timestamp", timestamp.toString());
     formData.append("signature", signature);
-    formData.append("upload_preset", upload_preset);
+    if (upload_preset) formData.append("upload_preset", upload_preset);
     formData.append("folder", folder);
+    if (resource_type) formData.append("resource_type", resource_type);
     
     // Cloudinary specific chunking headers
     const contentRange = `bytes ${start}-${end - 1}/${file.size}`;
