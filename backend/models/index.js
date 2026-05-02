@@ -148,8 +148,21 @@ const VisitorRecordSchema = new mongoose.Schema({
   screenResolution: String,
   language: String,
   sessionID: String,
+  // ── Deep Analytics Fields ──
+  timeSpent: { type: Number, default: 0 },        // seconds on page
+  bounced: { type: Boolean, default: true },       // no second page view
+  entryPage: String,                               // first page of session
+  exitPage: String,                                // last page of session
+  pageViews: { type: Number, default: 1 },         // pages viewed this session
+  connectionType: String,                          // 4g, 3g, wifi, etc.
+  timezone: String,                                // e.g. Asia/Kathmandu
+  viewport: String,                                // e.g. 1920x1080
+  scrollDepth: { type: Number, default: 0 },       // max % scrolled
+  clickCount: { type: Number, default: 0 },        // clicks during session
+  isReturning: { type: Boolean, default: false },  // returning visitor
   timestamp: { type: Date, default: Date.now }
 });
+
 const AppSchema = new mongoose.Schema({
   name: String, platform: String, downloadUrl: String, icon: String, description: String, active: Boolean
 });

@@ -105,8 +105,20 @@ export interface VisitorRecord {
     source?: 'gps' | 'ip';
   };
   screenResolution?: string;
+  viewport?: string;
   language?: string;
+  timezone?: string;
   sessionID?: string;
+  connectionType?: string;
+  // Deep Analytics
+  timeSpent?: number;
+  bounced?: boolean;
+  entryPage?: string;
+  exitPage?: string;
+  pageViews?: number;
+  scrollDepth?: number;
+  clickCount?: number;
+  isReturning?: boolean;
   timestamp: string; 
 }
 export interface AppItem { id: string; name: string; platform: string; downloadUrl: string; icon: string; description: string; active: boolean; }
@@ -174,7 +186,16 @@ export const contactsDB = {
       }
     }
 };
-export const visitorsDB = createCRUD<VisitorRecord>("visitors");
+export const visitorsDB = {
+  ...createCRUD<VisitorRecord>("visitors"),
+  getInsights: async (period = "30d") => {
+    try {
+      const res = await axios.get(`${API_BASE}/analytics/insights?period=${period}`);
+      return res.data;
+    } catch { return null; }
+  },
+};
+
 export const appsDB = createCRUD<AppItem>("apps");
 export const customersDB = createCRUD<CustomerItem>("customers");
 export const whatsNewDB = createCRUD<WhatsNewItem>("whatsnew");

@@ -180,6 +180,285 @@ ${storyUrls.map(renderUrl).join("")}
 });
 
 
+// ── Analytics Insights API ────────────────────────────────────────────────────
+app.get("/api/analytics/insights", async (req, res) => {
+  try {
+    const { period = "30d" } = req.query;
+    const now = new Date();
+    const periodMap = { "7d": 7, "30d": 30, "90d": 90, "365d": 365, "all": 36500 };
+    const days = periodMap[period] || 30;
+    const since = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+    const match = { timestamp: { $gte: since } };
+
+    const [
+      totalVisits,
+      uniqueSessions,
+      bounceData,
+      avgTimeSpent,
+      topPages,
+      topCountries,
+      topCities,
+      deviceBreakdown,
+      browserBreakdown,
+      osBreakdown,
+      trafficSources,
+      utmCampaigns,
+      hourlyDistribution,
+      dailyTrend,
+      weeklyTrend,
+      languageBreakdown,
+      screenResolutions,
+      returnVsNew,
+      connectionTypes,
+      scrollDepthAvg,
+      pageViewsPerSession,
+      topISPs,
+      exitPages,
+      entryPages,
+    ] = await Promise.all([
+      // 1. Total visits
+      Models.VisitorRecord.countDocuments(match),
+
+      // 2. Unique sessions
+      Models.VisitorRecord.distinct("sessionID", match).then(s => s.filter(Boolean).length),
+
+      // 3. Bounce rate
+      Models.VisitorRecord.aggregate([
+        { $match: match },
+        { $group: { _id: null,
+            total: { $sum: 1 },
+            bounced: { $sum: { $cond: [{ $eq: ["$bounced", true] }, 1, 0] } }
+        }},
+        { $project: { bounceRate: { $multiply: [{ $divide: ["$bounced", "$total"] }, 100] }, _id: 0 } }
+      ]),
+
+      // 4. Avg time spent (seconds)
+      Models.VisitorRecord.aggregate([
+        { $match: { ...match, timeSpent: { $gt: 0 } } },
+        { $group: { _id: null, avg: { $avg: "$timeSpent" } } }
+      ]),
+
+      // 5. Top pages
+      Models.VisitorRecord.aggregate([
+        { $match: match },
+        { $group: { _id: "$page", visits: { $sum: 1 }, avgTime: { $avg: "$timeSpent" }, bounces: { $sum: { $cond: ["$bounced", 1, 0] } } } },
+        { $sort: { visits: -1 } }, { $limit: 15 },
+        { $project: { _id: 0, page: "$_id", visits: 1, avgTime: 1, bounces: 1 } }
+      ]),
+
+      // 6. Top countries
+      Models.VisitorRecord.aggregate([
+        { $match: match },
+        { $group: { _id: "$location.country", visits: { $sum: 1 }, code: { $first: "$location.countryCode" } } },
+        { $sort: { visits: -1 } }, { $limit: 15 },
+        { $project: { _id: 0, country: "$_id", visits: 1, code: 1 } }
+      ]),
+
+      // 7. Top cities
+      Models.VisitorRecord.aggregate([
+        { $match: match },
+        { $group: { _id: { city: "$location.city", country: "$location.country" }, visits: { $sum: 1 } } },
+        { $sort: { visits: -1 } }, { $limit: 15 },
+        { $project: { _id: 0, city: "$_id.city", country: "$_id.country", visits: 1 } }
+      ]),
+
+      // 8. Device breakdown
+      Models.VisitorRecord.aggregate([
+        { $match: match },
+        { $group: { _id: "$device", visits: { $sum: 1 }, avgTime: { $avg: "$timeSpent" } } },
+        { $sort: { visits: -1 } }
+      ]),
+
+      // 9. Browser breakdown
+      Models.VisitorRecord.aggregate([
+        { $match: match },
+        { $group: { _id: "$browser", visits: { $sum: 1 } } },
+        { $sort: { visits: -1 } }, { $limit: 10 }
+      ]),
+
+      // 10. OS breakdown
+      Models.VisitorRecord.aggregate([
+        { $match: match },
+        { $group: { _id: "$os", visits: { $sum: 1 } } },
+        { $sort: { visits: -1 } }, { $limit: 10 }
+      ]),
+
+      // 11. Traffic sources (referrer/utm)
+      Models.VisitorRecord.aggregate([
+        { $match: match },
+        { $addFields: { source: { $cond: [
+          { $and: [{ $ne: ["$utm.source", ""] }, { $ne: ["$utm.source", null] }] },
+          { $concat: ["utm:", "$utm.source"] },
+          { $cond: [
+            { $or: [{ $eq: ["$referrer", "direct"] }, { $eq: ["$referrer", null] }, { $eq: ["$referrer", ""] }] },
+            "direct",
+            "$referrer"
+          ]}
+        ]}},
+        { $group: { _id: "$source", visits: { $sum: 1 } } },
+        { $sort: { visits: -1 } }, { $limit: 12 }
+      ]),
+
+      // 12. UTM campaigns
+      Models.VisitorRecord.aggregate([
+        { $match: { ...match, "utm.campaign": { $nin: [null, ""] } } },
+        { $group: { _id: { campaign: "$utm.campaign", source: "$utm.source", medium: "$utm.medium" }, visits: { $sum: 1 } } },
+        { $sort: { visits: -1 } }, { $limit: 10 }
+      ]),
+
+      // 13. Visits by hour of day (heatmap)
+      Models.VisitorRecord.aggregate([
+        { $match: match },
+        { $group: { _id: { $hour: "$timestamp" }, visits: { $sum: 1 } } },
+        { $sort: { "_id": 1 } }
+      ]),
+
+      // 14. Daily trend
+      Models.VisitorRecord.aggregate([
+        { $match: match },
+        { $group: { _id: { $dateToString: { format: "%Y-%m-%d", date: "$timestamp" } }, visits: { $sum: 1 }, avgTime: { $avg: "$timeSpent" } } },
+        { $sort: { "_id": 1 } }
+      ]),
+
+      // 15. Weekly trend (day of week)
+      Models.VisitorRecord.aggregate([
+        { $match: match },
+        { $group: { _id: { $dayOfWeek: "$timestamp" }, visits: { $sum: 1 } } },
+        { $sort: { "_id": 1 } }
+      ]),
+
+      // 16. Language breakdown
+      Models.VisitorRecord.aggregate([
+        { $match: match },
+        { $group: { _id: "$language", visits: { $sum: 1 } } },
+        { $sort: { visits: -1 } }, { $limit: 10 }
+      ]),
+
+      // 17. Screen resolutions
+      Models.VisitorRecord.aggregate([
+        { $match: match },
+        { $group: { _id: "$screenResolution", visits: { $sum: 1 } } },
+        { $sort: { visits: -1 } }, { $limit: 10 }
+      ]),
+
+      // 18. Returning vs new visitors
+      Models.VisitorRecord.aggregate([
+        { $match: match },
+        { $group: { _id: "$isReturning", count: { $sum: 1 } } }
+      ]),
+
+      // 19. Connection types
+      Models.VisitorRecord.aggregate([
+        { $match: match },
+        { $group: { _id: "$connectionType", visits: { $sum: 1 } } },
+        { $sort: { visits: -1 } }
+      ]),
+
+      // 20. Avg scroll depth
+      Models.VisitorRecord.aggregate([
+        { $match: { ...match, scrollDepth: { $gt: 0 } } },
+        { $group: { _id: "$page", avgScroll: { $avg: "$scrollDepth" }, visits: { $sum: 1 } } },
+        { $sort: { visits: -1 } }, { $limit: 10 }
+      ]),
+
+      // 21. Page views per session
+      Models.VisitorRecord.aggregate([
+        { $match: match },
+        { $group: { _id: "$sessionID", pageViews: { $max: "$pageViews" } } },
+        { $group: { _id: null, avg: { $avg: "$pageViews" }, max: { $max: "$pageViews" } } }
+      ]),
+
+      // 22. Top ISPs
+      Models.VisitorRecord.aggregate([
+        { $match: match },
+        { $group: { _id: "$location.isp", visits: { $sum: 1 } } },
+        { $sort: { visits: -1 } }, { $limit: 10 }
+      ]),
+
+      // 23. Exit pages
+      Models.VisitorRecord.aggregate([
+        { $match: { ...match, exitPage: { $nin: [null, ""] } } },
+        { $group: { _id: "$exitPage", count: { $sum: 1 } } },
+        { $sort: { count: -1 } }, { $limit: 10 }
+      ]),
+
+      // 24. Entry pages
+      Models.VisitorRecord.aggregate([
+        { $match: { ...match, entryPage: { $nin: [null, ""] } } },
+        { $group: { _id: "$entryPage", count: { $sum: 1 } } },
+        { $sort: { count: -1 } }, { $limit: 10 }
+      ]),
+    ]);
+
+    const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+    res.json({
+      period,
+      summary: {
+        totalVisits,
+        uniqueSessions,
+        bounceRate: bounceData[0]?.bounceRate?.toFixed(1) || 0,
+        avgTimeSpent: Math.round(avgTimeSpent[0]?.avg || 0),
+        pageViewsPerSession: pageViewsPerSession[0]?.avg?.toFixed(1) || 1,
+      },
+      topPages: topPages.map(p => ({ ...p, avgTime: Math.round(p.avgTime || 0) })),
+      topCountries,
+      topCities: topCities.filter(c => c.city),
+      deviceBreakdown: deviceBreakdown.map(d => ({ name: d._id || "unknown", visits: d.visits, avgTime: Math.round(d.avgTime || 0) })),
+      browserBreakdown: browserBreakdown.map(b => ({ name: b._id || "other", visits: b.visits })),
+      osBreakdown: osBreakdown.map(o => ({ name: o._id || "other", visits: o.visits })),
+      trafficSources: trafficSources.map(s => ({ name: s._id || "direct", visits: s.visits })),
+      utmCampaigns: utmCampaigns.map(u => ({ campaign: u._id.campaign, source: u._id.source, medium: u._id.medium, visits: u.visits })),
+      hourlyDistribution: Array.from({ length: 24 }, (_, h) => ({
+        hour: `${h.toString().padStart(2,"0")}:00`,
+        visits: hourlyDistribution.find(d => d._id === h)?.visits || 0
+      })),
+      dailyTrend: dailyTrend.map(d => ({ date: d._id, visits: d.visits, avgTime: Math.round(d.avgTime || 0) })),
+      weeklyTrend: weeklyTrend.map(d => ({ day: dayNames[(d._id - 1) % 7], visits: d.visits })),
+      languageBreakdown: languageBreakdown.map(l => ({ name: l._id || "unknown", visits: l.visits })),
+      screenResolutions: screenResolutions.map(s => ({ name: s._id || "unknown", visits: s.visits })),
+      returnVsNew: {
+        returning: returnVsNew.find(r => r._id === true)?.count || 0,
+        new: returnVsNew.find(r => r._id === false)?.count || 0,
+      },
+      connectionTypes: connectionTypes.filter(c => c._id).map(c => ({ name: c._id, visits: c.visits })),
+      scrollDepthAvg: scrollDepthAvg.map(s => ({ page: s._id, avgScroll: Math.round(s.avgScroll || 0), visits: s.visits })),
+      topISPs: topISPs.filter(i => i._id).map(i => ({ name: i._id, visits: i.visits })),
+      exitPages: exitPages.map(e => ({ page: e._id, count: e.count })),
+      entryPages: entryPages.map(e => ({ page: e._id, count: e.count })),
+    });
+  } catch (err) {
+    console.error("Analytics insights error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Update session analytics (time spent, scroll, clicks) ────────────────────
+app.post("/api/analytics/update-session", async (req, res) => {
+  try {
+    const { sessionID, page, timeSpent, scrollDepth, clickCount, exitPage, pageViews, bounced } = req.body;
+    if (!sessionID) return res.status(400).json({ error: "sessionID required" });
+
+    await Models.VisitorRecord.updateMany(
+      { sessionID, page },
+      { $set: {
+        timeSpent: timeSpent || 0,
+        scrollDepth: scrollDepth || 0,
+        clickCount: clickCount || 0,
+        exitPage: exitPage || page,
+        pageViews: pageViews || 1,
+        bounced: bounced !== false,
+      }}
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+
+
 // Link Preview Utils Endpoint
 app.get("/api/utils/link-preview", async (req, res) => {
   const { url } = req.query;
