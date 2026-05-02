@@ -95,10 +95,13 @@ const AdminVisitors = () => {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [period, setPeriod] = useState("30d");
 
-  // AI Prompt State
+  // AI Prompt & Filter State
   const [aiQuery, setAiQuery] = useState("");
   const [aiResponse, setAiResponse] = useState<string | null>(null);
   const [isAiLoading, setIsAiLoading] = useState(false);
+  const [filterCountry, setFilterCountry] = useState("all");
+  const [filterDevice, setFilterDevice] = useState("all");
+  const [filterPage, setFilterPage] = useState("all");
 
   const fetchData = async () => {
     setLoading(true);
@@ -131,13 +134,36 @@ const AdminVisitors = () => {
 
   const sessions = useMemo(() => groupIntoSessions(logs), [logs]);
 
-  const filteredSessions = sessions.filter(s =>
-    (s.ip || "").includes(search) ||
-    (s.location?.country || "").toLowerCase().includes(search.toLowerCase()) ||
-    (s.location?.city || "").toLowerCase().includes(search.toLowerCase()) ||
-    (s.referrer || "").toLowerCase().includes(search.toLowerCase()) ||
-    s.pages.some((p: any) => p.page.toLowerCase().includes(search.toLowerCase()))
-  );
+  const filteredSessions = sessions.filter(s => {
+    const matchesSearch = (s.ip || "").includes(search) ||
+      (s.location?.country || "").toLowerCase().includes(search.toLowerCase()) ||
+      (s.location?.city || "").toLowerCase().includes(search.toLowerCase()) ||
+      (s.referrer || "").toLowerCase().includes(search.toLowerCase()) ||
+      s.pages.some((p: any) => p.page.toLowerCase().includes(search.toLowerCase()));
+
+    const matchesCountry = filterCountry === "all" || s.location?.country === filterCountry;
+    const matchesDevice = filterDevice === "all" || s.device === filterDevice;
+    const matchesPage = filterPage === "all" || s.pages.some((p: any) => p.page === filterPage);
+
+    return matchesSearch && matchesCountry && matchesDevice && matchesPage;
+  });
+
+  const uniqueCountries = Array.from(new Set(sessions.map(s => s.location?.country).filter(Boolean)));
+  const uniqueDevices = Array.from(new Set(sessions.map(s => s.device).filter(Boolean)));
+  const uniquePages = Array.from(new Set(sessions.flatMap(s => s.pages.map((p:any) => p.page)).filter(Boolean)));
+
+  const cleanDeviceBreakdown = useMemo(() => {
+    if (!insights) return [];
+    const counts = { desktop: 0, mobile: 0, tablet: 0, other: 0 };
+    insights.deviceBreakdown.forEach((d: any) => {
+        const n = (d.name || "").toLowerCase();
+        if (n.includes("mobile") || n.includes("iphone") || n.includes("android") || n.includes("ios")) counts.mobile += d.visits;
+        else if (n.includes("tablet") || n.includes("ipad")) counts.tablet += d.visits;
+        else if (n.includes("desktop") || n.includes("windows") || n.includes("mac") || n.includes("x11") || n.includes("linux") || n.includes("cros")) counts.desktop += d.visits;
+        else counts.other += d.visits;
+    });
+    return Object.entries(counts).filter(([_, v]) => v > 0).map(([name, visits]) => ({ name, visits }));
+  }, [insights]);
 
   const kpis = insights ? [
     { title: "Total Visits", value: insights.summary.totalVisits.toLocaleString(), icon: Users, color: "text-indigo-600", bg: "bg-indigo-50" },
@@ -147,28 +173,34 @@ const AdminVisitors = () => {
     { title: "Pages / Session", value: insights.summary.pageViewsPerSession, icon: LineChart, color: "text-blue-600", bg: "bg-blue-50" },
   ] : [];
 
+
+  const PREBUILT_QUERIES = [
+    { id: "", label: "Select an insight to generate..." },
+    { id: "best_page", label: "Which page retains users the longest?" },
+    { id: "top_country", label: "Which countries bring the most traffic?" },
+    { id: "bounce_rate", label: "What is my overall bounce rate?" },
+    { id: "devices", label: "What devices do my visitors use?" }
+  ];
+
   const handleAiQuery = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!aiQuery.trim()) return;
+    if (!aiQuery) return;
     setIsAiLoading(true);
     
-    // Simple mock logic for now. In a real app, send `sessions` and `aiQuery` to an AI backend.
     setTimeout(() => {
-      const q = aiQuery.toLowerCase();
-      let res = "Based on the data, I can't generate a specific insight for that query.";
-      if (q.includes("best page") || q.includes("most visited")) {
+      let res = "";
+      if (aiQuery === "best_page") {
         res = `Your most visited page is ${insights?.topPages[0]?.page || "/"} with ${insights?.topPages[0]?.visits || 0} visits. Users spend an average of ${formatTime(insights?.topPages[0]?.avgTime)} there.`;
-      } else if (q.includes("country") || q.includes("where")) {
-        res = `Most of your traffic comes from ${insights?.topCountries[0]?.country || "Unknown"}.`;
-      } else if (q.includes("time") || q.includes("long")) {
-        res = `Visitors spend an average of ${formatTime(insights?.summary.avgTimeSpent)} on your site. The longest sessions happen on desktop devices.`;
-      } else if (q.includes("summarize") || q.includes("overall")) {
-        res = `Overall, you had ${insights?.summary.totalVisits} page views across ${insights?.summary.uniqueSessions} unique sessions in the selected period. The bounce rate is ${insights?.summary.bounceRate}%, which is quite good for a portfolio.`;
+      } else if (aiQuery === "top_country") {
+        res = `Most of your traffic comes from ${insights?.topCountries[0]?.country || "Unknown"} with ${insights?.topCountries[0]?.visits || 0} visits.`;
+      } else if (aiQuery === "bounce_rate") {
+        res = `Your overall bounce rate is ${insights?.summary.bounceRate}%, meaning that percentage of visitors left after viewing only one page.`;
+      } else if (aiQuery === "devices") {
+        res = `Your visitors primarily use ${insights?.deviceBreakdown[0]?.name || "desktop"} devices.`;
       }
-      
       setAiResponse(res);
       setIsAiLoading(false);
-    }, 1500);
+    }, 600);
   };
 
   return (
@@ -214,37 +246,37 @@ const AdminVisitors = () => {
         </div>
       )}
 
-      {/* AI Assistant Banner */}
+      {/* Smart Insight Generator */}
       <Card className="border-indigo-100 shadow-sm bg-gradient-to-r from-indigo-50/50 to-white overflow-hidden">
         <CardContent className="p-0">
           <div className="flex flex-col md:flex-row items-stretch">
             <div className="p-5 flex-1 border-b md:border-b-0 md:border-r border-indigo-100">
               <div className="flex items-center gap-2 mb-2">
                 <div className="p-1.5 bg-indigo-100 rounded-md text-indigo-600"><Activity size={16}/></div>
-                <h3 className="font-medium text-sm text-indigo-900">Ask AI Analytics</h3>
+                <h3 className="font-medium text-sm text-indigo-900">Smart Insights Generator</h3>
               </div>
-              <p className="text-xs text-slate-500 mb-3">Query your visitor data directly using natural language to extract deep insights.</p>
+              <p className="text-xs text-slate-500 mb-3">Select a pre-built query to instantly extract deep insights from your visitor data.</p>
               <form onSubmit={handleAiQuery} className="flex gap-2">
-                <input 
-                  type="text" 
+                <select 
                   value={aiQuery}
-                  onChange={e => setAiQuery(e.target.value)}
-                  placeholder="e.g. Which page retains users the longest?" 
-                  className="flex-1 text-sm h-9 px-3 border border-indigo-200 rounded-md focus:ring-2 focus:ring-indigo-500/20 outline-none"
-                />
-                <Button type="submit" size="sm" disabled={isAiLoading || !aiQuery.trim()} className="h-9 bg-indigo-600 hover:bg-indigo-700">
-                  {isAiLoading ? <RefreshCcw size={14} className="animate-spin" /> : <Send size={14} />}
+                  onChange={e => { setAiQuery(e.target.value); setAiResponse(null); }}
+                  className="flex-1 text-sm h-9 px-3 border border-indigo-200 rounded-md focus:ring-2 focus:ring-indigo-500/20 outline-none cursor-pointer bg-white"
+                >
+                  {PREBUILT_QUERIES.map(q => <option key={q.id} value={q.id}>{q.label}</option>)}
+                </select>
+                <Button type="submit" size="sm" disabled={isAiLoading || !aiQuery} className="h-9 bg-indigo-600 hover:bg-indigo-700">
+                  {isAiLoading ? <RefreshCcw size={14} className="animate-spin" /> : "Generate"}
                 </Button>
               </form>
             </div>
             <div className="p-5 flex-1 bg-white flex items-center justify-center min-h-[100px]">
               {aiResponse ? (
-                <div className="flex items-start gap-3 w-full">
+                <div className="flex items-start gap-3 w-full animate-in fade-in slide-in-from-bottom-2">
                   <div className="p-1.5 bg-indigo-100 rounded-full text-indigo-600 shrink-0 mt-0.5"><MessageSquare size={14}/></div>
                   <p className="text-sm text-slate-700 leading-relaxed">{aiResponse}</p>
                 </div>
               ) : (
-                <p className="text-xs text-slate-400 italic text-center">AI response will appear here...</p>
+                <p className="text-xs text-slate-400 italic text-center">Select a query and hit Generate...</p>
               )}
             </div>
           </div>
@@ -274,9 +306,9 @@ const AdminVisitors = () => {
         {insights && (
           <>
             {/* ── Overview ── */}
-            <TabsContent value="overview" className="space-y-5 mt-0">
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-                <Card className="lg:col-span-2 border-slate-200 shadow-none overflow-hidden">
+            <TabsContent value="overview" className="space-y-5 mt-0 w-full min-w-0 overflow-hidden">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 min-w-0">
+                <Card className="lg:col-span-2 border-slate-200 shadow-none overflow-hidden min-w-0">
                   <CardHeader className="pb-2"><CardTitle className="text-sm font-semibold">Traffic Trend</CardTitle></CardHeader>
                   <CardContent className="h-[280px] p-0 md:p-6 md:pt-0">
                     <ResponsiveContainer width="100%" height="100%">
@@ -315,29 +347,29 @@ const AdminVisitors = () => {
                 </Card>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                <Card className="border-slate-200 shadow-none">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5 min-w-0">
+                <Card className="border-slate-200 shadow-none overflow-hidden min-w-0">
                   <CardHeader className="pb-2"><CardTitle className="text-sm font-semibold">Devices</CardTitle></CardHeader>
                   <CardContent className="h-[200px] flex flex-col items-center justify-center p-2">
                     <ResponsiveContainer width="100%" height={140}>
                       <PieChart>
-                        <Pie data={insights.deviceBreakdown.filter((d:any) => d.name !== "unknown")} innerRadius={40} outerRadius={60} dataKey="visits">
-                          {insights.deviceBreakdown.map((_:any, i:number) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                        <Pie data={cleanDeviceBreakdown} innerRadius={40} outerRadius={60} dataKey="visits">
+                          {cleanDeviceBreakdown.map((_:any, i:number) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                         </Pie>
                         <RechartsTooltip />
                       </PieChart>
                     </ResponsiveContainer>
                     <div className="flex flex-wrap justify-center gap-3 mt-2">
-                      {insights.deviceBreakdown.filter((d:any) => d.name !== "unknown").map((d:any, i:number) => (
-                        <div key={i} className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full" style={{ background: COLORS[i % COLORS.length] }}/><span className="text-[10px] font-medium text-slate-600 capitalize">{d.name}</span></div>
+                      {cleanDeviceBreakdown.map((d:any, i:number) => (
+                        <div key={i} className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full" style={{ background: COLORS[i % COLORS.length] }}/><span className="text-[10px] font-medium text-slate-600 capitalize truncate max-w-[80px]">{d.name}</span></div>
                       ))}
                     </div>
                   </CardContent>
                 </Card>
 
-                <Card className="border-slate-200 shadow-none md:col-span-2 overflow-hidden">
+                <Card className="border-slate-200 shadow-none md:col-span-2 overflow-hidden min-w-0">
                   <CardHeader className="pb-2"><CardTitle className="text-sm font-semibold">Hourly Distribution</CardTitle></CardHeader>
-                  <CardContent className="h-[200px] p-0 md:p-6 md:pt-0">
+                  <CardContent className="h-[200px] p-0 md:p-6 md:pt-0 w-full min-w-0">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={insights.hourlyDistribution}>
                         <XAxis dataKey="hour" stroke="#94a3b8" fontSize={10} tickLine={false} axisLine={false} />
@@ -424,8 +456,8 @@ const AdminVisitors = () => {
 
         {/* ── Grouped Sessions ── */}
         <TabsContent value="sessions" className="mt-0">
-          <div className="mb-4">
-            <div className="relative max-w-sm">
+          <div className="mb-4 flex flex-col md:flex-row gap-3">
+            <div className="relative flex-1 max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
               <input
                 type="text"
@@ -435,17 +467,31 @@ const AdminVisitors = () => {
                 className="h-10 pl-9 pr-4 rounded-lg border border-slate-200 bg-white text-sm w-full outline-none focus:border-indigo-300"
               />
             </div>
+            <div className="flex flex-wrap gap-2">
+              <select value={filterCountry} onChange={e => setFilterCountry(e.target.value)} className="h-10 px-3 rounded-lg border border-slate-200 bg-white text-sm outline-none cursor-pointer min-w-[120px]">
+                <option value="all">All Countries</option>
+                {uniqueCountries.map((c: any) => <option key={c} value={c}>{c}</option>)}
+              </select>
+              <select value={filterDevice} onChange={e => setFilterDevice(e.target.value)} className="h-10 px-3 rounded-lg border border-slate-200 bg-white text-sm outline-none cursor-pointer min-w-[120px]">
+                <option value="all">All Devices</option>
+                {uniqueDevices.map((d: any) => <option key={d} value={d} className="capitalize">{d}</option>)}
+              </select>
+              <select value={filterPage} onChange={e => setFilterPage(e.target.value)} className="h-10 px-3 rounded-lg border border-slate-200 bg-white text-sm outline-none cursor-pointer min-w-[120px]">
+                <option value="all">All Pages</option>
+                {uniquePages.map((p: any) => <option key={p} value={p}>{p}</option>)}
+              </select>
+            </div>
           </div>
           <Card className="border-slate-200 shadow-none overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full text-left whitespace-nowrap">
+              <table className="w-full text-left">
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-100 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
-                    <th className="px-4 py-3">User & Tech</th>
-                    <th className="px-4 py-3">Location</th>
-                    <th className="px-4 py-3">Session Stats</th>
-                    <th className="px-4 py-3">Journey</th>
-                    <th className="px-4 py-3 text-right">Actions</th>
+                    <th className="px-4 py-3 w-[25%] min-w-[150px]">User & Tech</th>
+                    <th className="px-4 py-3 w-[20%] min-w-[150px]">Location</th>
+                    <th className="px-4 py-3 w-[20%] min-w-[120px]">Session Stats</th>
+                    <th className="px-4 py-3 w-[25%] min-w-[150px]">Journey</th>
+                    <th className="px-4 py-3 w-[10%] min-w-[80px] text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50 text-sm">
