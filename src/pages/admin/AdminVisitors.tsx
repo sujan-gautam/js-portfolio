@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { visitorsDB, VisitorRecord } from "@/lib/adminData";
 import {
   Users, Globe, Monitor, Activity, Clock, RefreshCcw,
