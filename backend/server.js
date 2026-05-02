@@ -294,7 +294,7 @@ app.get("/api/analytics/insights", async (req, res) => {
             "direct",
             "$referrer"
           ]}
-        ]}},
+        ]}}},
         { $group: { _id: "$source", visits: { $sum: 1 } } },
         { $sort: { visits: -1 } }, { $limit: 12 }
       ]),
