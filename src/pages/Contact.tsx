@@ -42,6 +42,65 @@ const Contact = () => {
     });
   }, []);
 
+  useEffect(() => {
+    const siteName = "Sujan Gautam | Sujan1919";
+    const profession = "Software Developer & UI Architect";
+    const title = `Contact | ${siteName} | ${profession}`;
+    const desc = "Get in touch with Sujan Gautam (sujan1919). Open for collaborations, freelance projects, and professional inquiries in software development and UI/UX design.";
+    const keywords = "Sujan Gautam Contact, Sujan1919 Contact, Hire Sujan Gautam, Software Developer Contact, Nepal Developer, Sujan Shrestha";
+    const url = "https://sujan1919.com.np/contact/";
+
+    document.title = title;
+    setMeta("description", desc);
+    setMeta("keywords", keywords);
+    setMeta("author", "Sujan Gautam");
+    setMeta("og:title", title, true);
+    setMeta("og:description", desc, true);
+    setMeta("og:url", url, true);
+    setMeta("og:type", "website", true);
+    setMeta("twitter:card", "summary_large_image");
+    setMeta("twitter:title", title);
+    setMeta("twitter:description", desc);
+
+    // Canonical
+    let canonical = document.querySelector("link[rel='canonical']") as HTMLLinkElement;
+    if (!canonical) { canonical = document.createElement("link"); canonical.rel = "canonical"; document.head.appendChild(canonical); }
+    canonical.href = url;
+
+    // JSON-LD ContactPoint schema
+    const contactSchema = {
+      "@context": "https://schema.org",
+      "@type": "ContactPage",
+      "mainEntity": {
+        "@type": "Person",
+        "name": "Sujan Gautam",
+        "jobTitle": "Software Developer",
+        "url": "https://sujan1919.com.np",
+        "contactPoint": {
+          "@type": "ContactPoint",
+          "telephone": "+18179707616",
+          "contactType": "professional",
+          "email": "sujaan1919@gmail.com",
+          "availableLanguage": ["English", "Nepali"]
+        }
+      }
+    };
+
+    let el = document.getElementById("ld-contact");
+    if (!el) { el = document.createElement("script"); el.id = "ld-contact"; (el as HTMLScriptElement).type = "application/ld+json"; document.head.appendChild(el); }
+    el.textContent = JSON.stringify(contactSchema);
+
+    return () => { document.getElementById("ld-contact")?.remove(); };
+  }, []);
+
+  function setMeta(key: string, value: string, isProp = false) {
+    if (!value) return;
+    const attr = isProp ? "property" : "name";
+    let el = document.querySelector(`meta[${attr}="${key}"]`);
+    if (!el) { el = document.createElement("meta"); el.setAttribute(attr, key); document.head.appendChild(el); }
+    el.setAttribute("content", value);
+  }
+
   const handleSendEmail = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.message || (!formData.email && !formData.phone)) {

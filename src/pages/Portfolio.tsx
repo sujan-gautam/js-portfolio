@@ -35,6 +35,67 @@ const Portfolio = () => {
     });
   }, []);
 
+  useEffect(() => {
+    const siteName = "Sujan Gautam | Sujan1919";
+    const profession = "Software Developer & UI Architect";
+    const title = `Portfolio | ${siteName} | ${profession}`;
+    const desc = "Explore the professional portfolio of Sujan Gautam (sujan1919). High-fidelity Full-Stack projects, UI/UX designs, and scalable web architectures built with React, Node.js, and more.";
+    const keywords = "Sujan Gautam Portfolio, Sujan1919 Projects, Full Stack Developer Portfolio, Software Developer Nepal, React Projects, Web Development Portfolio";
+    const url = "https://sujan1919.com.np/portfolio/";
+
+    document.title = title;
+    setMeta("description", desc);
+    setMeta("keywords", keywords);
+    setMeta("author", "Sujan Gautam");
+    setMeta("og:title", title, true);
+    setMeta("og:description", desc, true);
+    setMeta("og:url", url, true);
+    setMeta("og:type", "website", true);
+    setMeta("twitter:card", "summary_large_image");
+    setMeta("twitter:title", title);
+    setMeta("twitter:description", desc);
+
+    // Canonical
+    let canonical = document.querySelector("link[rel='canonical']") as HTMLLinkElement;
+    if (!canonical) { canonical = document.createElement("link"); canonical.rel = "canonical"; document.head.appendChild(canonical); }
+    canonical.href = url;
+
+    // JSON-LD CollectionPage schema
+    const portfolioSchema = {
+      "@context": "https://schema.org",
+      "@type": "CollectionPage",
+      "name": "Sujan Gautam's Work",
+      "description": desc,
+      "url": url,
+      "about": {
+        "@type": "Person",
+        "name": "Sujan Gautam",
+        "jobTitle": "Software Developer"
+      },
+      "hasPart": projects.map(p => ({
+        "@type": "CreativeWork",
+        "name": p.title,
+        "description": p.description,
+        "url": p.demoUrl,
+        "image": p.image
+      }))
+    };
+
+    let el = document.getElementById("ld-portfolio");
+    if (!el) { el = document.createElement("script"); el.id = "ld-portfolio"; (el as HTMLScriptElement).type = "application/ld+json"; document.head.appendChild(el); }
+    el.textContent = JSON.stringify(portfolioSchema);
+
+    return () => { document.getElementById("ld-portfolio")?.remove(); };
+  }, [projects]);
+
+  function setMeta(key: string, value: string, isProp = false) {
+    if (!value) return;
+    const attr = isProp ? "property" : "name";
+    let el = document.querySelector(`meta[${attr}="${key}"]`);
+    if (!el) { el = document.createElement("meta"); el.setAttribute(attr, key); document.head.appendChild(el); }
+    el.setAttribute("content", value);
+  }
+
   // Handle global dismissal (scroll or click outside)
   useEffect(() => {
     const dismiss = (e: any) => {

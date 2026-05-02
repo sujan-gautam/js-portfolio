@@ -1071,6 +1071,60 @@ const Feed = () => {
   const [settings, setSettings] = useState<AdminSettings | null>(null);
 
   useEffect(() => {
+    const siteName = "Sujan Gautam | Sujan1919";
+    const profession = "Software Developer & UI Architect";
+    const title = `Feed | ${siteName} | ${profession}`;
+    const desc = "Stay updated with the latest posts, projects, and insights from Sujan Gautam (sujan1919). Interactive feed featuring software development, UI/UX design, and creative technology.";
+    const keywords = "Sujan Gautam Feed, Sujan1919 Posts, Software Developer Updates, Web Development Blog, Sujan Shrestha, Portfolio Feed";
+    const url = "https://sujan1919.com.np/feed/";
+
+    document.title = title;
+    setMeta("description", desc);
+    setMeta("keywords", keywords);
+    setMeta("author", "Sujan Gautam");
+    setMeta("og:title", title, true);
+    setMeta("og:description", desc, true);
+    setMeta("og:url", url, true);
+    setMeta("og:type", "website", true);
+    setMeta("twitter:card", "summary_large_image");
+    setMeta("twitter:title", title);
+    setMeta("twitter:description", desc);
+
+    // Canonical
+    let canonical = document.querySelector("link[rel='canonical']") as HTMLLinkElement;
+    if (!canonical) { canonical = document.createElement("link"); canonical.rel = "canonical"; document.head.appendChild(canonical); }
+    canonical.href = url;
+
+    // JSON-LD Series schema
+    const feedSchema = {
+      "@context": "https://schema.org",
+      "@type": "Series",
+      "name": "Sujan Gautam's Feed",
+      "description": desc,
+      "url": url,
+      "author": {
+        "@type": "Person",
+        "name": "Sujan Gautam",
+        "jobTitle": "Software Developer"
+      }
+    };
+
+    let el = document.getElementById("ld-feed");
+    if (!el) { el = document.createElement("script"); el.id = "ld-feed"; (el as HTMLScriptElement).type = "application/ld+json"; document.head.appendChild(el); }
+    el.textContent = JSON.stringify(feedSchema);
+
+    return () => { document.getElementById("ld-feed")?.remove(); };
+  }, []);
+
+  function setMeta(key: string, value: string, isProp = false) {
+    if (!value) return;
+    const attr = isProp ? "property" : "name";
+    let el = document.querySelector(`meta[${attr}="${key}"]`);
+    if (!el) { el = document.createElement("meta"); el.setAttribute(attr, key); document.head.appendChild(el); }
+    el.setAttribute("content", value);
+  }
+
+  useEffect(() => {
     // Detect iOS
     const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
                         (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);

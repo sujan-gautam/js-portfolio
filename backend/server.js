@@ -125,26 +125,32 @@ app.get("/api/sitemap.xml", async (req, res) => {
   let feedUrls = [], storyUrls = [];
   try {
     const posts = await Models.Feed.find({ published: true }, "_id createdAt caption images image").lean();
-    feedUrls = posts.map(p => ({
-      url: `${SITE}/feed/post/${p._id}`,
-      lastmod: p.createdAt ? new Date(p.createdAt).toISOString().split("T")[0] : today,
-      priority: "0.8",
-      freq: "weekly",
-      image: p.images?.[0] || p.image || null,
-      title: p.caption?.slice(0, 80) || null
-    }));
+    feedUrls = posts.map(p => {
+      const title = p.caption ? `${p.caption.slice(0, 70)} | Sujan Gautam` : "Professional Post | Sujan1919 Software Developer";
+      return {
+        url: `${SITE}/feed/post/${p._id}`,
+        lastmod: p.createdAt ? new Date(p.createdAt).toISOString().split("T")[0] : today,
+        priority: "0.9",
+        freq: "daily",
+        image: p.images?.[0] || p.image || null,
+        title: title
+      };
+    });
   } catch (e) { console.error("Sitemap feed error:", e.message); }
 
   try {
     const stories = await Models.Story.find({}, "_id createdAt title mediaUrl").lean();
-    storyUrls = stories.map(s => ({
-      url: `${SITE}/story/${s._id}`,
-      lastmod: s.createdAt ? new Date(s.createdAt).toISOString().split("T")[0] : today,
-      priority: "0.7",
-      freq: "weekly",
-      image: s.mediaUrl || null,
-      title: s.title || null
-    }));
+    storyUrls = stories.map(s => {
+      const title = s.title ? `${s.title} | Sujan Gautam Story` : "Exclusive Story | Sujan1919 Software Developer";
+      return {
+        url: `${SITE}/story/${s._id}`,
+        lastmod: s.createdAt ? new Date(s.createdAt).toISOString().split("T")[0] : today,
+        priority: "0.8",
+        freq: "weekly",
+        image: s.mediaUrl || null,
+        title: title
+      };
+    });
   } catch (e) { console.error("Sitemap story error:", e.message); }
 
   const renderUrl = (entry) => `
@@ -155,7 +161,7 @@ app.get("/api/sitemap.xml", async (req, res) => {
     <priority>${entry.priority}</priority>${entry.image ? `
     <image:image>
       <image:loc>${entry.image}</image:loc>${entry.title ? `
-      <image:title>${entry.title.replace(/&/g, "&amp;").replace(/</g, "&lt;")}</image:title>` : ""}
+      <image:title>${entry.title.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;")}</image:title>` : ""}
     </image:image>` : ""}
   </url>`;
 

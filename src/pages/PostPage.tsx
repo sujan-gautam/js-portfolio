@@ -40,13 +40,17 @@ export const FeedPostPage = () => {
 
   useEffect(() => {
     if (!post) return;
-    const title = post.caption ? `${post.caption.slice(0, 60)} — Sujan Gautam` : "Post — Sujan Gautam";
-    const desc = post.content || post.caption || "Creative post by Sujan Gautam";
+    const siteName = "Sujan Gautam | Sujan1919";
+    const profession = "Software Developer & UI Architect";
+    const title = post.caption ? `${post.caption.slice(0, 60)} | ${siteName}` : `Post by ${siteName} | ${profession}`;
+    const desc = `${post.content || post.caption || "Creative post"} - Published by Sujan Gautam (sujan1919), a professional Software Developer specializing in premium web experiences.`.slice(0, 160);
     const image = post.images?.[0] || post.image || post.videoUrl || "";
     const url = `${SITE}/feed/post/${post._id || post.id}`;
 
     document.title = title;
     setMeta("description", desc);
+    setMeta("keywords", `Sujan Gautam, Sujan1919, Sujan, Software Developer, Web Developer, Portfolio, Post, ${post.caption || ""}`);
+    setMeta("author", "Sujan Gautam");
     setMeta("og:title", title, true);
     setMeta("og:description", desc, true);
     setMeta("og:image", image, true);
@@ -65,16 +69,31 @@ export const FeedPostPage = () => {
     // JSON-LD Article structured data
     const articleSchema = {
       "@context": "https://schema.org",
-      "@type": "Article",
-      headline: post.caption || post.content || "Post",
-      description: desc,
-      image: image ? [image] : undefined,
-      datePublished: post.createdAt,
-      dateModified: post.updatedAt || post.createdAt,
-      author: { "@type": "Person", name: "Sujan Gautam", url: SITE },
-      publisher: { "@type": "Person", name: "Sujan Gautam", logo: { "@type": "ImageObject", url: `${SITE}/favicon.ico` } },
-      url,
-      mainEntityOfPage: { "@type": "WebPage", "@id": url }
+      "@type": "BlogPosting",
+      "headline": post.caption || post.content || "Post by Sujan Gautam",
+      "description": desc,
+      "image": image ? [image] : [`${SITE}/favicon.ico`],
+      "datePublished": post.createdAt,
+      "dateModified": post.updatedAt || post.createdAt,
+      "author": { 
+        "@type": "Person", 
+        "name": "Sujan Gautam", 
+        "alternateName": "sujan1919",
+        "url": SITE,
+        "jobTitle": "Software Developer",
+        "sameAs": [
+          "https://github.com/sujan1919",
+          "https://linkedin.com/in/sujan1919"
+        ]
+      },
+      "publisher": { 
+        "@type": "Organization", 
+        "name": "Sujan Gautam Portfolio", 
+        "logo": { "@type": "ImageObject", url: `${SITE}/favicon.ico` } 
+      },
+      "url": url,
+      "mainEntityOfPage": { "@type": "WebPage", "@id": url },
+      "keywords": `Sujan Gautam, Sujan1919, Software Developer, ${post.caption || ""}`
     };
 
     // JSON-LD VideoObject if video exists
@@ -85,13 +104,13 @@ export const FeedPostPage = () => {
       videoSchema = {
         "@context": "https://schema.org",
         "@type": "VideoObject",
-        name: post.caption || "Video by Sujan Gautam",
-        description: desc,
-        thumbnailUrl: youtubeId ? `https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg` : image,
-        uploadDate: post.createdAt,
-        contentUrl: post.videoUrl,
-        embedUrl: youtubeId ? `https://www.youtube.com/embed/${youtubeId}` : post.videoUrl,
-        author: { "@type": "Person", name: "Sujan Gautam" }
+        "name": post.caption || "Video by Sujan Gautam",
+        "description": desc,
+        "thumbnailUrl": youtubeId ? `https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg` : image,
+        "uploadDate": post.createdAt,
+        "contentUrl": post.videoUrl,
+        "embedUrl": youtubeId ? `https://www.youtube.com/embed/${youtubeId}` : post.videoUrl,
+        "author": { "@type": "Person", "name": "Sujan Gautam" }
       };
     }
 
@@ -178,13 +197,17 @@ export const StoryPage = () => {
 
   useEffect(() => {
     if (!story) return;
-    const title = story.title ? `${story.title} — Sujan Gautam` : "Story — Sujan Gautam";
-    const desc = story.description || story.caption || `Story by Sujan Gautam`;
+    const siteName = "Sujan Gautam | Sujan1919";
+    const profession = "Software Developer & UI Architect";
+    const title = story.title ? `${story.title} | ${siteName}` : `Story by ${siteName} | ${profession}`;
+    const desc = `${story.description || story.caption || "Exclusive Story"} - Featured by Sujan Gautam (sujan1919), a leading Software Developer.`.slice(0, 160);
     const image = story.mediaUrl || story.imageUrl || story.thumbnailUrl || "";
     const url = `${SITE}/story/${story._id || story.id}`;
 
     document.title = title;
     setMeta("description", desc);
+    setMeta("keywords", `Sujan Gautam, Sujan1919, Sujan, Software Developer, Web Developer, Portfolio, Story, ${story.title || ""}`);
+    setMeta("author", "Sujan Gautam");
     setMeta("og:title", title, true);
     setMeta("og:description", desc, true);
     setMeta("og:image", image, true);
@@ -201,15 +224,22 @@ export const StoryPage = () => {
 
     const articleSchema = {
       "@context": "https://schema.org",
-      "@type": "Article",
-      headline: story.title || "Story",
-      description: desc,
-      image: image ? [image] : undefined,
-      datePublished: story.createdAt,
-      author: { "@type": "Person", name: "Sujan Gautam", url: SITE },
-      publisher: { "@type": "Person", name: "Sujan Gautam" },
-      url,
-      mainEntityOfPage: { "@type": "WebPage", "@id": url }
+      "@type": "BlogPosting",
+      "headline": story.title || "Story by Sujan Gautam",
+      "description": desc,
+      "image": image ? [image] : [`${SITE}/favicon.ico`],
+      "datePublished": story.createdAt,
+      "author": { 
+        "@type": "Person", 
+        "name": "Sujan Gautam", 
+        "alternateName": "sujan1919",
+        "url": SITE,
+        "jobTitle": "Software Developer"
+      },
+      "publisher": { "@type": "Organization", "name": "Sujan Gautam" },
+      "url": url,
+      "mainEntityOfPage": { "@type": "WebPage", "@id": url },
+      "keywords": `Sujan Gautam, Sujan1919, Software Developer, ${story.title || ""}`
     };
 
     let videoSchema: any = null;
@@ -217,12 +247,12 @@ export const StoryPage = () => {
       videoSchema = {
         "@context": "https://schema.org",
         "@type": "VideoObject",
-        name: story.title || "Story Video by Sujan Gautam",
-        description: desc,
-        thumbnailUrl: image,
-        uploadDate: story.createdAt,
-        contentUrl: story.mediaUrl,
-        author: { "@type": "Person", name: "Sujan Gautam" }
+        "name": story.title || "Story Video by Sujan Gautam",
+        "description": desc,
+        "thumbnailUrl": image,
+        "uploadDate": story.createdAt,
+        "contentUrl": story.mediaUrl,
+        "author": { "@type": "Person", "name": "Sujan Gautam" }
       };
     }
 

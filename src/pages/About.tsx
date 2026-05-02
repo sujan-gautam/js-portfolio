@@ -173,6 +173,63 @@ const About = () => {
   }, []);
 
   useEffect(() => {
+    const siteName = "Sujan Gautam | Sujan1919";
+    const profession = "Software Developer & UI Architect";
+    const title = `About | ${siteName} | ${profession}`;
+    const desc = "Discover the journey, skills, and professional expertise of Sujan Gautam (sujan1919), a senior Software Developer and UI Architect dedicated to crafting premium digital solutions.";
+    const keywords = "Sujan Gautam, Sujan1919, Sujan, Software Developer, About, Portfolio, Web Developer, UI Architect, Nepal Developer";
+    const url = "https://sujan1919.com.np/about/";
+
+    document.title = title;
+    setMeta("description", desc);
+    setMeta("keywords", keywords);
+    setMeta("author", "Sujan Gautam");
+    setMeta("og:title", title, true);
+    setMeta("og:description", desc, true);
+    setMeta("og:url", url, true);
+    setMeta("og:type", "profile", true);
+    setMeta("twitter:card", "summary_large_image");
+    setMeta("twitter:title", title);
+    setMeta("twitter:description", desc);
+
+    // Canonical
+    let canonical = document.querySelector("link[rel='canonical']") as HTMLLinkElement;
+    if (!canonical) { canonical = document.createElement("link"); canonical.rel = "canonical"; document.head.appendChild(canonical); }
+    canonical.href = url;
+
+    // JSON-LD Person schema
+    const personSchema = {
+      "@context": "https://schema.org",
+      "@type": "Person",
+      "name": "Sujan Gautam",
+      "alternateName": "sujan1919",
+      "url": "https://sujan1919.com.np",
+      "image": "https://sujan1919.com.np/assets/logo.png",
+      "description": desc,
+      "jobTitle": "Software Developer",
+      "knowsAbout": ["React", "Node.js", "TypeScript", "UI/UX Design", "Web Development"],
+      "sameAs": [
+        "https://github.com/sujan1919",
+        "https://linkedin.com/in/sujan1919"
+      ]
+    };
+
+    let el = document.getElementById("ld-about");
+    if (!el) { el = document.createElement("script"); el.id = "ld-about"; (el as HTMLScriptElement).type = "application/ld+json"; document.head.appendChild(el); }
+    el.textContent = JSON.stringify(personSchema);
+
+    return () => { document.getElementById("ld-about")?.remove(); };
+  }, []);
+
+  function setMeta(key: string, value: string, isProp = false) {
+    if (!value) return;
+    const attr = isProp ? "property" : "name";
+    let el = document.querySelector(`meta[${attr}="${key}"]`);
+    if (!el) { el = document.createElement("meta"); el.setAttribute(attr, key); document.head.appendChild(el); }
+    el.setAttribute("content", value);
+  }
+
+  useEffect(() => {
     if (loading) return;
     const observer = new IntersectionObserver(
       ([entry]) => {
