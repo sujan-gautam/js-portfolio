@@ -6,4 +6,4 @@ Disallow: /admin/
 Disallow: /admin/*
 
 # Sitemap
-Sitemap: https://sujan1919.com.np/api/sitemap.xml
+Sitemap: https://sujan1919.com.np/sitemap.xml

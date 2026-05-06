@@ -31,11 +31,15 @@ export const FeedPostPage = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    axios.get(`${API_BASE}/feed/posts`).then(r => {
-      const found = r.data.find((p: any) => p._id === id || p.id === id);
-      setPost(found || null);
+    setLoading(true);
+    // Fetch individual post by ID for better performance and SEO
+    axios.get(`${API_BASE}/collection/feed/${id}`).then(r => {
+      setPost(r.data);
       setLoading(false);
-    }).catch(() => setLoading(false));
+    }).catch((err) => {
+      console.error("Failed to fetch post:", err);
+      setLoading(false);
+    });
   }, [id]);
 
   useEffect(() => {
@@ -188,11 +192,15 @@ export const StoryPage = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    axios.get(`${API_BASE}/collection/stories`).then(r => {
-      const found = r.data.find((s: any) => s._id === id || s.id === id);
-      setStory(found || null);
+    setLoading(true);
+    // Fetch individual story by ID
+    axios.get(`${API_BASE}/collection/stories/${id}`).then(r => {
+      setStory(r.data);
       setLoading(false);
-    }).catch(() => setLoading(false));
+    }).catch((err) => {
+      console.error("Failed to fetch story:", err);
+      setLoading(false);
+    });
   }, [id]);
 
   useEffect(() => {

@@ -23,6 +23,13 @@ const Footer = () => {
           >
             Terms & Conditions
           </Link>
+          <a 
+            href="/sitemap.xml" 
+            target="_blank"
+            className="text-white/20 hover:text-[#CB2729] text-[11px] font-bold tracking-[0.2em] uppercase transition-all"
+          >
+            Sitemap
+          </a>
         </div>
       </div>
     </footer>
