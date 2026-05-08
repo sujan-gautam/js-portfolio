@@ -1201,7 +1201,9 @@ const Feed = () => {
           reactions: b.reactions || { heart: 0, fire: 0, like: 0, insightful: 0 },
           views: b.views || 0,
           comments: b.comments || [],
-          category: b.categoryName || "Article"
+          category: b.categoryName || "Article",
+          membersOnly: b.membersOnly,
+          readTime: b.readTime
         }));
 
       // Merge and Sort: Pinned first, then by Date (Newest first)
