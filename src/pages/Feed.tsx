@@ -13,6 +13,10 @@ import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/config";
 import axios from "axios";
 import { Skeleton } from "@/components/ui/skeleton";
+import { CommentSection } from "@/components/CommentSection";
+import { ReactionBar, REACTIONS } from "@/components/ReactionBar";
+import { PollCard } from "@/components/PollCard";
+import { timeAgo, getVoterId } from "@/lib/feedUtils";
 
 const timelineStyles = `
   @keyframes music-bar { 0% { transform: scaleY(0.3); } 100% { transform: scaleY(1); } }
@@ -36,274 +40,16 @@ loadHandwrittenFont();
 
 // ── Helpers ───────────────────────────────────────────
 const VOTER_ID_KEY = "feed_voter_id";
-const getVoterId = () => {
-  let id = localStorage.getItem(VOTER_ID_KEY);
-  if (!id) { id = Math.random().toString(36).slice(2); localStorage.setItem(VOTER_ID_KEY, id); }
-  return id;
-};
 
-const timeAgo = (dateStr: string) => {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  const days = Math.floor(hrs / 24);
-  if (days < 30) return `${days}d ago`;
-  return new Date(dateStr).toLocaleDateString();
-};
 
-const REACTIONS: Record<string, { emoji: string; label: string; color: string }> = {
-  heart: { emoji: "❤️", label: "Love", color: "text-red-500" },
-  fire:  { emoji: "🔥", label: "Fire", color: "text-orange-500" },
-  like:  { emoji: "❤️", label: "Like", color: "text-red-500" },
-  wow:   { emoji: "😮", label: "Wow",  color: "text-yellow-400" },
-  sad:   { emoji: "😢", label: "Sad",  color: "text-indigo-400" },
-};
 
-// ── Reaction Bar ──────────────────────────────────────
-const ReactionBar = ({ post, onReact }: { post: FeedPost; onReact: (type: string) => void }) => {
-  const [open, setOpen] = useState(false);
-  const total = Object.values(post.reactions || {}).reduce((a, b) => a + b, 0);
-  const topReaction = Object.entries(post.reactions || {}).sort((a, b) => b[1] - a[1])[0];
 
-  return (
-    <div className="relative">
-      <button
-        onMouseEnter={() => setOpen(true)}
-        onMouseLeave={() => setTimeout(() => setOpen(false), 300)}
-        onClick={() => onReact("like")}
-        className="flex items-center gap-1.5 text-white/50 hover:text-white transition-all text-[13px] font-medium"
-      >
-        <span className="text-[14px]">
-          {topReaction?.[1] > 0 ? REACTIONS[topReaction[0]]?.emoji : <Heart size={14} />}
-        </span>
-        <span>{total > 0 ? total : "React"}</span>
-      </button>
 
-      {open && (
-        <div
-          onMouseEnter={() => setOpen(true)}
-          onMouseLeave={() => setOpen(false)}
-          className="absolute bottom-8 left-0 flex gap-1 bg-[#1a1a1a] border border-white/10 rounded-2xl px-2 py-1.5 shadow-2xl z-20 animate-in fade-in slide-in-from-bottom-2"
-        >
-          {Object.entries(REACTIONS).map(([key, r]) => (
-            <button
-              key={key}
-              onClick={() => { onReact(key); setOpen(false); }}
-              title={r.label}
-              className="text-xl hover:scale-125 hover:-translate-y-1 transition-all duration-300 px-1.5"
-            >
-              {r.emoji}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
 
 // ── Comment Section ───────────────────────────────────
-const CommentSection = ({ post, onUpdate, showAlert, openOverride, setOpenOverride }: { post: FeedPost; onUpdate: (p: FeedPost) => void, showAlert: (msg: string) => void, openOverride?: boolean, setOpenOverride?: (v: boolean) => void }) => {
-  const [text, setText] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const voterId = getVoterId();
-  const hasCommented = post.comments?.some(c => c.votersId === voterId);
-  const allComments = post.comments || [];
-  
-  const showModal = openOverride !== undefined ? openOverride : isModalOpen;
-  const setModal = setOpenOverride || setIsModalOpen;
-  
-  const previewComments = allComments.slice(-2);
 
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!text.trim() || hasCommented) return;
-    setSubmitting(true);
-    try {
-      const updated = await feedAPI.addComment(post.id, text.trim(), "Anonymous", voterId);
-      if (updated) onUpdate(updated);
-      setText("");
-    } catch (err: any) {
-      if (err.response?.data?.error) showAlert(err.response.data.error);
-    }
-    setSubmitting(false);
-  };
 
-  return (
-    <div className="px-5 pb-4 space-y-3 w-full font-['Inter']">
-      {/* Inline Comment Preview */}
-      {allComments.length > 0 && (
-        <div className="space-y-2">
-          {previewComments.map((c, i) => (
-            <div key={c.id || i} className="flex items-baseline gap-2">
-              <span className="text-[13px] font-bold text-white shrink-0">Anonymous</span>
-              <p className="text-[13px] text-white/70 leading-relaxed line-clamp-2">{c.text}</p>
-            </div>
-          ))}
-          {allComments.length > 2 && (
-            <button 
-              onClick={() => setModal(true)} 
-              className="text-[12px] text-[#8e8e93] hover:text-white transition-colors font-medium mt-1"
-            >
-              View all {allComments.length} comments
-            </button>
-          )}
-        </div>
-      )}
 
-      {/* Modern Fake Input */}
-      <div 
-        onClick={() => setModal(true)} 
-        className="flex items-center gap-3 pt-1 cursor-pointer group"
-      >
-        <div className="w-7 h-7 rounded-full bg-white/5 border border-white/5 flex items-center justify-center text-[11px] font-black text-white/40 group-hover:bg-white/10 transition-colors">
-          Y
-        </div>
-        <span className="text-[13px] text-white/30 group-hover:text-white/40 transition-colors">Add a comment...</span>
-      </div>
-
-      {/* Premium Bottom Sheet Modal */}
-      {showModal && createPortal(
-        <div 
-          className="fixed inset-0 z-[99999] flex flex-col items-center justify-end bg-black/70 backdrop-blur-[6px] animate-in fade-in duration-300"
-          onClick={() => setModal(false)}
-        >
-          <div 
-            className="w-full max-w-[500px] h-[80vh] bg-[#0a0a0a] rounded-t-[32px] border-t border-x border-white/10 flex flex-col shadow-[0_-20px_50px_rgba(0,0,0,0.5)] animate-in slide-in-from-bottom duration-500 ease-expo"
-            onClick={e => e.stopPropagation()}
-          >
-            {/* Drag Handle Indicator */}
-            <div className="w-full flex justify-center py-3">
-              <div className="w-10 h-1 rounded-full bg-white/10" />
-            </div>
-
-            {/* Header */}
-            <div className="flex items-center justify-between px-6 pb-4 border-b border-white/5">
-               <h3 className="text-white font-bold text-[17px] tracking-tight">Comments</h3>
-               <button onClick={() => setModal(false)} className="p-2 -mr-2 text-white/40 hover:text-white transition-colors">
-                 <X size={22} />
-               </button>
-            </div>
-
-            {/* List */}
-            <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6 scrollbar-none">
-              {allComments.length > 0 ? (
-                allComments.map((c, i) => (
-                  <div key={c.id || i} className="flex gap-4">
-                    <div className="w-9 h-9 rounded-full bg-white/5 border border-white/5 flex items-center justify-center shrink-0 text-[13px] font-semibold text-white/30">
-                      A
-                    </div>
-                    <div className="space-y-1 pt-0.5">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[13px] font-semibold text-white">Anonymous</span>
-                        <span className="text-[11px] text-[#8e8e93] font-normal opacity-60">{timeAgo(c.createdAt)}</span>
-                      </div>
-                      <p className="text-[14px] text-white/70 leading-relaxed font-normal break-words">{c.text}</p>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="h-full flex flex-col items-center justify-center gap-4 opacity-10">
-                  <MessageCircle size={48} strokeWidth={1} />
-                  <span className="text-[12px] font-semibold uppercase tracking-[0.3em]">No comments yet</span>
-                </div>
-              )}
-            </div>
-
-            {/* Sticky Input Area */}
-            <div className="p-6 pt-4 bg-[#0a0a0a] border-t border-white/5 pb-10">
-              {!hasCommented ? (
-                <form onSubmit={submit} className="relative flex items-center gap-3">
-                  <input
-                    autoFocus
-                    value={text}
-                    onChange={e => setText(e.target.value)}
-                    placeholder="Share your thoughts..."
-                    className="flex-1 h-12 bg-white/5 border border-white/10 rounded-2xl px-5 text-[14px] text-white font-normal placeholder:text-white/20 focus:outline-none focus:border-white/20 transition-all"
-                  />
-                  <button
-                    type="submit"
-                    disabled={!text.trim() || submitting}
-                    className="w-12 h-12 rounded-2xl bg-white text-black flex items-center justify-center disabled:bg-white/10 disabled:text-white/10 transition-all hover:scale-105 active:scale-95"
-                  >
-                    {submitting ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} />}
-                  </button>
-                </form>
-              ) : (
-                <div className="h-12 flex items-center justify-center gap-2 rounded-2xl bg-white/5 border border-white/5 text-[12px] font-semibold text-white/20 uppercase tracking-widest">
-                  <div className="w-1.5 h-1.5 rounded-full bg-green-500/30" />
-                  Your comment is live
-                </div>
-              )}
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
-    </div>
-  );
-};
-
-// ── Poll Card ─────────────────────────────────────────
-const PollCard = ({ post, onUpdate, showAlert }: { post: FeedPost; onUpdate: (p: FeedPost) => void, showAlert: (msg: string) => void }) => {
-  const voterId = getVoterId();
-  const hasVoted = post.pollOptions?.some(o => o.voters?.includes(voterId));
-  const totalVotes = (post.pollOptions || []).reduce((a, o) => a + (o.votes || 0), 0);
-  const expired = post.pollEndsAt ? new Date(post.pollEndsAt) < new Date() : false;
-
-  const vote = async (optionId: string) => {
-    if (hasVoted || expired) return;
-    try {
-      const updated = await feedAPI.votePoll(post.id, optionId, voterId);
-      if (updated) onUpdate(updated);
-    } catch (err: any) {
-      if (err.response?.data?.error) showAlert(err.response.data.error);
-    }
-  };
-
-  return (
-    <div className="space-y-4 font-['Inter']">
-      <h3 className="text-white text-[16px] font-bold leading-snug">{post.pollQuestion}</h3>
-      
-      <div className="space-y-2.5">
-        {(post.pollOptions || []).map((opt, idx) => {
-          const optId = opt.id || (opt as any)._id || `opt-${idx}`;
-          const pct = totalVotes > 0 ? Math.round((opt.votes / totalVotes) * 100) : 0;
-          return (
-            <button
-              key={optId}
-              onClick={() => vote(optId)}
-              disabled={hasVoted || expired}
-              className="w-full text-left relative h-11 rounded-[10px] overflow-hidden bg-white/[0.04] border border-white/5 transition-all hover:bg-white/[0.08]"
-            >
-              {(hasVoted || expired) && (
-                <div 
-                  className="absolute inset-y-0 left-0 bg-[#ff3b30]/20 transition-all duration-1000 ease-expo" 
-                  style={{ width: `${pct}%` }} 
-                />
-              )}
-              <div className="relative h-full flex items-center justify-between px-4">
-                <span className={`text-[14px] font-semibold ${hasVoted || expired ? 'text-white' : 'text-white/70'}`}>{opt.label}</span>
-                {(hasVoted || expired) && (
-                  <span className="text-[13px] font-bold text-white/50">{pct}%</span>
-                )}
-              </div>
-            </button>
-          );
-        })}
-      </div>
-      
-      <div className="flex items-center gap-2 text-[11px] font-bold text-[#8e8e93] uppercase tracking-wider">
-        <span>{totalVotes.toLocaleString()} votes</span>
-        <span>•</span>
-        <span>{expired ? "Closed" : "Active"}</span>
-      </div>
-    </div>
-  );
-};
 
 
 // ── Shared Music Types ────────────────────────────────
@@ -738,7 +484,7 @@ const PostCard = ({
         ) : (
           <>
             {/* Content */}
-            {post.content && (
+            {post.content && post.type !== 'article' && (
               <div className={`px-5 pb-5 text-white/90 text-[15px] leading-[1.6] font-['Inter'] ${post.textLayout === 'quote' ? 'italic font-medium text-[18px]' : ''}`}>
                 <SmartText text={post.content} />
               </div>
@@ -986,7 +732,11 @@ const PostCard = ({
                 </div>
                 <h4 className="text-[18px] font-bold text-white/90 leading-tight group-hover/article:text-[#0a84ff] transition-colors">{post.articleTitle}</h4>
                 <div className="text-[14px] text-[#8e8e93] line-clamp-3 leading-relaxed font-normal">
-                  {post.seoDescription || post.content || "Read full article..."}
+                  {post.content && post.content !== post.articleTitle 
+                    ? post.content 
+                    : (post.seoDescription && post.seoDescription !== post.articleTitle 
+                        ? post.seoDescription 
+                        : "Explore the full narrative and research insights in this dedicated article...")}
                 </div>
                 <div className="pt-2 text-[12px] font-bold text-white/60 group-hover/article:text-white transition-colors flex items-center gap-1">
                   Read Full Article <ChevronRight size={14} className="translate-y-[1px] group-hover/article:translate-x-1 transition-transform" />
@@ -1197,7 +947,17 @@ const Feed = () => {
         .filter((b: any) => b.status === "Published")
         .map((b: any) => ({
           id: b.id || b._id,
-          content: b.excerpt || b.title,
+          content: (() => {
+            if (!b.content) return b.excerpt || "No content available.";
+            const plain = b.content.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim();
+            const title = b.title || "";
+            let snippet = plain;
+            if (snippet.toLowerCase().startsWith(title.toLowerCase())) {
+              snippet = snippet.slice(title.length).trim();
+            }
+            return snippet.slice(0, 160) + (snippet.length > 160 ? "..." : "");
+          })(),
+          seoDescription: b.seo?.description || b.excerpt,
           type: "article",
           articleTitle: b.title,
           articleCover: b.featuredImage,
