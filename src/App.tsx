@@ -9,6 +9,8 @@ import Footer from "@/components/Footer";
 // Public pages
 import Index from "./pages/Index.tsx";
 import About from "./pages/About.tsx";
+import Blog from "./pages/Blog";
+import BlogPostPage from "./pages/BlogPostPage";
 import Feed from "./pages/Feed.tsx";
 import Portfolio from "./pages/Portfolio.tsx";
 import Contact from "./pages/Contact.tsx";
@@ -26,6 +28,12 @@ import AdminSettings from "@/pages/admin/AdminSettings";
 // Feed
 import AdminFeedList from "@/pages/admin/AdminFeedList";
 import AdminFeedForm from "@/pages/admin/AdminFeedForm";
+
+// Blog
+import AdminBlogList from "@/pages/admin/AdminBlogList";
+import AdminBlogForm from "@/pages/admin/AdminBlogForm";
+import AdminBlogIdeaBoard from "@/pages/admin/AdminBlogIdeaBoard";
+import AdminBlogCategories from "@/pages/admin/AdminBlogCategories";
 
 // Music
 import AdminMusicList from "@/pages/admin/AdminMusicList";
@@ -99,6 +107,9 @@ const App = () => (
 
             {/* ── SEO: Individual Post & Story Pages (Google indexable) ── */}
             <Route path="/feed/post/:id" element={<FeedPostPage />} />
+            <Route path="/post/:id" element={<FeedPostPage />} />
+            <Route path="/blog" element={<Blog />} />
+            <Route path="/blog/:slug" element={<BlogPostPage />} />
             <Route path="/story/:id" element={<StoryPage />} />
 
             {/* ── Admin Login (Unprotected) ──────────────── */}
@@ -116,6 +127,13 @@ const App = () => (
                 <Route path="feed"          element={<AdminFeedList />} />
                 <Route path="feed/add"      element={<AdminFeedForm />} />
                 <Route path="feed/edit/:id" element={<AdminFeedForm />} />
+
+                {/* Blog */}
+                <Route path="blog"          element={<AdminBlogList />} />
+                <Route path="blog/add"      element={<AdminBlogForm />} />
+                <Route path="blog/edit/:id" element={<AdminBlogForm />} />
+                <Route path="blog/ideas"    element={<AdminBlogIdeaBoard />} />
+                <Route path="blog/categories" element={<AdminBlogCategories />} />
 
                 {/* Music */}
                 <Route path="music"          element={<AdminMusicList />} />

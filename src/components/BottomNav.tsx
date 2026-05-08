@@ -1,12 +1,12 @@
-import { Home, User, LayoutGrid, Briefcase, Phone } from "lucide-react";
+import { Home, User, LayoutGrid, Briefcase, Phone, BookOpen } from "lucide-react";
 import { useLocation, Link } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
 
 const navItems = [
   { icon: Home, label: "Home", path: "/" },
   { icon: User, label: "About", path: "/about/" },
-  { icon: LayoutGrid, label: "Feed", path: "/feed/" },
   { icon: Briefcase, label: "Portfolio", path: "/portfolio/" },
+  { icon: LayoutGrid, label: "Feed", path: "/feed/" },
   { icon: Phone, label: "Contact", path: "/contact/" },
 ];
 
@@ -39,7 +39,10 @@ const BottomNav = () => {
       }
 
       // 5px threshold to avoid jitter
-      if (location.pathname === "/feed/") {
+      // Enable scroll-hide on Feed and Individual Post pages for better immersion
+      const isScrollHidePage = location.pathname === "/feed/" || location.pathname.startsWith("/post/") || location.pathname.includes("/post/");
+      
+      if (isScrollHidePage) {
         if (currentScrollY > lastScrollY.current + 5) {
           setIsVisible(false);
         } else if (currentScrollY < lastScrollY.current - 5) {
@@ -88,7 +91,7 @@ const BottomNav = () => {
       <nav 
         onMouseEnter={() => setIsNavHovered(true)}
         onMouseLeave={() => { setIsNavHovered(false); setHoveredRect(null); }}
-        className={`fixed bottom-0 left-0 right-0 h-20 bg-[#0a0a0a]/90 backdrop-blur-2xl border-t border-white/10 z-[8888] font-poppins transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] ${
+        className={`fixed bottom-0 left-0 right-0 h-20 bg-[#0a0a0a]/90 backdrop-blur-2xl border-t border-white/10 z-[8888] font-poppins transition-all duration-500 ease-smooth ${
           isVisible ? "translate-y-0 opacity-100" : "translate-y-[120%] opacity-0"
         }`}
       >

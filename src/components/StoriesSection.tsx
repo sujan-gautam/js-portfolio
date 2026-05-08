@@ -415,7 +415,7 @@ const StoriesSection = () => {
                 <div className="flex gap-1.5 px-1">
                   {stories.map((_, idx) => (
                     <div key={idx} className="h-[2px] flex-1 bg-white/20 rounded-full overflow-hidden">
-                      <div className={`h-full bg-white transition-all duration-[3000ms] ease-linear origin-left ${idx < storyIndex ? 'scale-x-100' : idx === storyIndex ? 'scale-x-100' : 'scale-x-0'}`} />
+                      <div className={`h-full bg-white transition-all duration-3000 ease-linear origin-left ${idx < storyIndex ? 'scale-x-100' : idx === storyIndex ? 'scale-x-100' : 'scale-x-0'}`} />
                     </div>
                   ))}
                 </div>

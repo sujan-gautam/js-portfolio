@@ -51,10 +51,15 @@ const PollOptionSchema = new mongoose.Schema({
 });
 
 const FeedSchema = new mongoose.Schema({
-  type: { type: String, enum: ["text", "image", "poll", "video", "reel"], default: "text" },
-  // Text / Caption content
+  type: { type: String, enum: ["text", "image", "poll", "video", "reel", "article"], default: "text" },
+  category: String,
+  articleTitle: String,
+  articleCover: String,
+  articleContent: String,
+  readTime: Number,
+  seoTitle: String,
+  seoDescription: String,
   content: String,
-  // Image post fields
   image: String,
   images: [String],
   imageLayout: { type: String, enum: ["default", "polaroid"], default: "default" },
@@ -62,15 +67,12 @@ const FeedSchema = new mongoose.Schema({
   textLayout: { type: String, enum: ["default", "quote"], default: "default" },
   caption: String,
   location: String,
-  // Poll fields
   pollQuestion: String,
   pollOptions: [PollOptionSchema],
   pollEndsAt: Date,
-  // Metadata
   tags: [String],
   pinned: { type: Boolean, default: false },
   published: { type: Boolean, default: true },
-  // Engagement
   views: { type: Number, default: 0 },
   shares: { type: Number, default: 0 },
   reactions: {
@@ -93,6 +95,86 @@ const FeedSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
 }, { strict: false });
+
+const BlogCategorySchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  description: String,
+  slug: { type: String, unique: true },
+  parent: { type: mongoose.Schema.Types.ObjectId, ref: "BlogCategory" },
+  createdAt: { type: Date, default: Date.now }
+});
+
+const BlogTagSchema = new mongoose.Schema({
+  name: { type: String, required: true, unique: true },
+  slug: String,
+  createdAt: { type: Date, default: Date.now }
+});
+
+const BlogPostSchema = new mongoose.Schema({
+  title: { type: String, required: true },
+  slug: { type: String, required: true, unique: true },
+  content: String,
+  excerpt: String,
+  featuredImage: String,
+  images: [{
+    url: String,
+    alt: String,
+    caption: String
+  }],
+  attachments: [{
+    name: String,
+    url: String,
+    size: Number,
+    fileType: String
+  }],
+  category: { type: mongoose.Schema.Types.ObjectId, ref: "BlogCategory" },
+  tags: [{ type: mongoose.Schema.Types.ObjectId, ref: "BlogTag" }],
+  author: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+  status: { type: String, enum: ["Draft", "Published", "Scheduled"], default: "Draft" },
+  publishedAt: Date,
+  emotionalTone: { type: String, enum: ["Reflective", "Analytical", "Storytelling", "Philosophical", "None"], default: "None" },
+  perspectiveType: { type: String, enum: ["First-person", "Third-person", "Mixed", "None"], default: "None" },
+  readTime: Number,
+  wordCount: Number,
+  seo: {
+    title: String,
+    description: String,
+    keywords: String,
+    ogImage: String,
+    canonicalUrl: String
+  },
+  views: { type: Number, default: 0 },
+  reactions: {
+    heart: { type: Number, default: 0 },
+    fire: { type: Number, default: 0 },
+    like: { type: Number, default: 0 },
+    insightful: { type: Number, default: 0 },
+  },
+  comments: [CommentSchema],
+  versionHistory: [{
+    content: String,
+    updatedAt: { type: Date, default: Date.now }
+  }],
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now }
+}, { strict: false });
+
+const BlogIdeaSchema = new mongoose.Schema({
+  title: String,
+  notes: String,
+  emotions: [String],
+  sourceType: { type: String, enum: ["Personal Experience", "Observation", "Research", "Quote", "Other"], default: "Observation" },
+  status: { type: String, enum: ["Idea", "Researching", "Writing", "Published"], default: "Idea" },
+  references: [{
+    title: String,
+    url: String,
+    notes: String,
+    type: String // 'link', 'note', 'screenshot'
+  }],
+  isPrivate: { type: Boolean, default: true },
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now }
+});
 
 const SliderSchema = new mongoose.Schema({
   title: String, subtitle: String, image: String, order: Number, active: Boolean
@@ -210,7 +292,11 @@ const SettingsSchema = new mongoose.Schema({
   ogType: { type: String, default: "website" },
   twitterHandle: String,
   feedProfileName: { type: String, default: "Sujan Gautam" },
-  feedProfileImage: String
+  feedProfileImage: String,
+  authorName: { type: String, default: "Sujan Gautam" },
+  authorTitle: { type: String, default: "Software Developer & UI Architect" },
+  authorBio: String,
+  authorImage: String
 });
 const CourtesySchema = new mongoose.Schema({
   name: String, role: String, message: String, image: String, socialLinks: [{ platform: String, url: String }], active: { type: Boolean, default: true }
@@ -234,7 +320,7 @@ const schemas = [
   UserSchema, PortfolioSchema, EducationSchema, FeedSchema, SliderSchema, ServiceSchema, VideoSchema,
   FunWorkSchema, StorySchema, PopupSchema, AdSchema, ContactMessageSchema, VisitorRecordSchema,
   AppSchema, CustomerSchema, WhatsNewSchema, MusicSchema, UpdateSchema, SkillSchema, AboutSchema, SettingsSchema, CourtesySchema,
-  CommentSchema, PollOptionSchema
+  CommentSchema, PollOptionSchema, BlogCategorySchema, BlogTagSchema, BlogPostSchema, BlogIdeaSchema
 ];
 schemas.forEach(serialize);
 
@@ -260,3 +346,7 @@ export const Skill = mongoose.model("Skill", SkillSchema);
 export const About = mongoose.model("About", AboutSchema);
 export const Settings = mongoose.model("Settings", SettingsSchema);
 export const Courtesy = mongoose.model("Courtesy", CourtesySchema);
+export const BlogCategory = mongoose.model("BlogCategory", BlogCategorySchema);
+export const BlogTag = mongoose.model("BlogTag", BlogTagSchema);
+export const BlogPost = mongoose.model("BlogPost", BlogPostSchema);
+export const BlogIdea = mongoose.model("BlogIdea", BlogIdeaSchema);

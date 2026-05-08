@@ -7,7 +7,7 @@ import {
   Briefcase, Gamepad2, Video, Wrench, BookOpen, MessageSquare,
   Megaphone, Mail, Eye, Users, Smartphone, Heart, Sparkles,
   Settings, Music, RefreshCw, ExternalLink, Menu, X, ChevronRight, Code,
-  Bell, Search, UserCircle, ShieldCheck, DollarSign, LogOut
+  Bell, Search, UserCircle, ShieldCheck, DollarSign, LogOut, Layout
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -26,8 +26,10 @@ const navItems = [
     { label: "Fun Archive", icon: Gamepad2, path: "/admin/funwork" },
   ]},
   { group: "Relay", items: [
+    { label: "Blog Narratives", icon: BookOpen, path: "/admin/blog" },
+    { label: "Idea Board", icon: Sparkles, path: "/admin/blog/ideas" },
     { label: "Public Feed", icon: Image, path: "/admin/feed" },
-    { label: "Stories", icon: BookOpen, path: "/admin/story" },
+    { label: "Stories", icon: Layout, path: "/admin/story" },
     { label: "Enquiries", icon: Mail, path: "/admin/contact" },
   ]},
   { group: "System", items: [
@@ -158,7 +160,7 @@ const AdminLayout = () => {
       </aside>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+      <div className="flex-1 flex flex-col min-w-0">
         {/* Top bar */}
         <header className="h-16 border-b border-slate-200 bg-white px-4 sm:px-6 flex items-center justify-between z-10 shrink-0">
           <div className="flex items-center gap-3">
@@ -188,7 +190,7 @@ const AdminLayout = () => {
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 scrollbar-thin scrollbar-thumb-slate-200 scroll-smooth bg-[#fafafa]">
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 scroll-smooth bg-[#fafafa] min-h-full">
            <Outlet />
         </main>
       </div>

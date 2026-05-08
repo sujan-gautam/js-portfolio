@@ -156,13 +156,9 @@
   display: none !important;
 }
 
-/* Typography Classes (High-Specificity Override) */
-.admin-panel .font-modern { font-family: 'Inter', sans-serif !important; }
-.admin-panel .font-classic { font-family: 'Playfair Display', serif !important; }
-.admin-panel .font-mono { font-family: 'Roboto Mono', monospace !important; }
-.admin-panel .font-bold { font-family: 'Bebas Neue', sans-serif !important; }
-.admin-panel .font-script { font-family: 'Dancing Script', cursive !important; }
-.admin-panel .font-outfit { font-family: 'Outfit', sans-serif !important; }
+
 
 .scrollbar-none::-webkit-scrollbar { display: none; }
 .scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
+
+

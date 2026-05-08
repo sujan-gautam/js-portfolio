@@ -105,7 +105,14 @@ export default {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
       },
+      transitionDuration: {
+        '3000': '3000ms',
+      },
+      transitionTimingFunction: {
+        'expo': 'cubic-bezier(0.23, 1, 0.32, 1)',
+        'smooth': 'cubic-bezier(0.25, 1, 0.5, 1)',
+      }
     },
   },
-  plugins: [require("tailwindcss-animate")],
+  plugins: [require("tailwindcss-animate"), require("@tailwindcss/typography")],
 } satisfies Config;

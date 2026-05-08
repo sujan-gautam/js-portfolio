@@ -11,6 +11,7 @@ import {
 import YouTube from "react-youtube";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/config";
+import axios from "axios";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const timelineStyles = `
@@ -171,7 +172,7 @@ const CommentSection = ({ post, onUpdate, showAlert, openOverride, setOpenOverri
           onClick={() => setModal(false)}
         >
           <div 
-            className="w-full max-w-[500px] h-[80vh] bg-[#0a0a0a] rounded-t-[32px] border-t border-x border-white/10 flex flex-col shadow-[0_-20px_50px_rgba(0,0,0,0.5)] animate-in slide-in-from-bottom duration-500 ease-[cubic-bezier(0.23,1,0.32,1)]"
+            className="w-full max-w-[500px] h-[80vh] bg-[#0a0a0a] rounded-t-[32px] border-t border-x border-white/10 flex flex-col shadow-[0_-20px_50px_rgba(0,0,0,0.5)] animate-in slide-in-from-bottom duration-500 ease-expo"
             onClick={e => e.stopPropagation()}
           >
             {/* Drag Handle Indicator */}
@@ -280,7 +281,7 @@ const PollCard = ({ post, onUpdate, showAlert }: { post: FeedPost; onUpdate: (p:
             >
               {(hasVoted || expired) && (
                 <div 
-                  className="absolute inset-y-0 left-0 bg-[#ff3b30]/20 transition-all duration-1000 ease-[cubic-bezier(0.23,1,0.32,1)]" 
+                  className="absolute inset-y-0 left-0 bg-[#ff3b30]/20 transition-all duration-1000 ease-expo" 
                   style={{ width: `${pct}%` }} 
                 />
               )}
@@ -543,7 +544,20 @@ const PostCard = ({
 
     try {
       const updated = await feedAPI.react(post.id, type);
-      if (updated) setPost(updated);
+      if (updated) {
+        // Re-map blog fields if this is an integrated article to prevent layout shifts
+        if (post.type === "article") {
+          setPost({
+            ...updated,
+            type: "article",
+            articleTitle: updated.title || post.articleTitle,
+            articleCover: updated.featuredImage || post.articleCover,
+            articleContent: updated.content || post.articleContent
+          });
+        } else {
+          setPost(updated);
+        }
+      }
     } catch (err: any) {
       if (err.response?.data?.error) showAlert(err.response.data.error);
     }
@@ -824,7 +838,7 @@ const PostCard = ({
           <div className="w-full relative group px-4 mb-5">
             <div className="relative overflow-hidden rounded-[16px] border border-white/5 bg-[#0a0a0a]">
               <div 
-                className="flex transition-transform duration-700 ease-[cubic-bezier(0.23,1,0.32,1)]"
+                className="flex transition-transform duration-700 ease-expo"
                 style={{ transform: `translateX(-${activeIndex * 100}%)` }}
               >
                 {mediaItems.map((item, i) => (
@@ -940,6 +954,41 @@ const PostCard = ({
               </div>
             )}
 
+
+        {/* Article Preview */}
+        {post.type === "article" && (
+          <div className="px-4 mb-5">
+            <a 
+              href={`/post/${post.id}`} 
+              className="block group/article overflow-hidden rounded-[16px] border border-white/5 bg-white/[0.02] hover:bg-white/[0.04] transition-all cursor-pointer"
+            >
+              {post.articleCover && (
+                <div className="w-full h-48 overflow-hidden bg-[#111]">
+                  <img src={post.articleCover} alt={post.articleTitle} className="w-full h-full object-cover transition-transform duration-700 group-hover/article:scale-105" />
+                </div>
+              )}
+              <div className="p-5 space-y-3">
+                <div className="flex items-center gap-2">
+                   <span className="text-[10px] font-black text-[#0a84ff] uppercase tracking-[0.2em] bg-[#0a84ff]/10 px-2 py-0.5 rounded-full">
+                     {post.category || 'ARTICLE'}
+                   </span>
+                   {post.readTime && (
+                     <span className="text-[11px] font-medium text-white/40">
+                       {post.readTime} min read
+                     </span>
+                   )}
+                </div>
+                <h4 className="text-[18px] font-bold text-white/90 leading-tight group-hover/article:text-[#0a84ff] transition-colors">{post.articleTitle}</h4>
+                <div className="text-[14px] text-[#8e8e93] line-clamp-3 leading-relaxed font-normal">
+                  {post.seoDescription || post.content || "Read full article..."}
+                </div>
+                <div className="pt-2 text-[12px] font-bold text-white/60 group-hover/article:text-white transition-colors flex items-center gap-1">
+                  Read Full Article <ChevronRight size={14} className="translate-y-[1px] group-hover/article:translate-x-1 transition-transform" />
+                </div>
+              </div>
+            </a>
+          </div>
+        )}
 
         {/* Poll */}
         {post.type === "poll" && (
@@ -1131,8 +1180,38 @@ const Feed = () => {
     setIsIOS(isIOSDevice);
     setGlobalMute(isIOSDevice);
 
-    feedAPI.getPosts().then(data => { 
-      setPosts(data); 
+    Promise.all([
+      feedAPI.getPosts(),
+      axios.get(`${API_BASE}/collection/blog_posts`)
+    ]).then(([feedData, blogRes]) => {
+      const blogData = blogRes.data || [];
+      
+      // Map BlogPosts to FeedPost structure
+      const mappedBlogs: FeedPost[] = blogData
+        .filter((b: any) => b.status === "Published")
+        .map((b: any) => ({
+          id: b.id || b._id,
+          content: b.excerpt || b.title,
+          type: "article",
+          articleTitle: b.title,
+          articleCover: b.featuredImage,
+          createdAt: b.createdAt,
+          updatedAt: b.updatedAt,
+          pinned: b.pinned || false,
+          reactions: b.reactions || { heart: 0, fire: 0, like: 0, insightful: 0 },
+          views: b.views || 0,
+          comments: b.comments || [],
+          category: b.categoryName || "Article"
+        }));
+
+      // Merge and Sort: Pinned first, then by Date (Newest first)
+      const combined = [...feedData, ...mappedBlogs].sort((a, b) => {
+        if (a.pinned && !b.pinned) return -1;
+        if (!a.pinned && b.pinned) return 1;
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
+
+      setPosts(combined); 
       setLoading(false); 
       
       // Handle deep-linking to specific post

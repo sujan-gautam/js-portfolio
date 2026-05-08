@@ -1,10 +1,11 @@
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
 import { feedAPI, FeedPost } from "@/lib/adminData";
 import {
   Plus, Trash2, Loader2, Upload, X,
-  Send, Music, Search, Video, Scissors, ArrowLeft, Heart, Lock
+  Send, Music, Search, Video, Scissors, ArrowLeft, Heart, Lock,
+  Image as ImageIcon, Clock
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,9 +13,14 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
+import TiptapEditor from "@/components/admin/TiptapEditor";
 import { cn } from "@/lib/utils";
 import YouTube from "react-youtube";
 import { AIRefineButton } from "@/components/admin/AIRefineButton";
+
+// Quill Rich Text Editor
+import ReactQuill from 'react-quill-new';
+import 'react-quill-new/dist/quill.snow.css';
 
 import { API_BASE, YT_KEYS } from "@/config";
 import { uploadFileChunked, UploadProgress } from "@/lib/upload";
@@ -31,7 +37,7 @@ const AdminFeedForm = () => {
   const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null);
 
   // Form state
-  const [type, setType] = useState<"text" | "image" | "poll" | "video">("text");
+  const [type, setType] = useState<"text" | "image" | "poll" | "video" | "article">("text");
   const [content, setContent] = useState("");
   const [images, setImages] = useState<string[]>([]);
   const [imageCaptions, setImageCaptions] = useState<string[]>([]);
@@ -45,6 +51,30 @@ const AdminFeedForm = () => {
   const [linkPreview, setLinkPreview] = useState({ url: "", title: "", description: "", image: "", domain: "" });
   const [likeCount, setLikeCount] = useState(0);
   const [shareCount, setShareCount] = useState(0);
+
+  // Article fields
+  const [category, setCategory] = useState("blog");
+  const [articleTitle, setArticleTitle] = useState("");
+  const [articleCover, setArticleCover] = useState("");
+  const [articleContent, setArticleContent] = useState("");
+  const [readTime, setReadTime] = useState(5);
+  const [seoTitle, setSeoTitle] = useState("");
+  const [seoDescription, setSeoDescription] = useState("");
+  const [hasArticlePoll, setHasArticlePoll] = useState(false);
+  const [draftId, setDraftId] = useState<string | null>(null);
+
+  const quillModules = useMemo(() => ({
+    toolbar: [
+      [{ 'header': [1, 2, 3, false] }],
+      ['bold', 'italic', 'underline', 'strike', 'blockquote'],
+      [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+      ['link', 'image'],
+      ['clean']
+    ],
+    clipboard: {
+      matchVisual: false, // Prevents random extra lines on paste
+    }
+  }), []);
 
   // Music
   const [musicVideoId, setMusicVideoId] = useState("");
@@ -85,10 +115,116 @@ const AdminFeedForm = () => {
         setLinkPreview(post.linkPreview || { url: "", title: "", description: "", image: "", domain: "" });
         setLikeCount(post.reactions?.like || 0);
         setShareCount(post.shares || 0);
+
+        setCategory(post.category || "blog");
+        setArticleTitle(post.articleTitle || "");
+        setArticleCover(post.articleCover || "");
+        setArticleContent(post.articleContent || "");
+        setReadTime(post.readTime || 5);
+        setSeoTitle(post.seoTitle || "");
+        setSeoDescription(post.seoDescription || "");
+        setHasArticlePoll(Boolean(post.pollQuestion));
       })
       .catch(() => toast.error("Failed to load post"))
       .finally(() => setLoadingPost(false));
   }, [id]);
+
+  // Automatic Server-Side Draft Creation
+  useEffect(() => {
+    if (isEdit || id) return;
+
+    const createInitialDraft = async () => {
+      try {
+        setLoadingPost(true);
+        // Create a minimal draft record
+        const draftPayload: Partial<FeedPost> = {
+          type: "text",
+          content: "",
+          published: false,
+          articleTitle: "(Draft) New Post",
+          createdAt: new Date().toISOString()
+        };
+        const newPost = await feedAPI.createPost(draftPayload);
+        if (newPost && newPost.id) {
+          // Navigate to the edit route for the newly created draft
+          navigate(`/admin/feed/edit/${newPost.id}`, { replace: true });
+          toast.info("Started a new draft");
+        }
+      } catch (err) {
+        console.error("Failed to create draft:", err);
+        toast.error("Failed to initialize draft");
+      } finally {
+        setLoadingPost(false);
+      }
+    };
+
+    createInitialDraft();
+  }, [isEdit, id, navigate]);
+
+  // Handle Draft Persistence & Auto-save
+  useEffect(() => {
+    if (isEdit) return; 
+
+    let currentDraftId = draftId;
+    if (!currentDraftId) {
+      const savedDraftId = localStorage.getItem("active_feed_draft_id");
+      if (savedDraftId) {
+        currentDraftId = savedDraftId;
+        setDraftId(savedDraftId);
+      } else {
+        const newId = `draft_${Date.now()}`;
+        localStorage.setItem("active_feed_draft_id", newId);
+        currentDraftId = newId;
+        setDraftId(newId);
+      }
+    }
+
+    if (currentDraftId && !articleTitle && !content) {
+      const savedData = localStorage.getItem(`feed_draft_${currentDraftId}`);
+      if (savedData) {
+        try {
+          const data = JSON.parse(savedData);
+          setType(data.type || "text");
+          setContent(data.content || "");
+          setArticleTitle(data.articleTitle || "");
+          setArticleContent(data.articleContent || "");
+          setCategory(data.category || "blog");
+          setReadTime(data.readTime || 5);
+          setSeoTitle(data.seoTitle || "");
+          setSeoDescription(data.seoDescription || "");
+          setHasArticlePoll(data.hasArticlePoll || false);
+          setPollQuestion(data.pollQuestion || "");
+          setPollOptions(data.pollOptions || [{label: "", votes: 0}, {label: "", votes: 0}]);
+          toast.success("Draft restored from your last session");
+        } catch (e) {
+          console.error("Failed to restore draft", e);
+        }
+      }
+    }
+  }, [isEdit]);
+
+  // Auto-save effect
+  useEffect(() => {
+    if (!isEdit && draftId) {
+      const draftData = {
+        type, content, articleTitle, articleContent, category, readTime,
+        seoTitle, seoDescription, hasArticlePoll, pollQuestion, pollOptions
+      };
+      localStorage.setItem(`feed_draft_${draftId}`, JSON.stringify(draftData));
+    }
+  }, [
+    isEdit, draftId, type, content, articleTitle, articleContent, 
+    category, readTime, seoTitle, seoDescription, hasArticlePoll, 
+    pollQuestion, pollOptions
+  ]);
+
+  const clearDraft = () => {
+    if (draftId) {
+      localStorage.removeItem(`feed_draft_${draftId}`);
+      localStorage.removeItem("active_feed_draft_id");
+      setDraftId(null);
+    }
+  };
 
   const fetchLinkMetadata = async (url: string) => {
     if (!url || !url.startsWith("http")) return;
@@ -183,6 +319,7 @@ const AdminFeedForm = () => {
         type, pinned, published, membersOnly, content, images, imageCaptions, videoUrl,
         textLayout, musicVideoId, musicTitle, musicArtist,
         musicStartTime, musicEndTime, pollQuestion, linkPreview,
+        category, articleTitle, articleCover, articleContent, readTime, seoTitle, seoDescription,
         pollOptions: pollOptions.filter(o => o.label).map(o => ({ label: o.label, votes: o.votes || 0, voters: [] } as any)),
         reactions: { like: likeCount } as any,
         shares: shareCount
@@ -190,6 +327,7 @@ const AdminFeedForm = () => {
       if (id) await feedAPI.updatePost(id, payload);
       else await feedAPI.createPost(payload);
       toast.success(id ? "Post updated" : "Post created");
+      clearDraft();
       navigate("/admin/feed");
     } catch { toast.error("Save failed"); }
     setSaving(false);
@@ -202,7 +340,7 @@ const AdminFeedForm = () => {
   );
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300 font-inter max-w-7xl mx-auto pb-16">
+    <div className="space-y-6 font-inter max-w-7xl mx-auto pb-16 min-h-screen bg-[#fafafa]">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between">
         <div className="flex items-center gap-3">
@@ -235,23 +373,25 @@ const AdminFeedForm = () => {
                 </div>
               </CardHeader>
               <CardContent className="p-4 sm:p-6 space-y-5">
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-xs font-medium text-slate-700">Description</Label>
-                    <AIRefineButton 
-                      value={content} 
-                      onRefine={(v) => setContent(v)} 
-                      context="Social media feed post content" 
+                {type !== "article" && (
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs font-medium text-slate-700">Description</Label>
+                      <AIRefineButton 
+                        value={content} 
+                        onRefine={(v) => setContent(v)} 
+                        context="Social media feed post content" 
+                      />
+                    </div>
+                    <textarea
+                      className={cn(
+                        "w-full p-3 bg-white border border-slate-200 rounded-md focus:ring-2 focus:ring-slate-100 focus:border-slate-400 outline-none transition-all text-sm leading-relaxed text-slate-800 resize-none",
+                        textLayout === "quote" ? "italic border-l-4 border-l-slate-800 bg-slate-50 py-6" : "h-36"
+                      )}
+                      value={content} onChange={e => setContent(e.target.value)} placeholder="Type here..."
                     />
                   </div>
-                  <textarea
-                    className={cn(
-                      "w-full p-3 bg-white border border-slate-200 rounded-md focus:ring-2 focus:ring-slate-100 focus:border-slate-400 outline-none transition-all text-sm leading-relaxed text-slate-800 resize-none",
-                      textLayout === "quote" ? "italic border-l-4 border-l-slate-800 bg-slate-50 py-6" : "h-36"
-                    )}
-                    value={content} onChange={e => setContent(e.target.value)} placeholder="Type here..."
-                  />
-                </div>
+                )}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   <div className="space-y-1.5">
                     <Label className="text-xs font-medium text-slate-700">Post Type</Label>
@@ -260,6 +400,7 @@ const AdminFeedForm = () => {
                       <option value="image">Image Gallery</option>
                       <option value="video">Video Post</option>
                       <option value="poll">User Poll</option>
+                      <option value="article">Blog / Research Article</option>
                     </select>
                   </div>
                   <div className="space-y-1.5">
@@ -270,12 +411,12 @@ const AdminFeedForm = () => {
               </CardContent>
             </Card>
 
-            {/* Media */}
-            {type !== "text" && (
-              <Card className="bg-white border border-slate-200 shadow-none rounded-lg overflow-hidden animate-in fade-in slide-in-from-top-2">
-                <CardHeader className="px-6 py-4 border-b border-slate-100">
+            {/* Media & Polls */}
+            {(type !== "text" || (type === "article" && hasArticlePoll)) && (
+              <Card className="bg-white border border-slate-200 shadow-none rounded-lg overflow-hidden">
+                <CardHeader className="px-6 py-4 border-b border-slate-100 flex flex-row items-center justify-between">
                   <CardTitle className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                    {type === "image" ? "Image Gallery" : type === "video" ? "Video Player" : "User Poll"}
+                    {type === "image" ? "Image Gallery" : type === "video" ? "Video Player" : type === "poll" ? "User Poll" : "Article Features"}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-4 sm:p-6">
@@ -370,11 +511,19 @@ const AdminFeedForm = () => {
                       )}
                     </div>
                   )}
-                  {type === 'poll' && (
-                    <div className="space-y-4">
+
+
+                  {(type === "poll" || (type === "article" && hasArticlePoll)) && (
+                    <div className={cn("space-y-4", type === "article" && "mt-8 pt-6 border-t-2 border-dashed border-slate-100")}>
+                       {type === "article" && (
+                         <div className="flex items-center gap-2 mb-2">
+                            <div className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
+                            <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Article Insight Poll</h4>
+                         </div>
+                       )}
                        <div className="space-y-1.5">
                           <Label className="text-xs font-medium text-slate-700">Question</Label>
-                          <Input value={pollQuestion} onChange={e=>setPollQuestion(e.target.value)} placeholder="Poll question..." className="h-10 rounded-md" />
+                          <Input value={pollQuestion} onChange={e=>setPollQuestion(e.target.value)} placeholder="What do you think about this article?" className="h-10 rounded-md" />
                        </div>
                        <div className="space-y-3">
                           <Label className="text-xs font-medium text-slate-500 uppercase tracking-wider">Options & Votes</Label>
@@ -398,7 +547,124 @@ const AdminFeedForm = () => {
                           </Button>
                        </div>
                     </div>
-                 )}
+                  )}
+                  {type === "article" && (
+                    <div className="space-y-6 mt-4 pt-4 border-t border-slate-100">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div className="space-y-1.5">
+                          <Label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Category</Label>
+                          <select value={category} onChange={e => setCategory(e.target.value)} className="w-full h-10 px-3 bg-white border border-slate-200 rounded-md text-sm outline-none focus:border-indigo-500 transition-all">
+                            <option value="blog">Psychological Blog</option>
+                            <option value="research">Research Paper</option>
+                            <option value="narrative">Personal Narrative</option>
+                          </select>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Read Time (minutes)</Label>
+                          <div className="relative">
+                             <Clock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                             <Input type="number" value={readTime} onChange={e => setReadTime(Number(e.target.value))} className="h-10 pl-9 rounded-md border-slate-200 bg-white" />
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-1.5">
+                        <Label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Article Title</Label>
+                        <Input value={articleTitle} onChange={e => setArticleTitle(e.target.value)} className="h-12 rounded-md border-slate-200 text-lg font-bold bg-white focus:ring-4 focus:ring-indigo-500/5 transition-all" placeholder="Title of your article" />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Cover Image</Label>
+                        <div className="flex gap-4 items-center p-4 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                          {articleCover ? (
+                            <div className="relative w-32 aspect-video rounded-md overflow-hidden border border-slate-200 shrink-0">
+                               <img src={articleCover} className="w-full h-full object-cover" />
+                               <button onClick={() => setArticleCover("")} className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-md shadow-lg"><X size={10} /></button>
+                            </div>
+                          ) : (
+                            <div className="w-32 aspect-video rounded-md bg-slate-100 flex items-center justify-center text-slate-300 shrink-0">
+                               <ImageIcon size={20} />
+                            </div>
+                          )}
+                          <div className="flex-1 space-y-2">
+                            <p className="text-[10px] text-slate-500 font-medium">Upload a high-resolution cover image for your article.</p>
+                            <label className="inline-flex items-center gap-2 h-9 px-4 bg-white border border-slate-200 rounded-md cursor-pointer hover:bg-slate-50 transition-colors text-slate-700 text-xs font-bold shadow-sm">
+                              {uploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+                              {articleCover ? "Change Cover" : "Upload Cover"}
+                              <input type="file" accept="image/*" className="hidden" onChange={async e => {
+                                  if (e.target.files?.[0]) {
+                                    setUploading(true);
+                                    try {
+                                      const url = await uploadFileChunked(e.target.files[0], (progress) => setUploadProgress(progress));
+                                      setArticleCover(url);
+                                    } catch (err: any) { toast.error("Upload failed"); }
+                                    finally { setUploading(false); setUploadProgress(null); }
+                                  }
+                              }} />
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between mb-2">
+                          <Label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Full Article Content</Label>
+                          <AIRefineButton 
+                            value={articleContent} 
+                            onRefine={(v) => {
+                              setArticleContent(v);
+                              // We'll handle external updates via a ref or simple key-reset if needed
+                            }} 
+                            context="Blog or Research article full content" 
+                          />
+                        </div>
+                        <div className="relative quill-wrapper border border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm min-h-[400px]">
+                           <ArticleEditor 
+                             initialValue={articleContent} 
+                             onChange={setArticleContent} 
+                             modules={quillModules}
+                           />
+                        </div>
+                      </div>
+
+                      <div className="pt-6 mt-6 border-t border-slate-100 space-y-5">
+                        <div className="flex items-center gap-2">
+                           <div className="w-1 h-4 bg-indigo-500 rounded-full" />
+                           <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">SEO Optimization</h4>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                          <div className="space-y-1.5">
+                            <Label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">SEO Title</Label>
+                            <Input value={seoTitle} onChange={e => setSeoTitle(e.target.value)} className="h-10 rounded-md border-slate-200 bg-white" placeholder="Indexable title..." />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Meta Description</Label>
+                            <textarea 
+                              value={seoDescription} 
+                              onChange={e => setSeoDescription(e.target.value)} 
+                              className="w-full p-3 bg-white border border-slate-200 rounded-md text-sm h-10 min-h-[40px] focus:ring-2 focus:ring-indigo-500/5 outline-none transition-all" 
+                              placeholder="Brief summary (160 chars)" 
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="pt-4 border-t border-slate-100">
+                        <div className="flex items-center justify-between p-3 bg-indigo-50/50 rounded-lg border border-indigo-100">
+                           <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-indigo-500 shadow-sm">
+                                 <Plus size={14} />
+                              </div>
+                              <div>
+                                 <p className="text-xs font-bold text-slate-900">Add Interactive Poll</p>
+                                 <p className="text-[10px] text-slate-500">Engage readers with a question</p>
+                              </div>
+                           </div>
+                           <Switch checked={hasArticlePoll} onCheckedChange={setHasArticlePoll} />
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}
@@ -550,3 +816,20 @@ const AdminFeedForm = () => {
 };
 
 export default AdminFeedForm;
+
+// ── Isolated Article Editor ──────────────────────────────────────────────────
+interface ArticleEditorProps {
+  initialValue: string;
+  onChange: (val: string) => void;
+  modules: any;
+}
+
+const ArticleEditor = React.memo(({ initialValue, onChange }: ArticleEditorProps) => {
+  return (
+    <TiptapEditor 
+      content={initialValue}
+      onChange={onChange}
+      placeholder="Start your narrative here..."
+    />
+  );
+});

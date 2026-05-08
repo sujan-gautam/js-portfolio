@@ -253,6 +253,89 @@ const AdminSettingsPage = () => {
                </CardContent>
             </Card>
 
+            {/* Author Profile Card (Displays on Post Pages) */}
+            <Card className="bg-white border border-slate-200 shadow-none rounded-lg overflow-hidden">
+               <CardHeader className="px-4 sm:px-6 py-4 border-b border-slate-100">
+                  <CardTitle className="text-xs font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-2">
+                    <User size={13} /> Post Author Profile
+                  </CardTitle>
+               </CardHeader>
+               <CardContent className="p-4 sm:p-6 space-y-5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                       <Label className="text-xs font-medium text-slate-700">Author Name</Label>
+                       <Input 
+                         value={settings.authorName || ""} 
+                         onChange={e => setSettings({ ...settings, authorName: e.target.value })} 
+                         className="h-10 bg-white border-slate-200 rounded-md text-sm" 
+                       />
+                    </div>
+                    <div className="space-y-1.5">
+                       <Label className="text-xs font-medium text-slate-700">Author Title</Label>
+                       <Input 
+                         value={settings.authorTitle || ""} 
+                         onChange={e => setSettings({ ...settings, authorTitle: e.target.value })} 
+                         className="h-10 bg-white border-slate-200 rounded-md text-sm" 
+                       />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                     <div className="flex items-center justify-between">
+                        <Label className="text-xs font-medium text-slate-700">Author Bio</Label>
+                        <AIRefineButton 
+                           value={settings.authorBio || ""} 
+                           onRefine={(v) => setSettings({ ...settings, authorBio: v })} 
+                           context="Short professional author biography for post pages"
+                        />
+                     </div>
+                     <textarea
+                         value={settings.authorBio || ""}
+                         onChange={e => setSettings({ ...settings, authorBio: e.target.value })}
+                        className="w-full h-24 p-3 bg-white border border-slate-200 rounded-md outline-none text-sm text-slate-800 leading-relaxed focus:border-slate-400 focus:ring-2 focus:ring-slate-100 transition-all resize-none"
+                     />
+                  </div>
+
+                  <div className="space-y-1.5 pt-2">
+                     <Label className="text-xs font-medium text-slate-700">Author Image</Label>
+                     <div className="flex gap-4 items-center">
+                        <div className="w-16 h-16 rounded-lg bg-slate-100 border border-slate-200 overflow-hidden flex-shrink-0 flex items-center justify-center">
+                           {settings.authorImage ? (
+                             <img src={settings.authorImage} alt="" className="w-full h-full object-cover" />
+                           ) : (
+                             <User size={20} className="text-slate-400" />
+                           )}
+                        </div>
+                        <div className="flex-1 space-y-2">
+                           <div className="flex gap-2">
+                              <Input 
+                                placeholder="https://" 
+                                value={settings.authorImage || ""} 
+                                onChange={e => setSettings({ ...settings, authorImage: e.target.value })} 
+                                className="h-9 bg-white border-slate-200 rounded-md text-sm" 
+                              />
+                              <label className="h-9 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md cursor-pointer transition-colors border border-slate-200 flex items-center justify-center shrink-0 relative overflow-hidden">
+                                 <Upload size={14} />
+                                 <input type="file" className="hidden" onChange={async (e) => {
+                                   const f = e.target.files?.[0]; if (!f) return;
+                                   toast.info("Uploading author image...");
+                                   try {
+                                     const url = await uploadFileChunked(f);
+                                     setSettings({ ...settings, authorImage: url });
+                                     toast.success("Author image uploaded");
+                                   } catch (err: any) {
+                                     toast.error(err.message || "Upload failed");
+                                   }
+                                 }} />
+                              </label>
+                           </div>
+                           <p className="text-[10px] text-slate-500">Displays at the bottom of every individual post page.</p>
+                        </div>
+                     </div>
+                  </div>
+               </CardContent>
+            </Card>
+
             {/* SEO Settings Card */}
             <Card className="bg-white border border-slate-200 shadow-none rounded-lg overflow-hidden">
                <CardHeader className="px-6 py-4 border-b border-slate-100 flex items-center justify-between flex-row space-y-0">

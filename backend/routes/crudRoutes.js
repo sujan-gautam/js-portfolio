@@ -99,20 +99,34 @@ router.post("/feed/posts/:id/poll/vote", async (req, res) => {
 router.post("/feed/posts/:id/react", checkBan, async (req, res) => {
   try {
     const ip = req.ip || req.connection.remoteAddress || "unknown";
-    const postObj = await Models.Feed.findById(req.params.id);
+    const { id } = req.params;
+    const { type } = req.body;
+
+    // Allowed reactions (union of Feed and BlogPost allowed types)
+    const allowed = ["heart", "fire", "like", "wow", "sad", "insightful"];
+    if (!allowed.includes(type)) return res.status(400).json({ error: "Invalid reaction" });
+
+    // Try finding in Feed first
+    let postObj = await Models.Feed.findById(id);
+    let Model = Models.Feed;
+
+    if (!postObj) {
+      // Try finding in BlogPost
+      postObj = await Models.BlogPost.findById(id);
+      Model = Models.BlogPost;
+    }
+
     if (!postObj) return res.status(404).json({ error: "Post not found" });
     if (postObj.reactedIPs?.includes(ip)) return res.status(403).json({ error: "Already reacted! ✨" });
 
-    const { type } = req.body;
-    const allowed = ["heart", "fire", "like", "wow", "sad"];
-    if (!allowed.includes(type)) return res.status(400).json({ error: "Invalid reaction" });
-    
     const inc = {};
     inc[`reactions.${type}`] = 1;
-    const updated = await Models.Feed.findByIdAndUpdate(req.params.id, { 
+    
+    const updated = await Model.findByIdAndUpdate(id, { 
       $inc: inc,
       $push: { reactedIPs: ip } 
     }, { new: true });
+    
     res.json(updated);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -121,13 +135,24 @@ router.post("/feed/posts/:id/react", checkBan, async (req, res) => {
 router.post("/feed/posts/:id/comment", checkBan, async (req, res) => {
   try {
     const ip = req.ip || req.connection.remoteAddress || "unknown";
-    const postObj = await Models.Feed.findById(req.params.id);
-    if (!postObj) return res.status(404).json({ error: "Post not found" });
+    const { id } = req.params;
     const { text, author, avatar, votersId } = req.body;
     if (!text) return res.status(400).json({ error: "Comment text required" });
+
+    // Try Feed collection
+    let postObj = await Models.Feed.findById(id);
+    let Model = Models.Feed;
+
+    if (!postObj) {
+      // Try BlogPost collection
+      postObj = await Models.BlogPost.findById(id);
+      Model = Models.BlogPost;
+    }
+
+    if (!postObj) return res.status(404).json({ error: "Post not found" });
     
-    const updated = await Models.Feed.findByIdAndUpdate(
-      req.params.id,
+    const updated = await Model.findByIdAndUpdate(
+      id,
       { $push: { comments: { text, author: author || "Visitor", avatar, ip, votersId: votersId || "unknown", createdAt: new Date() } } },
       { new: true }
     );
@@ -137,14 +162,28 @@ router.post("/feed/posts/:id/comment", checkBan, async (req, res) => {
 
 router.post("/feed/posts/:id/view", async (req, res) => {
   try {
-    const post = await Models.Feed.findByIdAndUpdate(req.params.id, { $inc: { views: 1 } }, { new: true });
+    const { id } = req.params;
+    // Try Feed collection
+    let post = await Models.Feed.findByIdAndUpdate(id, { $inc: { views: 1 } }, { new: true });
+    if (!post) {
+      // Try BlogPost collection
+      post = await Models.BlogPost.findByIdAndUpdate(id, { $inc: { views: 1 } }, { new: true });
+    }
+    if (!post) return res.status(404).json({ error: "Post not found" });
     res.json({ views: post.views });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.post("/feed/posts/:id/share", async (req, res) => {
   try {
-    const post = await Models.Feed.findByIdAndUpdate(req.params.id, { $inc: { shares: 1 } }, { new: true });
+    const { id } = req.params;
+    // Try Feed collection
+    let post = await Models.Feed.findByIdAndUpdate(id, { $inc: { shares: 1 } }, { new: true });
+    if (!post) {
+      // Try BlogPost collection
+      post = await Models.BlogPost.findByIdAndUpdate(id, { $inc: { shares: 1 } }, { new: true });
+    }
+    if (!post) return res.status(404).json({ error: "Post not found" });
     res.json({ shares: post.shares });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -274,7 +313,11 @@ const collectionMap = {
   music: Models.Music,
   updates: Models.Update,
   skills: Models.Skill,
-  courtesy: Models.Courtesy
+  courtesy: Models.Courtesy,
+  blog_posts: Models.BlogPost,
+  blog_categories: Models.BlogCategory,
+  blog_tags: Models.BlogTag,
+  blog_ideas: Models.BlogIdea
 };
 
 // Generic CRUD endpoints

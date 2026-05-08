@@ -9,7 +9,14 @@ export interface PollOption { id: string; label: string; votes: number; voters: 
 export interface FeedComment { id: string; text: string; author: string; avatar?: string; votersId?: string; ip?: string; createdAt: string; reactions: { heart: number; fire: number; laugh: number }; }
 export interface FeedPost {
   id: string;
-  type: "text" | "image" | "poll" | "video" | "reel";
+  type: "text" | "image" | "poll" | "video" | "reel" | "article";
+  category?: "blog" | "research" | string;
+  articleTitle?: string;
+  articleCover?: string;
+  articleContent?: string;
+  readTime?: number;
+  seoTitle?: string;
+  seoDescription?: string;
   content?: string;
   videoUrl?: string;
   image?: string;
@@ -131,6 +138,83 @@ export interface CourtesyItem { id: string; name: string; role: string; message:
 export interface AboutData { name: string; title: string; bio: string; phone: string; email: string; address: string; dob: string; nationality: string; languages: string; experience: string; clients: string; projects: string; }
 export interface AdminSettings { siteName: string; siteDescription: string; courtesyDescription: string; quoteEnabled: boolean; maintenanceMode: boolean; analyticsId: string; socialLinks: { platform: string; url: string }[]; seoKeywords?: string; seoAuthor?: string; ogImage?: string; seoThemeColor?: string; feedProfileName?: string; feedProfileImage?: string; }
 
+// ── Blog System Interfaces ──────────────────────────────
+export interface BlogCategory {
+  id: string;
+  name: string;
+  description?: string;
+  slug: string;
+  parent?: string;
+  createdAt: string;
+}
+
+export interface BlogTag {
+  id: string;
+  name: string;
+  slug: string;
+  createdAt: string;
+}
+
+export interface BlogPost {
+  id: string;
+  title: string;
+  slug: string;
+  content: string;
+  excerpt?: String;
+  featuredImage?: string;
+  images?: {
+    url: string;
+    alt: string;
+    caption?: string;
+  }[];
+  attachments?: {
+    name: string;
+    url: string;
+    size: number;
+    fileType: string;
+  }[];
+  category?: string; // ID
+  tags?: string[]; // IDs
+  author?: string; // ID
+  status: "Draft" | "Published" | "Scheduled";
+  publishedAt?: string;
+  emotionalTone?: "Reflective" | "Analytical" | "Storytelling" | "Philosophical" | "None";
+  perspectiveType?: "First-person" | "Third-person" | "Mixed" | "None";
+  readTime?: number;
+  wordCount?: number;
+  seo?: {
+    title?: string;
+    description?: string;
+    keywords?: string;
+    ogImage?: string;
+    canonicalUrl?: string;
+  };
+  views: number;
+  reactions: {
+    heart: number;
+    fire: number;
+    like: number;
+    insightful: number;
+  };
+  comments: any[];
+  versionHistory?: { content: string; updatedAt: string }[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BlogIdea {
+  id: string;
+  title: string;
+  notes: string;
+  emotions: string[];
+  sourceType: "Personal Experience" | "Observation" | "Research" | "Quote" | "Other";
+  status: "Idea" | "Researching" | "Writing" | "Published";
+  references: { title: string; url?: string; notes?: string; type: string }[];
+  isPrivate: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2);
 }
@@ -203,6 +287,11 @@ export const musicDB = createCRUD<MusicItem>("music");
 export const updatesDB = createCRUD<UpdateItem>("updates");
 export const skillsDB = createCRUD<SkillItem>("skills");
 export const courtesyDB = createCRUD<CourtesyItem>("courtesy");
+
+export const blogPostsDB = createCRUD<BlogPost>("blog_posts");
+export const blogCategoriesDB = createCRUD<BlogCategory>("blog_categories");
+export const blogTagsDB = createCRUD<BlogTag>("blog_tags");
+export const blogIdeasDB = createCRUD<BlogIdea>("blog_ideas");
 
 export const aboutDB = {
   get: async (): Promise<AboutData> => {
