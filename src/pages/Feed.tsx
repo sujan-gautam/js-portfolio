@@ -425,10 +425,12 @@ const PostCard = ({
             // Dynamically update the browser URL for deep-linking/sharing
             window.history.replaceState(null, '', `?post=${post.id}`);
 
-            if (videoRef.current) {
+            const isGated = post.membersOnly && !user;
+
+            if (videoRef.current && !isGated) {
               videoRef.current.play().catch(() => {});
             }
-            if (post.musicVideoId) {
+            if (post.musicVideoId && !isGated) {
               setMusicData({
                 id: post.id,
                 videoId: post.musicVideoId,
@@ -455,10 +457,10 @@ const PostCard = ({
 
   // Handle auto-play when carousel index changes
   useEffect(() => {
-    if (videoRef.current) {
+    if (videoRef.current && !(post.membersOnly && !user)) {
       videoRef.current.play().catch(() => {});
     }
-  }, [activeIndex]);
+  }, [activeIndex, post.membersOnly, user]);
 
   const formatCount = (num: number) => {
     if (num >= 1000000) return (num / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
@@ -473,6 +475,8 @@ const PostCard = ({
 
   const openFullscreen = (e: React.MouseEvent, url?: string) => {
     e.stopPropagation();
+    if (post.membersOnly && !user) return;
+    
     if (url) setActiveVideoUrl(url);
     else setActiveVideoUrl(post.videoUrl || "");
     // Pause the inline video when opening fullscreen
@@ -527,6 +531,7 @@ const PostCard = ({
   };
 
   const handleReact = async (type: string) => {
+    if (post.membersOnly && !user) return;
     if (type === "like") {
        const hearts = Array.from({ length: 10 }).map((_, i) => ({
          id: Date.now() + i,
@@ -564,6 +569,7 @@ const PostCard = ({
   };
 
   const handleShare = async () => {
+    if (post.membersOnly && !user) return;
     try {
       await feedAPI.trackShare(post.id);
       setPost(p => ({ ...p, shares: (p.shares || 0) + 1 }));
