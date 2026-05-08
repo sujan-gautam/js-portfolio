@@ -120,9 +120,10 @@ app.get("/api/sitemap.xml", async (req, res) => {
     { url: `${SITE}/feed/`,     priority: "0.9", freq: "daily" },
     { url: `${SITE}/portfolio/`,priority: "0.9", freq: "weekly" },
     { url: `${SITE}/contact/`,  priority: "0.7", freq: "yearly" },
+    { url: `${SITE}/blog/`,     priority: "0.9", freq: "daily" },
   ];
 
-  let feedUrls = [], storyUrls = [];
+  let feedUrls = [], storyUrls = [], blogUrls = [];
   try {
     const posts = await Models.Feed.find({ published: true }, "_id createdAt caption images image").lean();
     feedUrls = posts.map(p => {
@@ -153,6 +154,18 @@ app.get("/api/sitemap.xml", async (req, res) => {
     });
   } catch (e) { console.error("Sitemap story error:", e.message); }
 
+  try {
+    const blogs = await Models.BlogPost.find({ status: "Published" }, "slug title featuredImage updatedAt createdAt").lean();
+    blogUrls = blogs.map(b => ({
+      url: `${SITE}/blog/${b.slug}`,
+      lastmod: (b.updatedAt || b.createdAt) ? new Date(b.updatedAt || b.createdAt).toISOString().split("T")[0] : today,
+      priority: "0.8",
+      freq: "weekly",
+      image: b.featuredImage || null,
+      title: b.title
+    }));
+  } catch (e) { console.error("Sitemap blog error:", e.message); }
+
   const renderUrl = (entry) => `
   <url>
     <loc>${entry.url}</loc>
@@ -172,6 +185,7 @@ app.get("/api/sitemap.xml", async (req, res) => {
 ${staticPages.map(p => renderUrl({ ...p, lastmod: today })).join("")}
 ${feedUrls.map(renderUrl).join("")}
 ${storyUrls.map(renderUrl).join("")}
+${blogUrls.map(renderUrl).join("")}
 </urlset>`;
 
   res.setHeader("Content-Type", "application/xml");
