@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { blogPostsDB, BlogPost, blogCategoriesDB, BlogCategory } from "@/lib/adminData";
-import { BookOpen, Calendar, Clock, ChevronRight, Search, Tag, Loader2, ArrowRight } from "lucide-react";
+import { BookOpen, Calendar, Clock, ChevronRight, Search, Tag, Loader2, ArrowRight, Lock } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -131,6 +131,11 @@ const Blog = () => {
                   <div className="p-8 md:p-12 flex flex-col justify-center">
                     <div className="flex items-center gap-3 mb-6">
                       <span className="px-3 py-1 bg-indigo-50 text-indigo-600 rounded-full text-[10px] font-bold uppercase tracking-wider">Featured Narrative</span>
+                      {featuredPost.membersOnly && (
+                        <span className="px-3 py-1 bg-amber-50 text-amber-600 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5">
+                          <Lock size={10} /> Members Only
+                        </span>
+                      )}
                       <span className="text-slate-400 text-xs flex items-center gap-1"><Clock size={12} /> {featuredPost.readTime} min read</span>
                     </div>
                     <h2 className="text-3xl md:text-4xl font-extrabold text-slate-900 mb-4 group-hover:text-indigo-600 transition-colors leading-tight">
@@ -169,10 +174,15 @@ const Blog = () => {
                         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" 
                         alt={post.title}
                       />
-                      <div className="absolute top-4 left-4">
+                      <div className="absolute top-4 left-4 flex flex-col gap-2">
                         <span className="bg-white/90 backdrop-blur-sm text-slate-900 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider">
                           {categories.find(c => c.id === post.category)?.name || "Article"}
                         </span>
+                        {post.membersOnly && (
+                          <span className="bg-amber-500/90 backdrop-blur-sm text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider flex items-center gap-1.5 w-fit">
+                            <Lock size={10} /> Members
+                          </span>
+                        )}
                       </div>
                     </div>
                     <div className="p-6 flex flex-col flex-1">

@@ -94,6 +94,7 @@ const FeedSchema = new mongoose.Schema({
   },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
+  membersOnly: { type: Boolean, default: false },
 }, { strict: false });
 
 const BlogCategorySchema = new mongoose.Schema({
@@ -156,7 +157,8 @@ const BlogPostSchema = new mongoose.Schema({
     updatedAt: { type: Date, default: Date.now }
   }],
   createdAt: { type: Date, default: Date.now },
-  updatedAt: { type: Date, default: Date.now }
+  updatedAt: { type: Date, default: Date.now },
+  membersOnly: { type: Boolean, default: false }
 }, { strict: false });
 
 const BlogIdeaSchema = new mongoose.Schema({

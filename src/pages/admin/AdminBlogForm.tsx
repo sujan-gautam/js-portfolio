@@ -716,6 +716,19 @@ const AdminBlogForm = () => {
                   onCheckedChange={(val) => setFormData(p => ({ ...p, status: val ? "Published" : "Draft" }))} 
                 />
               </div>
+
+              <div className="flex items-center justify-between p-3 bg-indigo-50/50 rounded-lg border border-indigo-100">
+                <div>
+                  <p className="text-xs font-bold text-slate-800 uppercase tracking-tight flex items-center gap-2">
+                    Members Only <Lock size={12} className="text-indigo-500" />
+                  </p>
+                  <p className="text-[10px] text-indigo-400 font-medium">Require login to read full narrative</p>
+                </div>
+                <Switch 
+                  checked={formData.membersOnly || false} 
+                  onCheckedChange={(val) => setFormData(p => ({ ...p, membersOnly: val }))} 
+                />
+              </div>
             </div>
           </Card>
           <Card className="p-6 border-slate-200 rounded-xl shadow-sm bg-white">

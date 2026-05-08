@@ -198,6 +198,7 @@ export interface BlogPost {
   };
   comments: any[];
   versionHistory?: { content: string; updatedAt: string }[];
+  membersOnly?: boolean;
   createdAt: string;
   updatedAt: string;
 }

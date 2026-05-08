@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import axios from "axios";
 import { API_BASE } from "@/config";
-import { ArrowLeft, Calendar, Eye, Heart, Share2 } from "lucide-react";
+import { ArrowLeft, Calendar, Eye, Heart, Share2, Lock } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 
 const SITE = "https://sujan1919.com.np";
 
@@ -26,12 +27,18 @@ function removeJsonLd(id: string) {
 
 /* ─── Feed Post Page ─────────────────────────────── */
 export const FeedPostPage = () => {
+  const { user } = useAuth();
   const { id } = useParams<{ id: string }>();
   const [post, setPost] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   const [settings, setSettings] = useState<any>(null);
   const [sliders, setSliders] = useState<any[]>([]);
+
+  const handleGoogleLogin = () => {
+    localStorage.setItem("auth_return", window.location.pathname);
+    window.location.href = `${API_BASE}/auth/google`;
+  };
 
   useEffect(() => {
     // Fetch Settings
@@ -182,17 +189,41 @@ export const FeedPostPage = () => {
                 {post.articleTitle}
               </h1>
               
-              {post.articleCover && (
-                <div className="relative group">
-                  <div className="absolute inset-0 bg-[#CB2729]/10 rounded-[32px] blur-3xl opacity-50" />
-                  <img src={post.articleCover} alt={post.articleTitle} className="relative w-full rounded-[32px] object-cover shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-white/5 max-h-[65vh]" loading="eager" />
+              {post.membersOnly && !user ? (
+                <div className="relative overflow-hidden rounded-[32px] bg-white/5 flex flex-col items-center justify-center py-24 px-8 text-center border border-white/10 shadow-2xl">
+                  <div className="absolute inset-0 bg-[#CB2729]/5 blur-3xl opacity-20 z-0" />
+                  <div className="relative z-10 flex flex-col items-center">
+                    <div className="w-20 h-20 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-8 shadow-xl">
+                      <Lock size={32} className="text-[#CB2729]" />
+                    </div>
+                    <h3 className="text-2xl font-bold text-white mb-4 tracking-tight">Members Only Insight</h3>
+                    <p className="text-white/40 text-sm mb-10 max-w-[320px] leading-relaxed">
+                      This research article is exclusive to members. Sign in to unlock the full depth of this narrative.
+                    </p>
+                    <button 
+                      onClick={handleGoogleLogin}
+                      className="h-14 px-8 bg-white text-black font-bold text-sm rounded-2xl transition-all shadow-xl flex items-center gap-4 hover:scale-105 active:scale-95"
+                    >
+                      <img src="https://www.google.com/favicon.ico" className="w-5 h-5 bg-white rounded-full p-0.5" alt="google" />
+                      Continue with Google
+                    </button>
+                  </div>
                 </div>
+              ) : (
+                <>
+                  {post.articleCover && (
+                    <div className="relative group">
+                      <div className="absolute inset-0 bg-[#CB2729]/10 rounded-[32px] blur-3xl opacity-50" />
+                      <img src={post.articleCover} alt={post.articleTitle} className="relative w-full rounded-[32px] object-cover shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-white/5 max-h-[65vh]" loading="eager" />
+                    </div>
+                  )}
+                  
+                  <div 
+                    className="prose prose-lg md:prose-xl prose-invert max-w-none prose-headings:text-white prose-p:text-white/70 prose-p:leading-[1.8] prose-p:font-normal prose-a:text-[#CB2729] prose-a:no-underline hover:prose-a:underline prose-strong:text-white prose-blockquote:border-l-4 prose-blockquote:border-[#CB2729] prose-blockquote:bg-white/5 prose-blockquote:py-2 prose-blockquote:px-8 prose-blockquote:rounded-r-2xl prose-img:rounded-[24px]" 
+                    dangerouslySetInnerHTML={{ __html: post.articleContent || post.content || "" }} 
+                  />
+                </>
               )}
-              
-              <div 
-                className="prose prose-lg md:prose-xl prose-invert max-w-none prose-headings:text-white prose-p:text-white/70 prose-p:leading-[1.8] prose-p:font-normal prose-a:text-[#CB2729] prose-a:no-underline hover:prose-a:underline prose-strong:text-white prose-blockquote:border-l-4 prose-blockquote:border-[#CB2729] prose-blockquote:bg-white/5 prose-blockquote:py-2 prose-blockquote:px-8 prose-blockquote:rounded-r-2xl prose-img:rounded-[24px]" 
-                dangerouslySetInnerHTML={{ __html: post.articleContent || post.content || "" }} 
-              />
             </div>
           ) : (
             <>
@@ -216,7 +247,17 @@ export const FeedPostPage = () => {
               {/* Content */}
               <div className="space-y-4">
                 {post.caption && <h1 className="text-2xl font-bold text-white leading-snug">{post.caption}</h1>}
-                {post.content && <p className="text-white/70 leading-relaxed whitespace-pre-wrap">{post.content}</p>}
+                
+                {post.membersOnly && !user ? (
+                  <div className="p-10 bg-white/5 rounded-2xl border border-white/10 text-center">
+                    <Lock className="mx-auto mb-4 text-[#CB2729]" size={32} />
+                    <p className="text-white font-bold mb-2">Members Only</p>
+                    <p className="text-white/40 text-sm mb-6">Login to view this private post</p>
+                    <button onClick={handleGoogleLogin} className="px-6 py-2 bg-white text-black font-bold rounded-full text-xs">Sign In</button>
+                  </div>
+                ) : (
+                  post.content && <p className="text-white/70 leading-relaxed whitespace-pre-wrap">{post.content}</p>
+                )}
               </div>
             </>
           )}

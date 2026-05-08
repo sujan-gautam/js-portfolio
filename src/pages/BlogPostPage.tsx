@@ -14,16 +14,25 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import SEO from "@/components/SEO";
+import { useAuth } from "@/context/AuthContext";
+import { API_BASE } from "@/config";
+import { Lock } from "lucide-react";
 
 const BlogPostPage = () => {
   const { slug } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [post, setPost] = useState<BlogPost | null>(null);
   const [category, setCategory] = useState<BlogCategory | null>(null);
   const [relatedPosts, setRelatedPosts] = useState<BlogPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [commentText, setCommentText] = useState("");
   const [isLiked, setIsLiked] = useState(false);
+
+  const handleGoogleLogin = () => {
+    localStorage.setItem("auth_return", window.location.pathname);
+    window.location.href = `${API_BASE}/auth/google`;
+  };
 
   useEffect(() => {
     const loadPost = async () => {
@@ -159,9 +168,31 @@ const BlogPostPage = () => {
         )}
 
         {/* Article Body */}
-        <article className="prose prose-indigo prose-lg md:prose-xl max-w-none prose-headings:text-slate-900 prose-p:text-slate-600 prose-p:leading-relaxed prose-strong:text-slate-900 prose-blockquote:border-indigo-500 prose-blockquote:bg-indigo-50/30 prose-blockquote:p-6 prose-blockquote:rounded-r-xl prose-img:rounded-3xl mb-20">
-          <div dangerouslySetInnerHTML={{ __html: post.content.replace(/\n/g, '<br />') }} />
-        </article>
+        {post.membersOnly && !user ? (
+          <div className="relative overflow-hidden rounded-[32px] bg-slate-50 flex flex-col items-center justify-center py-24 px-8 text-center border border-slate-100 shadow-2xl shadow-indigo-500/5">
+            <div className="absolute inset-0 bg-white/40 backdrop-blur-3xl z-0" />
+            <div className="relative z-10 flex flex-col items-center">
+              <div className="w-20 h-20 rounded-full bg-white border border-slate-200 flex items-center justify-center mb-8 shadow-xl">
+                <Lock size={32} className="text-indigo-600" />
+              </div>
+              <h3 className="text-2xl font-extrabold text-slate-900 mb-4 tracking-tight">Exclusive Content</h3>
+              <p className="text-slate-500 text-sm mb-10 max-w-[320px] leading-relaxed">
+                This narrative is reserved for the community. Please sign in to read the full insight and join the discussion.
+              </p>
+              <Button 
+                onClick={handleGoogleLogin}
+                className="h-14 px-8 bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm rounded-2xl transition-all shadow-xl flex items-center gap-4 hover:scale-105 active:scale-95"
+              >
+                <img src="https://www.google.com/favicon.ico" className="w-5 h-5 bg-white rounded-full p-0.5" alt="google" />
+                Continue with Google
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <article className="prose prose-indigo prose-lg md:prose-xl max-w-none prose-headings:text-slate-900 prose-p:text-slate-600 prose-p:leading-relaxed prose-strong:text-slate-900 prose-blockquote:border-indigo-500 prose-blockquote:bg-indigo-50/30 prose-blockquote:p-6 prose-blockquote:rounded-r-xl prose-img:rounded-3xl mb-20">
+            <div dangerouslySetInnerHTML={{ __html: post.content.replace(/\n/g, '<br />') }} />
+          </article>
+        )}
 
         {/* Post Actions */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-8 py-10 border-t border-slate-100 mb-20">
