@@ -19,4 +19,10 @@ axios.interceptors.response.use((response) => {
   return response;
 });
 
-createRoot(document.getElementById("root")!).render(<App />);
+import { HelmetProvider } from 'react-helmet-async';
+
+createRoot(document.getElementById("root")!).render(
+  <HelmetProvider>
+    <App />
+  </HelmetProvider>
+);

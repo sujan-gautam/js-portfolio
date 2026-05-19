@@ -1,55 +1,69 @@
-import { useEffect } from "react";
-import { settingsDB } from "@/lib/adminData";
+import { Helmet } from 'react-helmet-async';
 
-export default function SEO() {
-  useEffect(() => {
-    settingsDB.get().then(settings => {
-      if (settings.siteName) {
-        document.title = settings.siteName;
-      }
-      
-      const updateMeta = (name: string, content: string, isOpengraph = false) => {
-        if (!content) return;
-        const attr = isOpengraph ? 'property' : 'name';
-        let el = document.querySelector(`meta[${attr}="${name}"]`);
-        if (!el) {
-          el = document.createElement('meta');
-          el.setAttribute(attr, name);
-          document.head.appendChild(el);
-        }
-        el.setAttribute('content', content);
-      };
-
-      updateMeta('description', settings.siteDescription);
-      updateMeta('keywords', settings.seoKeywords || "");
-      updateMeta('author', settings.seoAuthor || "");
-      updateMeta('theme-color', settings.seoThemeColor || "#CB2729");
-      
-      updateMeta('og:title', settings.seoTitle || settings.siteName, true);
-      updateMeta('og:description', settings.siteDescription, true);
-      updateMeta('og:image', settings.ogImage || "", true);
-      updateMeta('og:type', settings.ogType || 'website', true);
-
-      updateMeta('twitter:card', 'summary_large_image');
-      updateMeta('twitter:title', settings.seoTitle || settings.siteName);
-      updateMeta('twitter:description', settings.siteDescription);
-      updateMeta('twitter:image', settings.ogImage || "");
-      if (settings.twitterHandle) {
-        updateMeta('twitter:creator', settings.twitterHandle);
-      }
-
-      // Update Favicon
-      if (settings.favicon) {
-        let link: HTMLLinkElement | null = document.querySelector("link[rel*='icon']");
-        if (!link) {
-          link = document.createElement('link');
-          link.rel = 'icon';
-          document.head.appendChild(link);
-        }
-        link.href = settings.favicon;
-      }
-    }).catch(err => console.error("Failed to load SEO settings", err));
-  }, []);
-
-  return null;
+interface SEOProps {
+  title?: string;
+  description?: string;
+  type?: 'website' | 'article' | 'profile' | 'video.other';
+  image?: string;
+  video?: string;
+  url?: string;
+  publishedTime?: string;
+  structuredData?: any;
 }
+
+export const SEO = ({
+  title = 'Sujan Gautam | Senior Software Developer & UI Architect',
+  description = 'Official portfolio of Sujan Gautam. High-fidelity UI/UX design, scalable backend systems, and cutting-edge web technologies.',
+  type = 'website',
+  image = 'https://sujan1919.com.np/assets/logo.png',
+  video,
+  url = 'https://sujan1919.com.np',
+  publishedTime,
+  structuredData
+}: SEOProps) => {
+  return (
+    <Helmet>
+      {/* Basic HTML Meta Tags */}
+      <title>{title}</title>
+      <meta name="description" content={description} />
+      
+      {/* Canonical Link */}
+      <link rel="canonical" href={url} />
+
+      {/* Open Graph / Facebook */}
+      <meta property="og:type" content={type} />
+      <meta property="og:url" content={url} />
+      <meta property="og:title" content={title} />
+      <meta property="og:description" content={description} />
+      <meta property="og:image" content={image} />
+      
+      {/* Open Graph Video */}
+      {video && <meta property="og:video" content={video} />}
+      {video && <meta property="og:video:type" content="video/mp4" />}
+
+      {/* Open Graph Article metadata */}
+      {type === 'article' && publishedTime && (
+        <meta property="article:published_time" content={publishedTime} />
+      )}
+      {type === 'article' && (
+        <meta property="article:author" content="Sujan Gautam" />
+      )}
+
+      {/* Twitter */}
+      <meta property="twitter:card" content="summary_large_image" />
+      <meta property="twitter:url" content={url} />
+      <meta property="twitter:title" content={title} />
+      <meta property="twitter:description" content={description} />
+      <meta property="twitter:image" content={image} />
+
+      {/* Structured Data (JSON-LD) for Google Rich Snippets */}
+      {structuredData && (
+        <script type="application/ld+json">
+          {JSON.stringify(structuredData)}
+        </script>
+      )}
+    </Helmet>
+  );
+};
+
+export default SEO;

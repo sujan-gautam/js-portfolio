@@ -439,18 +439,26 @@ router.post("/visitors/track", async (req, res) => {
     let location = req.body.location && req.body.location.city ? req.body.location : {};
 
     if (!location.city) {
-      // Backend fallback for bots/crawlers (uses ipapi.co)
+      // Backend fallback for bots/crawlers — uses ip-api.com (free, no key, richest fields)
       try {
-        const geo = await axios.get(`https://ipapi.co/${ip}/json/`);
-        if (geo.data && !geo.data.error) {
+        const geo = await axios.get(`http://ip-api.com/json/${ip}?fields=status,country,countryCode,region,regionName,city,district,zip,lat,lon,timezone,isp,org,as,query`, { timeout: 6000 });
+        if (geo.data?.status === "success") {
           location = {
-            city: geo.data.city,
-            country: geo.data.country_name,
-            countryCode: geo.data.country_code,
-            region: geo.data.region,
-            lat: geo.data.latitude,
-            lon: geo.data.longitude,
-            isp: geo.data.org || ""
+            ip:          geo.data.query,
+            city:        geo.data.city,
+            district:    geo.data.district,
+            region:      geo.data.regionName,
+            regionCode:  geo.data.region,
+            country:     geo.data.country,
+            countryCode: geo.data.countryCode,
+            postcode:    geo.data.zip,
+            lat:         geo.data.lat,
+            lon:         geo.data.lon,
+            timezone:    geo.data.timezone,
+            isp:         geo.data.isp,
+            org:         geo.data.org,
+            as:          geo.data.as,
+            source:      "ip-api-server"
           };
         }
       } catch (e) { console.error("Geo fallback failed:", e.message); }

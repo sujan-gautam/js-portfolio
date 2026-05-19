@@ -125,7 +125,8 @@ app.get("/api/sitemap.xml", async (req, res) => {
 
   let feedUrls = [], storyUrls = [], blogUrls = [];
   try {
-    const posts = await Models.Feed.find({ published: true }, "_id createdAt caption images image").lean();
+    // Fetching more fields: videoUrl, images, image, content
+    const posts = await Models.Feed.find({ published: true }, "_id createdAt caption content images image videoUrl").lean();
     feedUrls = posts.map(p => {
       const title = p.caption ? `${p.caption.slice(0, 70)} | Sujan Gautam` : "Professional Post | Sujan1919 Software Developer";
       return {
@@ -134,37 +135,54 @@ app.get("/api/sitemap.xml", async (req, res) => {
         priority: "0.9",
         freq: "daily",
         image: p.images?.[0] || p.image || null,
-        title: title
+        video: p.videoUrl || null,
+        title: title,
+        desc: p.caption || p.content?.replace(/<[^>]+>/g, '').substring(0, 150) || title
       };
     });
   } catch (e) { console.error("Sitemap feed error:", e.message); }
 
   try {
-    const stories = await Models.Story.find({}, "_id createdAt title mediaUrl").lean();
+    const stories = await Models.Story.find({}, "_id createdAt title mediaUrl type duration").lean();
     storyUrls = stories.map(s => {
       const title = s.title ? `${s.title} | Sujan Gautam Story` : "Exclusive Story | Sujan1919 Software Developer";
+      const isVideo = s.type === "video" || (s.mediaUrl && s.mediaUrl.match(/\.(mp4|webm|mov|ogg)$/));
       return {
         url: `${SITE}/story/${s._id}`,
         lastmod: s.createdAt ? new Date(s.createdAt).toISOString().split("T")[0] : today,
         priority: "0.8",
         freq: "weekly",
-        image: s.mediaUrl || null,
-        title: title
+        image: !isVideo ? s.mediaUrl : null,
+        video: isVideo ? s.mediaUrl : null,
+        title: title,
+        desc: title
       };
     });
   } catch (e) { console.error("Sitemap story error:", e.message); }
 
   try {
-    const blogs = await Models.BlogPost.find({ status: "Published" }, "slug title featuredImage updatedAt createdAt").lean();
+    const blogs = await Models.BlogPost.find({ status: "Published" }, "_id title excerpt featuredImage updatedAt createdAt").lean();
     blogUrls = blogs.map(b => ({
-      url: `${SITE}/blog/${b.slug}`,
+      url: `${SITE}/post/${b._id}`,
       lastmod: (b.updatedAt || b.createdAt) ? new Date(b.updatedAt || b.createdAt).toISOString().split("T")[0] : today,
       priority: "0.8",
       freq: "weekly",
       image: b.featuredImage || null,
-      title: b.title
+      title: b.title,
+      desc: b.excerpt || b.title
     }));
   } catch (e) { console.error("Sitemap blog error:", e.message); }
+
+  const escapeXml = (unsafe) => unsafe ? unsafe.replace(/[<>&'"]/g, (c) => {
+      switch (c) {
+          case '<': return '&lt;';
+          case '>': return '&gt;';
+          case '&': return '&amp;';
+          case '\'': return '&apos;';
+          case '"': return '&quot;';
+          default: return c;
+      }
+  }) : "";
 
   const renderUrl = (entry) => `
   <url>
@@ -174,14 +192,21 @@ app.get("/api/sitemap.xml", async (req, res) => {
     <priority>${entry.priority}</priority>${entry.image ? `
     <image:image>
       <image:loc>${entry.image}</image:loc>${entry.title ? `
-      <image:title>${entry.title.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;")}</image:title>` : ""}
-    </image:image>` : ""}
+      <image:title>${escapeXml(entry.title)}</image:title>` : ""}
+    </image:image>` : ""}${entry.video ? `
+    <video:video>
+      <video:thumbnail_loc>${entry.image || "https://sujan1919.com.np/favicon.png"}</video:thumbnail_loc>
+      <video:title>${escapeXml(entry.title)}</video:title>
+      <video:description>${escapeXml(entry.desc)}</video:description>
+      <video:content_loc>${entry.video}</video:content_loc>
+    </video:video>` : ""}
   </url>`;
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset
   xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
-  xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+  xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
+  xmlns:video="http://www.google.com/schemas/sitemap-video/1.1">
 ${staticPages.map(p => renderUrl({ ...p, lastmod: today })).join("")}
 ${feedUrls.map(renderUrl).join("")}
 ${storyUrls.map(renderUrl).join("")}

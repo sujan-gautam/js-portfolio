@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { visitorsDB, VisitorRecord } from "@/lib/adminData";
+import VisitorMap from "@/components/admin/VisitorMap";
 import {
   Users, Globe, Monitor, Activity, Clock, RefreshCcw,
   Trash2, Search, Laptop, Smartphone, Link,
   LayoutDashboard, Globe2, ChevronDown,
-  Timer, MousePointerClick, DoorOpen, DoorClosed, LineChart, MessageSquare, Send
+  Timer, MousePointerClick, DoorOpen, DoorClosed, LineChart, MessageSquare,
+  MapPin, Wifi, Building2, Navigation
 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
@@ -510,8 +512,26 @@ const AdminVisitors = () => {
                           <p className="text-[10px] text-slate-500 flex items-center gap-1">{deviceIcon(s.device)} {s.browser} · {s.os}</p>
                         </td>
                         <td className="px-4 py-3 align-top">
-                          <p className="text-slate-700">{s.location?.city ? `${s.location.city}, ${s.location.countryCode}` : s.location?.country || "Unknown"}</p>
-                          <p className="text-[10px] text-slate-500 max-w-[150px] truncate" title={s.location?.isp}>{s.location?.isp || "—"}</p>
+                          <div className="flex items-start gap-1">
+                            <MapPin size={11} className="text-rose-400 mt-0.5 shrink-0" />
+                            <div>
+                              <p className="text-slate-800 font-medium text-xs leading-snug">
+                                {[s.location?.city, s.location?.district].filter(Boolean).join(" · ") || "Unknown City"}
+                              </p>
+                              <p className="text-[10px] text-slate-500 leading-snug">
+                                {[s.location?.region, s.location?.countryCode].filter(Boolean).join(", ")}
+                              </p>
+                              {s.location?.postcode && <p className="text-[10px] text-slate-400">📮 {s.location.postcode}</p>}
+                              {s.location?.source === "gps" && (
+                                <span className="inline-flex items-center gap-0.5 text-[9px] bg-emerald-50 text-emerald-700 border border-emerald-200 rounded px-1 mt-0.5">
+                                  <Navigation size={8}/> GPS {s.location.accuracy ? `±${Math.round(s.location.accuracy)}m` : ""}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <p className="text-[10px] text-slate-400 mt-1 max-w-[170px] truncate" title={s.location?.isp}>
+                            {s.location?.isp || s.location?.org || "—"}
+                          </p>
                         </td>
                         <td className="px-4 py-3 align-top">
                           <div className="flex items-center gap-3">
@@ -541,8 +561,57 @@ const AdminVisitors = () => {
                       {expanded === s.id && (
                         <tr className="bg-slate-50/80">
                           <td colSpan={5} className="px-0 py-0 border-t border-slate-100">
-                             <div className="p-4 md:p-6 bg-white/50 border-l-2 border-indigo-500 m-2 rounded shadow-sm">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                             <div className="p-4 md:p-6 bg-white/50 border-l-2 border-indigo-500 m-2 rounded shadow-sm space-y-5">
+                               
+                               {/* ── INTERACTIVE MAP ── */}
+                               {s.location?.lat && s.location?.lon ? (
+                                 <div>
+                                   <div className="flex items-center justify-between mb-2">
+                                     <h4 className="text-xs font-semibold uppercase text-slate-500 tracking-wider flex items-center gap-1">
+                                       <MapPin size={11} className="text-rose-500"/> Live Location Map
+                                     </h4>
+                                     <div className="flex items-center gap-2">
+                                       {s.location?.source === "gps" ? (
+                                         <span className="inline-flex items-center gap-1 text-[9px] bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full px-2 py-0.5 font-semibold">
+                                           <Navigation size={8}/> GPS Precise {s.location.accuracy ? `±${Math.round(s.location.accuracy)}m` : ""}
+                                         </span>
+                                       ) : (
+                                         <span className="inline-flex items-center gap-1 text-[9px] bg-blue-50 text-blue-700 border border-blue-200 rounded-full px-2 py-0.5 font-semibold">
+                                           <Globe size={8}/> IP-based location
+                                         </span>
+                                       )}
+                                       <a
+                                         href={`https://www.google.com/maps?q=${s.location.lat},${s.location.lon}`}
+                                         target="_blank"
+                                         rel="noopener noreferrer"
+                                         className="text-[10px] text-indigo-600 hover:underline font-medium flex items-center gap-0.5"
+                                       >
+                                         Open in Google Maps ↗
+                                       </a>
+                                     </div>
+                                   </div>
+                                   <div className="rounded-xl overflow-hidden border border-slate-200 shadow-sm">
+                                     <VisitorMap
+                                       lat={s.location.lat}
+                                       lon={s.location.lon}
+                                       label={[s.location?.city, s.location?.region, s.location?.country].filter(Boolean).join(", ")}
+                                       isGps={s.location?.source === "gps"}
+                                       accuracy={s.location?.accuracy}
+                                     />
+                                   </div>
+                                   <p className="text-[10px] text-slate-400 mt-1.5 text-center">
+                                     📍 {s.location.lat.toFixed(5)}, {s.location.lon.toFixed(5)}
+                                     {s.location?.postcode && ` · Postal: ${s.location.postcode}`}
+                                   </p>
+                                 </div>
+                               ) : (
+                                 <div className="h-24 bg-slate-50 rounded-xl border border-dashed border-slate-200 flex items-center justify-center">
+                                   <p className="text-xs text-slate-400">📍 No coordinates available for this visitor</p>
+                                 </div>
+                               )}
+
+                               {/* ── 3-COLUMN GRID ── */}
+                               <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                                    <div>
                                       <h4 className="text-xs font-semibold uppercase text-slate-500 tracking-wider mb-3">Session Timeline</h4>
                                       <div className="space-y-3 relative before:absolute before:inset-0 before:ml-2 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-indigo-500 before:via-slate-200 before:to-slate-200">
@@ -557,40 +626,113 @@ const AdminVisitors = () => {
                                          ))}
                                       </div>
                                    </div>
-                                   <div>
-                                      <h4 className="text-xs font-semibold uppercase text-slate-500 tracking-wider mb-3">Technical Details</h4>
-                                      <div className="grid grid-cols-2 gap-3 text-xs">
-                                         <div className="bg-white p-2 rounded border border-slate-100">
-                                            <p className="text-[10px] text-slate-400 mb-0.5">Start Time</p>
-                                            <p className="font-medium text-slate-700">{new Date(s.timestamp).toLocaleString()}</p>
+                                 <div className="space-y-4">
+                                       {/* Full Location Block */}
+                                       <div>
+                                         <h4 className="text-xs font-semibold uppercase text-slate-500 tracking-wider mb-2 flex items-center gap-1"><MapPin size={11}/> Location Details</h4>
+                                         <div className="grid grid-cols-2 gap-2 text-xs">
+                                           <div className="bg-white p-2 rounded border border-slate-100 col-span-2">
+                                             <p className="text-[10px] text-slate-400 mb-0.5">Full Address</p>
+                                             <p className="font-medium text-slate-700">
+                                               {s.location?.displayName ||
+                                                [s.location?.district, s.location?.city, s.location?.region, s.location?.country].filter(Boolean).join(", ") ||
+                                                "Unknown"}
+                                             </p>
+                                           </div>
+                                           <div className="bg-white p-2 rounded border border-slate-100">
+                                             <p className="text-[10px] text-slate-400 mb-0.5">City / District</p>
+                                             <p className="font-medium text-slate-700">{[s.location?.city, s.location?.district].filter(Boolean).join(" · ") || "—"}</p>
+                                           </div>
+                                           <div className="bg-white p-2 rounded border border-slate-100">
+                                             <p className="text-[10px] text-slate-400 mb-0.5">Region / State</p>
+                                             <p className="font-medium text-slate-700">{s.location?.region || "—"}</p>
+                                           </div>
+                                           <div className="bg-white p-2 rounded border border-slate-100">
+                                             <p className="text-[10px] text-slate-400 mb-0.5">Country</p>
+                                             <p className="font-medium text-slate-700">{s.location?.country || "—"} {s.location?.countryCode && `(${s.location.countryCode})`}</p>
+                                           </div>
+                                           <div className="bg-white p-2 rounded border border-slate-100">
+                                             <p className="text-[10px] text-slate-400 mb-0.5">Postal Code</p>
+                                             <p className="font-medium text-slate-700">{s.location?.postcode || "—"}</p>
+                                           </div>
+                                           <div className="bg-white p-2 rounded border border-slate-100">
+                                             <p className="text-[10px] text-slate-400 mb-0.5 flex items-center gap-0.5"><Wifi size={9}/> ISP</p>
+                                             <p className="font-medium text-slate-700 truncate" title={s.location?.isp}>{s.location?.isp || "—"}</p>
+                                           </div>
+                                           <div className="bg-white p-2 rounded border border-slate-100">
+                                             <p className="text-[10px] text-slate-400 mb-0.5 flex items-center gap-0.5"><Building2 size={9}/> Org / AS</p>
+                                             <p className="font-medium text-slate-700 truncate">{s.location?.org || s.location?.as || "—"}</p>
+                                           </div>
+                                           <div className="bg-white p-2 rounded border border-slate-100">
+                                             <p className="text-[10px] text-slate-400 mb-0.5">IP Address</p>
+                                             <p className="font-mono text-xs text-slate-700">{s.ip || "—"}</p>
+                                           </div>
+                                           <div className="bg-white p-2 rounded border border-slate-100">
+                                             <p className="text-[10px] text-slate-400 mb-0.5">Timezone</p>
+                                             <p className="font-medium text-slate-700">{s.location?.timezone || s.timezone || "—"}</p>
+                                           </div>
                                          </div>
-                                         <div className="bg-white p-2 rounded border border-slate-100">
-                                            <p className="text-[10px] text-slate-400 mb-0.5">Referrer</p>
-                                            <p className="font-medium text-slate-700 truncate">{s.referrer === "direct" || !s.referrer ? "Direct Traffic" : s.referrer}</p>
-                                         </div>
-                                         <div className="bg-white p-2 rounded border border-slate-100">
-                                            <p className="text-[10px] text-slate-400 mb-0.5">Max Scroll Depth</p>
-                                            <p className="font-medium text-slate-700">{s.maxScroll}%</p>
-                                         </div>
-                                         <div className="bg-white p-2 rounded border border-slate-100">
-                                            <p className="text-[10px] text-slate-400 mb-0.5">Total Clicks</p>
-                                            <p className="font-medium text-slate-700">{s.totalClicks}</p>
-                                         </div>
-                                         <div className="bg-white p-2 rounded border border-slate-100">
-                                            <p className="text-[10px] text-slate-400 mb-0.5">Network / Viewport</p>
-                                            <p className="font-medium text-slate-700">{s.connectionType || "Unknown"} / {s.viewport || s.screenResolution || "Unknown"}</p>
-                                         </div>
-                                         <div className="bg-white p-2 rounded border border-slate-100">
-                                            <p className="text-[10px] text-slate-400 mb-0.5">Timezone / Lang</p>
-                                            <p className="font-medium text-slate-700 truncate">{s.timezone || "Unknown"} / {s.language || "Unknown"}</p>
-                                         </div>
-                                      </div>
+                                       </div>
+                                 </div>
+
+                                 {/* Session Timeline */}
+                                 <div>
+                                   <h4 className="text-xs font-semibold uppercase text-slate-500 tracking-wider mb-3">Session Timeline</h4>
+                                   <div className="space-y-2">
+                                     {s.pages.map((p:any, i:number) => (
+                                       <div key={i} className="flex items-center gap-2 bg-white p-2 rounded border border-slate-100">
+                                         <div className="w-5 h-5 rounded-full bg-indigo-500 text-white flex items-center justify-center text-[9px] font-bold shrink-0">{i+1}</div>
+                                         <span className="font-mono text-xs text-indigo-700 truncate flex-1">{p.page}</span>
+                                         <span className="text-[10px] bg-slate-100 px-1.5 py-0.5 rounded text-slate-500 whitespace-nowrap">{formatTime(p.timeSpent)}</span>
+                                       </div>
+                                     ))}
                                    </div>
-                                </div>
-                             </div>
-                          </td>
-                        </tr>
-                      )}
+                                 </div>
+
+                                 {/* Technical Details */}
+                                 <div>
+                                   <h4 className="text-xs font-semibold uppercase text-slate-500 tracking-wider mb-2">Device & Session</h4>
+                                   <div className="grid grid-cols-2 gap-2 text-xs">
+                                     <div className="bg-white p-2 rounded border border-slate-100">
+                                       <p className="text-[10px] text-slate-400 mb-0.5">Start Time</p>
+                                       <p className="font-medium text-slate-700">{new Date(s.timestamp).toLocaleString()}</p>
+                                     </div>
+                                     <div className="bg-white p-2 rounded border border-slate-100">
+                                       <p className="text-[10px] text-slate-400 mb-0.5">Referrer</p>
+                                       <p className="font-medium text-slate-700 truncate">{s.referrer === "direct" || !s.referrer ? "Direct" : s.referrer}</p>
+                                     </div>
+                                     <div className="bg-white p-2 rounded border border-slate-100">
+                                       <p className="text-[10px] text-slate-400 mb-0.5">Device / Browser</p>
+                                       <p className="font-medium text-slate-700 capitalize">{s.device} / {s.browser}</p>
+                                     </div>
+                                     <div className="bg-white p-2 rounded border border-slate-100">
+                                       <p className="text-[10px] text-slate-400 mb-0.5">OS / Screen</p>
+                                       <p className="font-medium text-slate-700">{s.os} / {s.screenResolution || "—"}</p>
+                                     </div>
+                                     <div className="bg-white p-2 rounded border border-slate-100">
+                                       <p className="text-[10px] text-slate-400 mb-0.5">Max Scroll</p>
+                                       <p className="font-medium text-slate-700">{s.maxScroll}%</p>
+                                     </div>
+                                     <div className="bg-white p-2 rounded border border-slate-100">
+                                       <p className="text-[10px] text-slate-400 mb-0.5">Total Clicks</p>
+                                       <p className="font-medium text-slate-700">{s.totalClicks}</p>
+                                     </div>
+                                     <div className="bg-white p-2 rounded border border-slate-100">
+                                       <p className="text-[10px] text-slate-400 mb-0.5">Network</p>
+                                       <p className="font-medium text-slate-700">{s.connectionType || "—"}</p>
+                                     </div>
+                                     <div className="bg-white p-2 rounded border border-slate-100">
+                                       <p className="text-[10px] text-slate-400 mb-0.5">Language</p>
+                                       <p className="font-medium text-slate-700">{s.language || "—"}</p>
+                                     </div>
+                                   </div>
+                                 </div>
+
+                               </div>{/* end 3-col grid */}
+                             </div>{/* end outer wrapper */}
+                           </td>
+                         </tr>
+                       )}
                     </React.Fragment>
                   ))}
                 </tbody>

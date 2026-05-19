@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import axios from "axios";
 import { API_BASE } from "@/config";
-import { Trash2, Plus, Globe, Loader2, Settings as SettingsIcon, CheckCircle2, X, Heart, Upload, Camera } from "lucide-react";
+import { Trash2, Plus, Globe, Loader2, Settings as SettingsIcon, CheckCircle2, X, Heart, Upload, Camera, User } from "lucide-react";
 import { uploadFileChunked, UploadProgress } from "@/lib/upload";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";

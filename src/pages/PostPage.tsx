@@ -2,28 +2,16 @@ import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import axios from "axios";
 import { API_BASE } from "@/config";
-import { ArrowLeft, Calendar, Eye, Heart, Share2, Lock } from "lucide-react";
+import { ArrowLeft, Calendar, Eye, Heart, Share2, Lock, Loader2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { CommentSection } from "@/components/CommentSection";
+import { ReactionBar } from "@/components/ReactionBar";
+import { feedAPI } from "@/lib/adminData";
+import { toast } from "sonner";
 
 const SITE = "https://sujan1919.com.np";
 
-function setMeta(key: string, value: string, isProp = false) {
-  if (!value) return;
-  const attr = isProp ? "property" : "name";
-  let el = document.querySelector(`meta[${attr}="${key}"]`);
-  if (!el) { el = document.createElement("meta"); el.setAttribute(attr, key); document.head.appendChild(el); }
-  el.setAttribute("content", value);
-}
-
-function injectJsonLd(id: string, data: object) {
-  let el = document.getElementById(id);
-  if (!el) { el = document.createElement("script"); el.id = id; (el as HTMLScriptElement).type = "application/ld+json"; document.head.appendChild(el); }
-  el.textContent = JSON.stringify(data);
-}
-
-function removeJsonLd(id: string) {
-  document.getElementById(id)?.remove();
-}
+import SEO from "@/components/SEO";
 
 /* ─── Feed Post Page ─────────────────────────────── */
 export const FeedPostPage = () => {
@@ -38,6 +26,22 @@ export const FeedPostPage = () => {
   const handleGoogleLogin = () => {
     localStorage.setItem("auth_return", window.location.pathname);
     window.location.href = `${API_BASE}/auth/google`;
+  };
+
+  const handleReact = async (type: string) => {
+    if (!post) return;
+    if (post.membersOnly && !user) {
+      toast.error("Sign in to react to this post");
+      return;
+    }
+    try {
+      const updated = await feedAPI.react(post.id || post._id, type);
+      if (updated) setPost(updated);
+    } catch (err: any) {
+      const msg = err.response?.data?.error || "Failed to react";
+      toast.error(msg);
+      console.error("Reaction error:", err);
+    }
   };
 
   useEffect(() => {
@@ -75,88 +79,6 @@ export const FeedPostPage = () => {
     });
   }, [id]);
 
-  useEffect(() => {
-    if (!post) return;
-    const siteName = settings?.siteName || "Sujan Gautam | Sujan1919";
-    const profession = settings?.authorTitle || "Software Developer & UI Architect";
-    const authorName = settings?.authorName || "Sujan Gautam";
-    
-    const title = post.seoTitle || (post.articleTitle ? `${post.articleTitle} | ${siteName}` : post.caption ? `${post.caption.slice(0, 60)} | ${siteName}` : `Post by ${siteName} | ${profession}`);
-    const desc = post.seoDescription || (post.type === "article" ? (post.articleContent?.replace(/<[^>]+>/g, '').slice(0, 160) || `Article by ${authorName}`) : `${post.content || post.caption || "Creative post"} - Published by ${authorName}, a professional ${profession}.`.slice(0, 160));
-    const image = post.articleCover || post.images?.[0] || post.image || post.videoUrl || "";
-    const url = `${SITE}/post/${post._id || post.id}`;
-
-    document.title = title;
-    setMeta("description", desc);
-    setMeta("keywords", `Sujan Gautam, Sujan1919, Sujan, Software Developer, Web Developer, Portfolio, Post, ${post.caption || ""}`);
-    setMeta("author", authorName);
-    setMeta("og:title", title, true);
-    setMeta("og:description", desc, true);
-    setMeta("og:image", image, true);
-    setMeta("og:url", url, true);
-    setMeta("og:type", "article", true);
-    setMeta("twitter:card", "summary_large_image");
-    setMeta("twitter:title", title);
-    setMeta("twitter:description", desc);
-    setMeta("twitter:image", image);
-
-    // canonical
-    let canonical = document.querySelector("link[rel='canonical']") as HTMLLinkElement;
-    if (!canonical) { canonical = document.createElement("link"); canonical.rel = "canonical"; document.head.appendChild(canonical); }
-    canonical.href = url;
-
-    // JSON-LD Article structured data
-    const articleSchema = {
-      "@context": "https://schema.org",
-      "@type": "BlogPosting",
-      "headline": post.seoTitle || post.articleTitle || post.caption || post.content || `Post by ${authorName}`,
-      "description": desc,
-      "image": image ? [image] : [`${SITE}/favicon.ico`],
-      "datePublished": post.createdAt,
-      "dateModified": post.updatedAt || post.createdAt,
-      "author": { 
-        "@type": "Person", 
-        "name": authorName, 
-        "alternateName": "sujan1919",
-        "url": SITE,
-        "jobTitle": profession,
-        "sameAs": [
-          "https://github.com/sujan1919",
-          "https://linkedin.com/in/sujan1919"
-        ]
-      },
-      "publisher": { 
-        "@type": "Organization", 
-        "name": `${authorName} Portfolio`, 
-        "logo": { "@type": "ImageObject", url: `${SITE}/favicon.ico` } 
-      },
-      "url": url,
-      "mainEntityOfPage": { "@type": "WebPage", "@id": url },
-      "keywords": `${authorName}, Sujan1919, Software Developer, ${post.category || "Post"}, ${post.articleTitle || post.caption || ""}`
-    };
-
-    // JSON-LD VideoObject if video exists
-    let videoSchema: any = null;
-    const youtubeId = post.videoUrl?.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/)?.[1];
-    
-    if (youtubeId || post.videoUrl?.match(/\.(mp4|webm|mov)$/i)) {
-      videoSchema = {
-        "@context": "https://schema.org",
-        "@type": "VideoObject",
-        "name": post.caption || `Video by ${authorName}`,
-        "description": desc,
-        "thumbnailUrl": youtubeId ? `https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg` : image,
-        "uploadDate": post.createdAt,
-        "contentUrl": post.videoUrl,
-        "embedUrl": youtubeId ? `https://www.youtube.com/embed/${youtubeId}` : post.videoUrl,
-        "author": { "@type": "Person", "name": authorName }
-      };
-    }
-
-    injectJsonLd("ld-feed-post", videoSchema ? [articleSchema, videoSchema] : articleSchema);
-
-    return () => removeJsonLd("ld-feed-post");
-  }, [post, settings]);
 
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-black"><div className="w-8 h-8 border-2 border-[#CB2729] border-t-transparent rounded-full animate-spin" /></div>;
   if (!post) return <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-black text-white"><p className="text-white/40">Post not found</p><Link to="/feed/" className="text-[#CB2729] underline">Back to Feed</Link></div>;
@@ -164,7 +86,68 @@ export const FeedPostPage = () => {
   const images = post.images?.length ? post.images : (post.image ? [post.image] : []);
   const isArticle = post.type === "article";
 
+  const siteName = settings?.siteName || "Sujan Gautam | Sujan1919";
+  const profession = settings?.authorTitle || "Software Developer & UI Architect";
+  const authorName = settings?.authorName || "Sujan Gautam";
+  const title = post.seoTitle || (post.articleTitle ? `${post.articleTitle} | ${siteName}` : post.caption ? `${post.caption.slice(0, 60)} | ${siteName}` : `Post by ${siteName} | ${profession}`);
+  const desc = post.seoDescription || (isArticle ? (post.articleContent?.replace(/<[^>]+>/g, '').slice(0, 160) || `Article by ${authorName}`) : `${post.content || post.caption || "Creative post"} - Published by ${authorName}, a professional ${profession}.`.slice(0, 160));
+  const image = post.articleCover || images[0] || post.videoUrl || "https://sujan1919.com.np/assets/logo.png";
+  const url = `${SITE}/post/${post._id || post.id}`;
+
+  const articleSchema = {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    "headline": post.seoTitle || post.articleTitle || post.caption || post.content || `Post by ${authorName}`,
+    "description": desc,
+    "image": image ? [image] : [`${SITE}/favicon.ico`],
+    "datePublished": post.createdAt,
+    "dateModified": post.updatedAt || post.createdAt,
+    "author": { 
+      "@type": "Person", 
+      "name": authorName, 
+      "alternateName": "sujan1919",
+      "url": SITE,
+      "jobTitle": profession
+    },
+    "publisher": { 
+      "@type": "Organization", 
+      "name": `${authorName} Portfolio`, 
+      "logo": { "@type": "ImageObject", url: `${SITE}/favicon.ico` } 
+    },
+    "url": url,
+    "mainEntityOfPage": { "@type": "WebPage", "@id": url }
+  };
+
+  let videoSchema: any = null;
+  const youtubeId = post.videoUrl?.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/)?.[1];
+  if (youtubeId || post.videoUrl?.match(/\.(mp4|webm|mov)$/i)) {
+    videoSchema = {
+      "@context": "https://schema.org",
+      "@type": "VideoObject",
+      "name": post.caption || `Video by ${authorName}`,
+      "description": desc,
+      "thumbnailUrl": youtubeId ? `https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg` : image,
+      "uploadDate": post.createdAt,
+      "contentUrl": post.videoUrl,
+      "embedUrl": youtubeId ? `https://www.youtube.com/embed/${youtubeId}` : post.videoUrl,
+      "author": { "@type": "Person", "name": authorName }
+    };
+  }
+
+  const structuredData = videoSchema ? [articleSchema, videoSchema] : articleSchema;
+
   return (
+    <>
+      <SEO 
+        title={title} 
+        description={desc} 
+        type="article" 
+        image={image} 
+        video={post.videoUrl} 
+        url={url} 
+        publishedTime={post.createdAt} 
+        structuredData={structuredData} 
+      />
     <div className="min-h-screen bg-black text-white font-['Inter'] selection:bg-[#CB2729]/30 selection:text-white">
       <div className="max-w-3xl mx-auto px-6 py-12 md:py-20">
         <Link to="/feed/" className="inline-flex items-center gap-2 text-[13px] font-bold text-white/40 hover:text-white mb-12 transition-all group">
@@ -262,14 +245,25 @@ export const FeedPostPage = () => {
             </>
           )}
 
-          <div className="flex items-center gap-4 text-[11px] font-bold text-white/30 uppercase tracking-widest mt-12 pt-8 border-t border-white/5">
-            <span className="flex items-center gap-1.5"><Calendar size={13} />{new Date(post.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</span>
-            {post.views > 0 && <span className="flex items-center gap-1.5"><Eye size={13} />{post.views} views</span>}
-            {(post.reactions?.like || 0) > 0 && <span className="flex items-center gap-1.5"><Heart size={13} />{post.reactions.like}</span>}
+          <div className="flex items-center justify-between mt-12 pt-8 border-t border-white/5">
+            <div className="flex items-center gap-6 text-[11px] font-bold text-white/30 uppercase tracking-widest">
+              <span className="flex items-center gap-1.5"><Calendar size={13} />{new Date(post.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</span>
+              {post.views > 0 && <span className="flex items-center gap-1.5"><Eye size={13} />{post.views} views</span>}
+            </div>
+            
+            <ReactionBar post={post} onReact={handleReact} />
           </div>
 
-          <div className="flex gap-4 pt-8">
-              <button onClick={() => { navigator.share?.({ title: post.caption || post.articleTitle, url: window.location.href }).catch(() => navigator.clipboard.writeText(window.location.href)); }} className="inline-flex items-center gap-2 text-[12px] font-bold bg-white/5 hover:bg-white/10 text-white px-6 py-2.5 rounded-full transition-all border border-white/5">
+          <div className="mt-8">
+            <CommentSection 
+              post={post} 
+              onUpdate={setPost} 
+              showAlert={(msg) => toast.error(msg)} 
+            />
+          </div>
+
+          <div className="flex gap-4 pt-12">
+              <button onClick={() => { navigator.share?.({ title: post.caption || post.articleTitle, url: window.location.href }).catch(() => navigator.clipboard.writeText(window.location.href)); toast.success("Link copied to clipboard"); }} className="inline-flex items-center gap-2 text-[12px] font-bold bg-white/5 hover:bg-white/10 text-white px-6 py-2.5 rounded-full transition-all border border-white/5">
                 <Share2 size={14} /> SHARE INSIGHT
               </button>
               <Link to="/feed/" className="inline-flex items-center gap-2 text-[12px] font-bold bg-[#CB2729] text-white hover:bg-[#CB2729]/90 px-6 py-2.5 rounded-full transition-all shadow-lg shadow-[#CB2729]/20">
@@ -278,16 +272,15 @@ export const FeedPostPage = () => {
             </div>
         </article>
 
-        {/* Author Bio Section - Small & Compact */}
-        <div className="mt-20 p-6 md:p-8 bg-[#0a0a0a] border border-white/10 rounded-[24px] relative overflow-hidden group">
-          <div className="flex flex-col sm:flex-row items-center sm:items-start gap-8 relative z-10">
+        {/* Compact & Premium Author Bio Section */}
+        <div className="mt-16 py-8 px-6 md:px-10 bg-white/[0.03] border border-white/5 rounded-[24px] relative overflow-hidden group">
+          <div className="flex flex-col sm:flex-row items-center gap-6 md:gap-10 relative z-10">
             
-            {/* Author Image Carousel - Slower & Smaller */}
+            {/* Minimalist Author Image */}
             <div className="shrink-0 relative">
-              <div className="w-20 h-20 md:w-24 md:h-24 rounded-[20px] overflow-hidden border border-white/10 shadow-xl bg-white/5 relative">
+              <div className="w-20 h-20 md:w-24 md:h-24 rounded-[20px] overflow-hidden border border-white/10 bg-white/5 relative shadow-xl">
                 {sliders.length > 0 ? (
                   <div className="w-full h-full relative">
-                    {/* CSS-only slow fade */}
                     <style>{`
                       @keyframes authorFade {
                         0%, 20% { opacity: 1; }
@@ -310,23 +303,23 @@ export const FeedPostPage = () => {
             </div>
             
             <div className="flex-1 text-center sm:text-left">
-              <p className="text-xl md:text-2xl font-bold text-white tracking-tight">{settings?.authorName || "Sujan Gautam"}</p>
-              <p className="text-[11px] text-[#CB2729] font-bold uppercase tracking-[0.2em] mt-1.5">
+              <h4 className="text-xl md:text-2xl font-bold text-white tracking-tight">{settings?.authorName || "Sujan Gautam"}</h4>
+              <p className="text-[10px] text-[#CB2729] font-bold uppercase tracking-[0.2em] mt-1.5">
                 {settings?.authorTitle || "Software Developer & UI Architect"}
               </p>
               
               {settings?.authorBio && (
-                <p className="text-white/50 text-[14px] leading-relaxed mt-4 max-w-lg">
+                <p className="text-white/40 text-[13px] leading-relaxed mt-3 max-w-lg mx-auto sm:mx-0">
                   {settings.authorBio}
                 </p>
               )}
               
-              <div className="mt-6 flex flex-wrap justify-center sm:justify-start gap-6">
-                <Link to="/about/" className="text-[10px] font-bold text-white hover:text-[#CB2729] transition-colors uppercase tracking-[0.2em] border-b border-white/10 pb-1">
-                  View Full Profile
+              <div className="mt-5 flex flex-wrap justify-center sm:justify-start gap-5">
+                <Link to="/about/" className="text-[9px] font-black text-white/30 hover:text-[#CB2729] transition-colors uppercase tracking-[0.2em] border-b border-white/5 pb-1">
+                  Profile
                 </Link>
-                <Link to="/portfolio/" className="text-[10px] font-bold text-white/40 hover:text-white transition-colors uppercase tracking-[0.2em]">
-                  Latest Projects
+                <Link to="/portfolio/" className="text-[9px] font-black text-white/30 hover:text-white transition-colors uppercase tracking-[0.2em]">
+                  Projects
                 </Link>
               </div>
             </div>
@@ -334,6 +327,7 @@ export const FeedPostPage = () => {
         </div>
       </div>
     </div>
+    </>
   );
 };
 
@@ -357,67 +351,47 @@ export const StoryPage = () => {
 
   useEffect(() => {
     if (!story) return;
+
+    const isVid = story.mediaUrl?.match(/\.(mp4|webm|mov)$/i);
     const siteName = "Sujan Gautam | Sujan1919";
-    const profession = "Software Developer & UI Architect";
-    const title = story.title ? `${story.title} | ${siteName}` : `Story by ${siteName} | ${profession}`;
-    const desc = `${story.description || story.caption || "Exclusive Story"} - Featured by Sujan Gautam (sujan1919), a leading Software Developer.`.slice(0, 160);
-    const image = story.mediaUrl || story.imageUrl || story.thumbnailUrl || "";
+    const title = story.title ? `${story.title} | ${siteName}` : `Story by ${siteName}`;
+    const desc = (story.description || story.caption || "Exclusive Story").slice(0, 160);
+    const image = story.mediaUrl || story.imageUrl || story.thumbnailUrl || `${SITE}/favicon.ico`;
     const url = `${SITE}/story/${story._id || story.id}`;
 
     document.title = title;
     setMeta("description", desc);
-    setMeta("keywords", `Sujan Gautam, Sujan1919, Sujan, Software Developer, Web Developer, Portfolio, Story, ${story.title || ""}`);
-    setMeta("author", "Sujan Gautam");
     setMeta("og:title", title, true);
     setMeta("og:description", desc, true);
     setMeta("og:image", image, true);
     setMeta("og:url", url, true);
-    setMeta("og:type", "article", true);
-    setMeta("twitter:card", "summary_large_image");
-    setMeta("twitter:title", title);
-    setMeta("twitter:description", desc);
-    setMeta("twitter:image", image);
-
-    let canonical = document.querySelector("link[rel='canonical']") as HTMLLinkElement;
-    if (!canonical) { canonical = document.createElement("link"); canonical.rel = "canonical"; document.head.appendChild(canonical); }
-    canonical.href = url;
+    setMeta("og:type", isVid ? "video.other" : "article", true);
 
     const articleSchema = {
       "@context": "https://schema.org",
       "@type": "BlogPosting",
-      "headline": story.title || "Story by Sujan Gautam",
+      "headline": title,
       "description": desc,
-      "image": image ? [image] : [`${SITE}/favicon.ico`],
+      "image": [image],
       "datePublished": story.createdAt,
-      "author": { 
-        "@type": "Person", 
-        "name": "Sujan Gautam", 
-        "alternateName": "sujan1919",
-        "url": SITE,
-        "jobTitle": "Software Developer"
-      },
-      "publisher": { "@type": "Organization", "name": "Sujan Gautam" },
-      "url": url,
-      "mainEntityOfPage": { "@type": "WebPage", "@id": url },
-      "keywords": `Sujan Gautam, Sujan1919, Software Developer, ${story.title || ""}`
+      "author": { "@type": "Person", "name": "Sujan Gautam" },
+      "url": url
     };
 
-    let videoSchema: any = null;
-    if (story.mediaUrl?.match(/\.(mp4|webm|mov)$/i)) {
-      videoSchema = {
+    let schema: any = articleSchema;
+    if (isVid) {
+      schema = [articleSchema, {
         "@context": "https://schema.org",
         "@type": "VideoObject",
-        "name": story.title || "Story Video by Sujan Gautam",
+        "name": story.title || "Story Video",
         "description": desc,
         "thumbnailUrl": image,
-        "uploadDate": story.createdAt,
         "contentUrl": story.mediaUrl,
-        "author": { "@type": "Person", "name": "Sujan Gautam" }
-      };
+        "uploadDate": story.createdAt
+      }];
     }
 
-    injectJsonLd("ld-story", videoSchema ? [articleSchema, videoSchema] : articleSchema);
-
+    injectJsonLd("ld-story", schema);
     return () => removeJsonLd("ld-story");
   }, [story]);
 
@@ -426,7 +400,55 @@ export const StoryPage = () => {
 
   const isVid = story.mediaUrl?.match(/\.(mp4|webm|mov)$/i);
 
+  const siteName = "Sujan Gautam | Sujan1919";
+  const profession = "Software Developer & UI Architect";
+  const title = story.title ? `${story.title} | ${siteName}` : `Story by ${siteName} | ${profession}`;
+  const desc = `${story.description || story.caption || "Exclusive Story"} - Featured by Sujan Gautam (sujan1919), a leading Software Developer.`.slice(0, 160);
+  const image = story.mediaUrl || story.imageUrl || story.thumbnailUrl || "https://sujan1919.com.np/assets/logo.png";
+  const url = `${SITE}/story/${story._id || story.id}`;
+
+  const articleSchema = {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    "headline": title,
+    "description": desc,
+    "image": image ? [image] : [`${SITE}/favicon.ico`],
+    "datePublished": story.createdAt,
+    "dateModified": story.updatedAt || story.createdAt,
+    "author": { "@type": "Person", "name": "Sujan Gautam", "url": SITE },
+    "publisher": { "@type": "Organization", "name": "Sujan Gautam Portfolio", "logo": { "@type": "ImageObject", url: `${SITE}/favicon.ico` } },
+    "url": url,
+    "mainEntityOfPage": { "@type": "WebPage", "@id": url }
+  };
+
+  let videoSchema: any = null;
+  if (isVid) {
+    videoSchema = {
+      "@context": "https://schema.org",
+      "@type": "VideoObject",
+      "name": story.title || "Story Video by Sujan Gautam",
+      "description": desc,
+      "thumbnailUrl": image,
+      "uploadDate": story.createdAt,
+      "contentUrl": story.mediaUrl,
+      "author": { "@type": "Person", "name": "Sujan Gautam" }
+    };
+  }
+
+  const structuredData = videoSchema ? [articleSchema, videoSchema] : articleSchema;
+
   return (
+    <>
+      <SEO 
+        title={title} 
+        description={desc} 
+        type="article" 
+        image={!isVid ? image : undefined} 
+        video={isVid ? story.mediaUrl : undefined}
+        url={url} 
+        publishedTime={story.createdAt} 
+        structuredData={structuredData} 
+      />
     <div className="max-w-2xl mx-auto px-4 py-10 min-h-screen">
       <Link to="/" className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-slate-900 mb-8 transition-colors">
         <ArrowLeft size={16} /> Back to Home
@@ -458,5 +480,6 @@ export const StoryPage = () => {
         </div>
       </div>
     </div>
+    </>
   );
 };

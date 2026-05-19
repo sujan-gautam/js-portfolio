@@ -17,7 +17,7 @@ import { CommentSection } from "@/components/CommentSection";
 import { ReactionBar, REACTIONS } from "@/components/ReactionBar";
 import { PollCard } from "@/components/PollCard";
 import { timeAgo, getVoterId } from "@/lib/feedUtils";
-
+import SEO from "@/components/SEO";
 const timelineStyles = `
   @keyframes music-bar { 0% { transform: scaleY(0.3); } 100% { transform: scaleY(1); } }
 `;
@@ -86,6 +86,12 @@ const PostCard = ({
   const showMusicUI = !isIOS || (playingMusicId === initialPost.id && isMusicReady);
   const { user } = useAuth();
   const [post, setPost] = useState(initialPost);
+  const [hasLiked, setHasLiked] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem(`feed_liked_${initialPost.id}`) === 'true';
+    }
+    return false;
+  });
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [imgExpandedIndex, setImgExpandedIndex] = useState<number | null>(null);
   const [videoFullscreen, setVideoFullscreen] = useState(false);
@@ -279,6 +285,8 @@ const PostCard = ({
   const handleReact = async (type: string) => {
     if (post.membersOnly && !user) return;
     if (type === "like") {
+       setHasLiked(true);
+       if (typeof window !== 'undefined') localStorage.setItem(`feed_liked_${post.id}`, 'true');
        const hearts = Array.from({ length: 10 }).map((_, i) => ({
          id: Date.now() + i,
          x: Math.random() * 60 - 30, // Drift
@@ -775,7 +783,7 @@ const PostCard = ({
                 onClick={() => handleReact("like")}
                 className="flex items-center gap-2.5 text-[#8e8e93] hover:text-[#ff3b30] transition-colors relative"
               >
-                <Heart size={22} strokeWidth={1.5} className={post.reactions?.like ? "fill-[#ff3b30] text-[#ff3b30] animate-in zoom-in-125 duration-300" : ""} />
+                <Heart size={22} strokeWidth={1.5} className={hasLiked ? "fill-[#ff3b30] text-[#ff3b30] animate-in zoom-in-125 duration-300" : ""} />
                 <span className="text-[13px] font-medium">{formatCount(totalReacts) || ""}</span>
               </button>
 
@@ -1033,6 +1041,11 @@ const Feed = () => {
   }, [musicData?.videoId, ytPlayer]);
 
   return (
+    <>
+      <SEO 
+        title="Sujan Gautam | Professional Feed & Updates"
+        description="Follow Sujan Gautam's professional journey, latest projects, articles, and stories. A dynamic feed of updates from a Senior Software Developer."
+      />
     <div 
       className="h-screen w-full text-white font-['Inter'] overflow-y-auto snap-y snap-mandatory scroll-smooth relative no-scrollbar" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
       
@@ -1125,6 +1138,7 @@ const Feed = () => {
         />
       </div>
     </div>
+    </>
   );
 };
 

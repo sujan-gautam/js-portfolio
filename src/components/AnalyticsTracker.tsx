@@ -151,18 +151,51 @@ const AnalyticsTracker = () => {
     const sendWithIP = async () => {
       let geoLocation: Record<string, any> = {};
       try {
-        // Use ipinfo.io as primary IP-geo source as it's more CORS-friendly
-        const geo = await axios.get("https://ipinfo.io/json", { timeout: 5000 });
-        if (geo.data?.city) {
-          const [lat, lon] = (geo.data.loc || "0,0").split(",").map(Number);
+        // PRIMARY: ip-api.com — completely free, no API key, most detailed fields
+        // Returns: city, regionName, country, zip, lat, lon, isp, org, district, timezone
+        const geo = await axios.get("http://ip-api.com/json/?fields=status,message,country,countryCode,region,regionName,city,district,zip,lat,lon,timezone,isp,org,as,query", { timeout: 5000 });
+        if (geo.data?.status === "success") {
           geoLocation = {
-            ip: geo.data.ip, city: geo.data.city, country: geo.data.country,
-            countryCode: geo.data.country, region: geo.data.region,
-            lat, lon, isp: geo.data.org || "", source: "ip"
+            ip:          geo.data.query,
+            city:        geo.data.city,
+            district:    geo.data.district,
+            region:      geo.data.regionName,
+            regionCode:  geo.data.region,
+            country:     geo.data.country,
+            countryCode: geo.data.countryCode,
+            postcode:    geo.data.zip,
+            lat:         geo.data.lat,
+            lon:         geo.data.lon,
+            timezone:    geo.data.timezone,
+            isp:         geo.data.isp,
+            org:         geo.data.org,
+            as:          geo.data.as,
+            source:      "ip-api"
           };
         }
-      } catch (err) {
-        console.warn("Geo-IP tracking failed, falling back to server-side IP detection.");
+      } catch (e1) {
+        // FALLBACK: ipinfo.io
+        try {
+          const geo2 = await axios.get("https://ipinfo.io/json", { timeout: 5000 });
+          if (geo2.data?.city) {
+            const [lat, lon] = (geo2.data.loc || "0,0").split(",").map(Number);
+            geoLocation = {
+              ip:          geo2.data.ip,
+              city:        geo2.data.city,
+              region:      geo2.data.region,
+              country:     geo2.data.country,
+              countryCode: geo2.data.country,
+              postcode:    geo2.data.postal,
+              lat, lon,
+              isp:         geo2.data.org || "",
+              org:         geo2.data.org || "",
+              timezone:    geo2.data.timezone || "",
+              source:      "ipinfo"
+            };
+          }
+        } catch (e2) {
+          console.warn("All geo-IP sources failed, using server-side detection.");
+        }
       }
 
       await axios.post(`${API_BASE}/visitors/track`, {
