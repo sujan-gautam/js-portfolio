@@ -91,7 +91,7 @@ export const FeedPostPage = () => {
   const authorName = settings?.authorName || "Sujan Gautam";
   const title = post.seoTitle || (post.articleTitle ? `${post.articleTitle} | ${siteName}` : post.caption ? `${post.caption.slice(0, 60)} | ${siteName}` : `Post by ${siteName} | ${profession}`);
   const desc = post.seoDescription || (isArticle ? (post.articleContent?.replace(/<[^>]+>/g, '').slice(0, 160) || `Article by ${authorName}`) : `${post.content || post.caption || "Creative post"} - Published by ${authorName}, a professional ${profession}.`.slice(0, 160));
-  const image = post.articleCover || images[0] || post.videoUrl || "https://sujan1919.com.np/assets/logo.png";
+  const image = post.articleCover || images[0] || post.videoUrl || undefined;
   const url = `${SITE}/post/${post._id || post.id}`;
 
   const articleSchema = {
@@ -404,7 +404,7 @@ export const StoryPage = () => {
   const profession = "Software Developer & UI Architect";
   const title = story.title ? `${story.title} | ${siteName}` : `Story by ${siteName} | ${profession}`;
   const desc = `${story.description || story.caption || "Exclusive Story"} - Featured by Sujan Gautam (sujan1919), a leading Software Developer.`.slice(0, 160);
-  const image = story.mediaUrl || story.imageUrl || story.thumbnailUrl || "https://sujan1919.com.np/assets/logo.png";
+  const image = story.mediaUrl || story.imageUrl || story.thumbnailUrl || undefined;
   const url = `${SITE}/story/${story._id || story.id}`;
 
   const articleSchema = {
