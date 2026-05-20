@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import StoriesSection from "@/components/StoriesSection";
 import HeroSection from "@/components/HeroSection";
 import SEO from "@/components/SEO";
@@ -6,12 +6,17 @@ import axios from "axios";
 import { API_BASE } from "@/config";
 
 const Index = () => {
+  const [settings, setSettings] = useState<any>(null);
+
   useEffect(() => {
     // Track homepage view
     axios.post(`${API_BASE}/visitors/track`, {
       page: "/",
       browser: navigator.userAgent
     }).catch(err => console.error("Tracking failed", err));
+
+    // Fetch settings for SEO
+    axios.get(`${API_BASE}/singleton/settings`).then(r => setSettings(r.data)).catch(() => {});
   }, []);
 
   const structuredData = {
@@ -20,7 +25,7 @@ const Index = () => {
     "name": "Sujan Gautam",
     "alternateName": "sujan1919",
     "url": "https://sujan1919.com.np",
-    "image": "https://sujan1919.com.np/assets/logo.png",
+    "image": settings?.ogImage || "https://sujan1919.com.np/assets/logo.png",
     "jobTitle": "Senior Software Developer & UI Architect",
     "worksFor": {
       "@type": "Organization",
