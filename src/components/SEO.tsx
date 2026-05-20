@@ -31,7 +31,7 @@ export const SEO = ({
 
   const finalTitle = title || settings?.siteName || 'Sujan Gautam | Senior Software Developer & UI Architect';
   const finalDesc = description || settings?.siteDescription || 'Official portfolio of Sujan Gautam. High-fidelity UI/UX design, scalable backend systems, and cutting-edge web technologies.';
-  const finalImage = image || settings?.ogImage || 'https://sujan1919.com.np/assets/logo.png';
+  const finalImage = image || settings?.ogImage || settings?.siteLogo || settings?.favicon || 'https://sujan1919.com.np/assets/logo.png';
   return (
     <Helmet>
       {/* Basic HTML Meta Tags */}

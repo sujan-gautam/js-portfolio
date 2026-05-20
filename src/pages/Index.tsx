@@ -25,7 +25,7 @@ const Index = () => {
     "name": "Sujan Gautam",
     "alternateName": "sujan-gautam",
     "url": "https://sujan1919.com.np",
-    "image": settings?.ogImage || "https://sujan1919.com.np/assets/logo.png",
+    "image": settings?.ogImage || settings?.siteLogo || settings?.favicon || "https://sujan1919.com.np/assets/logo.png",
     "jobTitle": "Senior Software Developer & UI Architect",
     "worksFor": {
       "@type": "Organization",
