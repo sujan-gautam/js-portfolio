@@ -397,6 +397,17 @@ router.delete("/collection/:name", async (req, res) => {
   }
 });
 
+// Dynamic Image Redirect for Social Media SEO
+router.get("/seo/og-image", async (req, res) => {
+  try {
+    const settings = await Models.Settings.findOne({});
+    const image = settings?.ogImage || settings?.siteLogo || settings?.favicon || 'https://sujan1919.com.np/assets/logo.png';
+    res.redirect(302, image);
+  } catch (error) {
+    res.redirect(302, 'https://sujan1919.com.np/assets/logo.png');
+  }
+});
+
 // Singletons: About and Settings
 router.get("/singleton/:name", async (req, res) => {
   const isAbout = req.params.name === "about";
