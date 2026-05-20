@@ -23,7 +23,7 @@ const Index = () => {
     "@context": "https://schema.org",
     "@type": "Person",
     "name": "Sujan Gautam",
-    "alternateName": "sujan1919",
+    "alternateName": "sujan-gautam",
     "url": "https://sujan1919.com.np",
     "image": settings?.ogImage || "https://sujan1919.com.np/assets/logo.png",
     "jobTitle": "Senior Software Developer & UI Architect",
@@ -32,8 +32,9 @@ const Index = () => {
       "name": "Freelance"
     },
     "sameAs": [
-      "https://github.com/sujan1919",
-      "https://linkedin.com/in/sujan1919"
+      "https://github.com/sujan-gautam",
+      "https://www.linkedin.com/in/sujan-gautam-109524275/",
+      "https://instagram.com/sujaan.gautam"
     ]
   };
 

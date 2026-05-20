@@ -105,7 +105,7 @@ export const FeedPostPage = () => {
     "author": { 
       "@type": "Person", 
       "name": authorName, 
-      "alternateName": "sujan1919",
+      "alternateName": "sujan-gautam",
       "url": SITE,
       "jobTitle": profession
     },

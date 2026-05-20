@@ -202,15 +202,16 @@ const About = () => {
       "@context": "https://schema.org",
       "@type": "Person",
       "name": "Sujan Gautam",
-      "alternateName": "sujan1919",
+      "alternateName": "sujan-gautam",
       "url": "https://sujan1919.com.np",
       "image": "https://sujan1919.com.np/assets/logo.png",
       "description": desc,
       "jobTitle": "Software Developer",
       "knowsAbout": ["React", "Node.js", "TypeScript", "UI/UX Design", "Web Development"],
       "sameAs": [
-        "https://github.com/sujan1919",
-        "https://linkedin.com/in/sujan1919"
+        "https://github.com/sujan-gautam",
+        "https://www.linkedin.com/in/sujan-gautam-109524275/",
+        "https://instagram.com/sujaan.gautam"
       ]
     };
 
