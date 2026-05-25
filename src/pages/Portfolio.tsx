@@ -487,7 +487,7 @@ const Card = ({ project, index, onView, onAsk }: {
       </div>
       <div className="p-6">
         <h3 className="text-[18px] font-bold text-white mb-2 tracking-tight line-clamp-1" title={project.title}>{project.title}</h3>
-        <p className="text-white/40 text-[13px] leading-relaxed mb-6 h-[60px] overflow-hidden">
+        <p className="text-white/40 text-[13px] leading-relaxed mb-6 min-h-[60px]">
           <ReadMore text={project.description} limit={90} dark />
         </p>
         <div className="flex items-center justify-between pt-2 border-t border-white/[0.04]">
