@@ -253,23 +253,16 @@ INSTRUCTIONS:
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {filteredProjects.map((project, idx) => {
-              // Last project gets wide span if odd total
-              const isWide = idx === filteredProjects.length - 1 && filteredProjects.length % 3 !== 0 && filteredProjects.length > 2;
-              return (
-                <Reveal key={project.id} delay={idx * 80}>
-                  <div className={isWide ? "lg:col-span-3" : ""}>
-                    <Card
-                      project={project}
-                      index={idx}
-                      isWide={isWide}
-                      onView={openPreview}
-                      onAsk={() => openAIPanel(project)}
-                    />
-                  </div>
-                </Reveal>
-              );
-            })}
+            {filteredProjects.map((project, idx) => (
+              <Reveal key={project.id} delay={idx * 50}>
+                <Card
+                  project={project}
+                  index={idx}
+                  onView={openPreview}
+                  onAsk={() => openAIPanel(project)}
+                />
+              </Reveal>
+            ))}
           </div>
         )}
       </div>
@@ -460,15 +453,13 @@ INSTRUCTIONS:
 };
 
 // ── Card Component ────────────────────────────────────────
-const Card = ({ project, index, isWide, onView, onAsk }: {
+const Card = ({ project, index, onView, onAsk }: {
   project: PortfolioItem;
   index: number;
-  isWide: boolean;
   onView: (url: string) => void;
   onAsk: () => void;
 }) => {
   const hoverTimer = useRef<any>(null);
-  const t = index % 4;
 
   const startHover = () => { 
     const delay = window.innerWidth < 768 ? 1200 : 3000;
@@ -482,144 +473,28 @@ const Card = ({ project, index, isWide, onView, onAsk }: {
     onDoubleClick: onAsk,
   };
 
-  // Wide featured card
-  if (isWide) {
-    return (
-      <div {...shared} className="relative group bg-[#151515] border border-white/[0.07] rounded-3xl overflow-hidden flex flex-col md:flex-row gap-0 cursor-help transition-all duration-500 hover:border-[#CB2729]/30 hover:shadow-[0_0_40px_rgba(203,39,41,0.1)]">
-        <div className="md:w-1/2 h-56 md:h-auto relative overflow-hidden">
-          <img src={project.image} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" alt={`${project.title} - Sujan Gautam Portfolio Project`} />
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent to-[#151515] opacity-0 md:opacity-80" />
-          <div className="absolute top-5 left-5">
-            <span className="bg-[#CB2729] text-[10px] font-bold uppercase tracking-[0.15em] px-3 py-1.5 rounded-full text-white">Featured</span>
-          </div>
-        </div>
-        <div className="md:w-1/2 p-8 flex flex-col justify-center gap-4">
-          <h3 className="text-2xl md:text-3xl font-black uppercase tracking-tight text-white">{project.title}</h3>
-          <p className="text-white/50 text-[14px] leading-relaxed">{project.description}</p>
-          <div className="flex gap-2 flex-wrap">
-            {(project.category || "").split(",").map((t, i) => (
-              <span key={i} className="bg-white/5 border border-white/[0.08] text-white/40 text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full">{t.trim()}</span>
-            ))}
-          </div>
-          <div className="flex items-center gap-4 mt-2">
-            <button onClick={() => onView(project.link || project.demoUrl)} className="inline-flex items-center gap-2 text-[#CB2729] text-[12px] font-bold uppercase tracking-[0.2em] hover:gap-3 transition-all">
-              View Project <ExternalLink size={13} />
-            </button>
-            <button onClick={onAsk} className="inline-flex items-center gap-1.5 text-white/30 text-[11px] hover:text-white transition-colors">
-              <Sparkles size={12} /> Ask AI
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Sticker card (dark with image thumbnail)
-  if (t === 0) {
-    return (
-      <div {...shared} className="group bg-[#141414] border border-white/[0.07] rounded-3xl overflow-hidden cursor-help transition-all duration-500 hover:border-[#CB2729]/30 hover:shadow-[0_0_30px_rgba(203,39,41,0.1)] hover:-translate-y-1">
-        <div className="relative h-44 overflow-hidden">
-          <img src={project.image} alt={`${project.title} - Sujan Gautam Portfolio`} className="w-full h-full object-cover opacity-70 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700" />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#141414] via-[#141414]/20 to-transparent" />
-          <div className="absolute top-4 left-4">
-            <span className="bg-[#CB2729] text-[9px] font-black uppercase tracking-[0.15em] px-3 py-1 rounded-full text-white">{project.category || "Project"}</span>
-          </div>
-        </div>
-        <div className="p-5 pt-3">
-          <h3 className="text-[18px] font-bold text-white mb-2 tracking-tight" title={project.title}>{project.title}</h3>
-          <p className="text-white/40 text-[12px] leading-relaxed mb-5">
-            <ReadMore text={project.description} limit={80} dark />
-          </p>
-          <div className="flex items-center justify-between">
-            <button onClick={() => onView(project.link || project.demoUrl)} className="text-[#CB2729] text-[11px] font-bold uppercase tracking-[0.2em] flex items-center gap-1.5 hover:gap-2.5 transition-all">
-              View Project <ExternalLink size={13} />
-            </button>
-            <button onClick={onAsk} className="text-white/20 hover:text-white/60 transition-colors">
-              <Sparkles size={14} />
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Polaroid card
-  if (t === 1) {
-    return (
-      <div {...shared} className="group relative cursor-help">
-        <div className="bg-[#f5f1e8] p-4 pb-8 shadow-2xl transition-all duration-500 hover:rotate-1 hover:-translate-y-1 rounded-sm">
-          <div className="h-44 overflow-hidden mb-4 bg-black rounded-sm relative">
-            <img src={project.image} alt={`${project.title} - Sujan Gautam Full Stack Project`} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700" />
-            <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-all" />
-          </div>
-          <p className="font-hand text-red-600 text-[22px] leading-none mb-1">{project.title}</p>
-          <p className="text-black/60 font-hand text-[16px] leading-snug mb-3">
-            <ReadMore text={project.description} limit={75} />
-          </p>
-          <div className="flex items-center gap-2">
-            <button onClick={() => onView(project.link || project.demoUrl)} className="text-red-600 font-black text-[11px] uppercase tracking-widest flex items-center gap-1">
-              OPEN <ExternalLink size={11} />
-            </button>
-            <button onClick={onAsk} className="ml-auto text-black/30 hover:text-black/60 transition-colors">
-              <Sparkles size={13} />
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Clean minimal card (replaces terminal)
-  if (t === 2) {
-    return (
-      <div {...shared} className="group bg-[#111] border border-white/[0.06] rounded-3xl overflow-hidden cursor-help transition-all duration-500 hover:border-[#CB2729]/30 hover:shadow-[0_0_30px_rgba(203,39,41,0.08)] hover:-translate-y-1">
-        <div className="relative h-52 overflow-hidden">
-          <img src={project.image} alt={`${project.title} - Web Development by Sujan Gautam`} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#111] via-[#111]/40 to-transparent" />
-          <div className="absolute top-4 left-4">
-            <span className="bg-white/10 backdrop-blur-md border border-white/10 text-white/70 text-[9px] font-bold uppercase tracking-[0.15em] px-3 py-1 rounded-full">
-              {project.category || "Project"}
-            </span>
-          </div>
-        </div>
-        <div className="p-5">
-          <h3 className="text-[17px] font-bold text-white mb-2 tracking-tight" title={project.title}>{project.title}</h3>
-          <p className="text-white/40 text-[12px] leading-relaxed mb-5">
-            <ReadMore text={project.description} limit={80} dark />
-          </p>
-          <div className="flex items-center justify-between">
-            <button onClick={() => onView(project.link || project.demoUrl)} className="text-[#CB2729] text-[11px] font-bold uppercase tracking-[0.2em] flex items-center gap-1.5 hover:gap-2.5 transition-all">
-              View Live <ExternalLink size={13} />
-            </button>
-            <button onClick={onAsk} className="text-white/20 hover:text-white/60 transition-colors">
-              <Sparkles size={13} />
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Sticky note card
+  // Clean minimal card for all projects
   return (
-    <div {...shared} className="group relative cursor-help">
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-3 w-3 h-3 bg-[#CB2729] rounded-full shadow-[0_0_10px_rgba(203,39,41,0.5)] z-10" />
-      <div className="bg-[#fff9c4] p-6 shadow-xl transition-all duration-500 hover:-rotate-1 hover:-translate-y-1 rounded-sm">
-        <h3 className="font-hand text-[28px] text-[#CB2729] mb-3 leading-none border-b-2 border-dashed border-black/10 pb-2">{project.title} ♥</h3>
-        <div className="flex gap-1.5 mb-3">
-          <div className="w-5 h-5 rounded-full bg-red-500 shadow-sm" />
-          <div className="w-5 h-5 rounded-full bg-yellow-500 shadow-sm" />
-          <div className="w-5 h-5 rounded-full bg-cyan-500 shadow-sm" />
-          <div className="w-5 h-5 rounded-full bg-slate-800 shadow-sm" />
+    <div {...shared} className="group bg-[#111] border border-white/[0.06] rounded-3xl overflow-hidden cursor-pointer transition-colors duration-300 hover:border-[#CB2729]/40 hover:bg-[#141414]">
+      <div className="relative h-52 overflow-hidden">
+        <img src={project.image} alt={`${project.title} - Sujan Gautam Portfolio`} className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity duration-300" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#111] via-[#111]/40 to-transparent" />
+        <div className="absolute top-4 left-4">
+          <span className="bg-white/10 backdrop-blur-md border border-white/10 text-white/80 text-[10px] font-bold uppercase tracking-[0.15em] px-3 py-1.5 rounded-full shadow-lg">
+            {project.category || "Project"}
+          </span>
         </div>
-        <p className="text-black/70 font-hand text-[18px] leading-snug mb-5">
-          <ReadMore text={project.description} limit={85} />
+      </div>
+      <div className="p-6">
+        <h3 className="text-[18px] font-bold text-white mb-2 tracking-tight line-clamp-1" title={project.title}>{project.title}</h3>
+        <p className="text-white/40 text-[13px] leading-relaxed mb-6 h-[60px] overflow-hidden">
+          <ReadMore text={project.description} limit={90} dark />
         </p>
-        <div className="flex items-center justify-between">
-          <button onClick={() => onView(project.link || project.demoUrl)} className="font-hand text-[18px] text-black/70 underline underline-offset-2 decoration-dotted hover:text-black transition-colors flex items-center gap-1">
-            open <ExternalLink size={14} />
+        <div className="flex items-center justify-between pt-2 border-t border-white/[0.04]">
+          <button onClick={() => onView(project.link || project.demoUrl)} className="text-[#CB2729] text-[11px] font-bold uppercase tracking-[0.2em] flex items-center gap-1.5 hover:text-white transition-colors">
+            View Live <ExternalLink size={13} />
           </button>
-          <button onClick={onAsk} className="text-black/30 hover:text-black/60 transition-colors">
+          <button onClick={onAsk} className="text-white/20 hover:text-[#CB2729] transition-colors" title="Ask AI about this project">
             <Sparkles size={14} />
           </button>
         </div>

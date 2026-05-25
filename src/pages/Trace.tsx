@@ -45,6 +45,7 @@ const Trace = () => {
           <span className="text-[#CB2729]">{'//'}</span> project showcase
         </Link>
         <ul className="hidden md:flex gap-8 list-none">
+          <li><a href="#preview" className="font-mono text-[11px] tracking-[0.06em] text-white/50 uppercase hover:text-white transition-colors">Live Demo</a></li>
           <li><a href="#solves" className="font-mono text-[11px] tracking-[0.06em] text-white/50 uppercase hover:text-white transition-colors">What It Solves</a></li>
           <li><a href="#features" className="font-mono text-[11px] tracking-[0.06em] text-white/50 uppercase hover:text-white transition-colors">Features</a></li>
           <li><a href="#stack" className="font-mono text-[11px] tracking-[0.06em] text-white/50 uppercase hover:text-white transition-colors">Tech Stack</a></li>
@@ -77,6 +78,39 @@ const Trace = () => {
             <div className="inline-flex items-center gap-2 px-3 py-1.5 border border-white/20 rounded text-white/60 font-mono text-[11px] tracking-[0.05em]">
               AST Code Instrumentation
             </div>
+          </div>
+        </section>
+
+        {/* Live Preview */}
+        <section id="preview" className="scroll-mt-24 space-y-8">
+          <div>
+            <div className="flex items-center gap-3 font-mono text-[10px] tracking-[0.15em] uppercase text-white/50 mb-3">
+              Live Demo
+              <div className="h-px bg-white/20 w-20"></div>
+            </div>
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+              <h2 className="text-2xl md:text-4xl font-black tracking-tight font-outfit">
+                Interactive Preview
+              </h2>
+              <a 
+                href="https://trace.sujan1919.com.np" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 text-[13px] font-mono tracking-wider text-[#CB2729] hover:text-white transition-colors"
+              >
+                Open in new tab <ArrowUpRight className="w-4 h-4" />
+              </a>
+            </div>
+          </div>
+          
+          <div className="w-full h-[600px] md:h-[800px] rounded-xl overflow-hidden border border-white/10 bg-[#0a0a0a] relative group shadow-[0_0_30px_rgba(203,39,41,0.05)]">
+            <div className="absolute inset-0 bg-[#CB2729]/5 animate-pulse pointer-events-none group-hover:opacity-0 transition-opacity duration-700"></div>
+            <iframe 
+              src="https://trace.sujan1919.com.np" 
+              className="w-full h-full border-none relative z-10"
+              title="Trace Live Preview"
+              loading="lazy"
+            />
           </div>
         </section>
 
