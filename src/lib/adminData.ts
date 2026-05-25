@@ -3,7 +3,7 @@ import axios from "axios";
 import { API_BASE } from "../config";
 
 export interface AdminUser { id: string; name: string; email: string; role: string; status: "active" | "inactive"; createdAt: string; }
-export interface PortfolioItem { id: string; title: string; description: string; image: string; category: string; demoUrl: string; status: boolean; createdAt: string; }
+export interface PortfolioItem { id: string; title: string; description: string; image: string; category: string; demoUrl: string; link: string; status: boolean; createdAt: string; }
 export interface EducationItem { id: string; degree: string; institution: string; year: string; gpa?: string; description: string; image?: string; status: boolean; }
 export interface PollOption { id: string; label: string; votes: number; voters: string[]; }
 export interface FeedComment { id: string; text: string; author: string; avatar?: string; votersId?: string; ip?: string; createdAt: string; reactions: { heart: number; fire: number; laugh: number }; }

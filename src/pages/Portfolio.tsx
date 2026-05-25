@@ -76,7 +76,7 @@ const Portfolio = () => {
         "@type": "CreativeWork",
         "name": p.title,
         "description": p.description,
-        "url": p.demoUrl,
+        "url": p.link || p.demoUrl,
         "image": p.image
       }))
     };
@@ -144,7 +144,7 @@ PROJECT DETAILS:
 - Title: ${project.title}
 - Description: ${project.description}
 - Category: ${project.category}
-- Demo Link: ${project.demoUrl || "Not available"}
+- Demo Link: ${project.link || project.demoUrl || "Not available"}
 - My Background: ${about?.bio || "Full-stack developer."}
 
 QUESTION: "${question}"
@@ -502,7 +502,7 @@ const Card = ({ project, index, isWide, onView, onAsk }: {
             ))}
           </div>
           <div className="flex items-center gap-4 mt-2">
-            <button onClick={() => onView(project.demoUrl)} className="inline-flex items-center gap-2 text-[#CB2729] text-[12px] font-bold uppercase tracking-[0.2em] hover:gap-3 transition-all">
+            <button onClick={() => onView(project.link || project.demoUrl)} className="inline-flex items-center gap-2 text-[#CB2729] text-[12px] font-bold uppercase tracking-[0.2em] hover:gap-3 transition-all">
               View Project <ExternalLink size={13} />
             </button>
             <button onClick={onAsk} className="inline-flex items-center gap-1.5 text-white/30 text-[11px] hover:text-white transition-colors">
@@ -531,7 +531,7 @@ const Card = ({ project, index, isWide, onView, onAsk }: {
             <ReadMore text={project.description} limit={80} dark />
           </p>
           <div className="flex items-center justify-between">
-            <button onClick={() => onView(project.demoUrl)} className="text-[#CB2729] text-[11px] font-bold uppercase tracking-[0.2em] flex items-center gap-1.5 hover:gap-2.5 transition-all">
+            <button onClick={() => onView(project.link || project.demoUrl)} className="text-[#CB2729] text-[11px] font-bold uppercase tracking-[0.2em] flex items-center gap-1.5 hover:gap-2.5 transition-all">
               View Project <ExternalLink size={13} />
             </button>
             <button onClick={onAsk} className="text-white/20 hover:text-white/60 transition-colors">
@@ -557,7 +557,7 @@ const Card = ({ project, index, isWide, onView, onAsk }: {
             <ReadMore text={project.description} limit={75} />
           </p>
           <div className="flex items-center gap-2">
-            <button onClick={() => onView(project.demoUrl)} className="text-red-600 font-black text-[11px] uppercase tracking-widest flex items-center gap-1">
+            <button onClick={() => onView(project.link || project.demoUrl)} className="text-red-600 font-black text-[11px] uppercase tracking-widest flex items-center gap-1">
               OPEN <ExternalLink size={11} />
             </button>
             <button onClick={onAsk} className="ml-auto text-black/30 hover:text-black/60 transition-colors">
@@ -588,7 +588,7 @@ const Card = ({ project, index, isWide, onView, onAsk }: {
             <ReadMore text={project.description} limit={80} dark />
           </p>
           <div className="flex items-center justify-between">
-            <button onClick={() => onView(project.demoUrl)} className="text-[#CB2729] text-[11px] font-bold uppercase tracking-[0.2em] flex items-center gap-1.5 hover:gap-2.5 transition-all">
+            <button onClick={() => onView(project.link || project.demoUrl)} className="text-[#CB2729] text-[11px] font-bold uppercase tracking-[0.2em] flex items-center gap-1.5 hover:gap-2.5 transition-all">
               View Live <ExternalLink size={13} />
             </button>
             <button onClick={onAsk} className="text-white/20 hover:text-white/60 transition-colors">
@@ -616,7 +616,7 @@ const Card = ({ project, index, isWide, onView, onAsk }: {
           <ReadMore text={project.description} limit={85} />
         </p>
         <div className="flex items-center justify-between">
-          <button onClick={() => onView(project.demoUrl)} className="font-hand text-[18px] text-black/70 underline underline-offset-2 decoration-dotted hover:text-black transition-colors flex items-center gap-1">
+          <button onClick={() => onView(project.link || project.demoUrl)} className="font-hand text-[18px] text-black/70 underline underline-offset-2 decoration-dotted hover:text-black transition-colors flex items-center gap-1">
             open <ExternalLink size={14} />
           </button>
           <button onClick={onAsk} className="text-black/30 hover:text-black/60 transition-colors">
