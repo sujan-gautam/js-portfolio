@@ -73,6 +73,17 @@ const clientSites: ClientSite[] = [
     type: 'business',
     stats: 'Real-time corporate inquiries system',
     tech: ['React.js', 'Node.js', 'Tailwind CSS', 'REST API']
+  },
+  {
+    id: 'instagram',
+    name: 'Instagram Page',
+    category: 'Social Media Hub',
+    url: 'https://www.instagram.com/webwithfreelancer/',
+    displayUrl: 'instagram.com/webwithfreelancer',
+    description: 'The official social page of WebWithFreelancer on Instagram. Follow us for product launch announcements, client testimonials, tech tips, behind-the-scenes workflow highlights, and snapshots of our student dev team.',
+    type: 'other',
+    stats: '1,200+ followers & regular agency updates',
+    tech: ['Instagram Business', 'Social Outreach', 'Graphic Design']
   }
 ];
 
@@ -218,12 +229,101 @@ const WebWithFreelancer = () => {
                   </div>
                 </div>
                 <div className="relative w-full aspect-video overflow-hidden bg-[#0a0a0a]">
-                  <iframe 
-                    src={currentSite.url} 
-                    className="w-full h-full border-0 absolute inset-0 z-10"
-                    title={`${currentSite.name} Live Preview`}
-                    sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
-                  />
+                  {currentSite.id === 'instagram' ? (
+                    <div className="w-full h-full bg-black text-white flex flex-col font-sans select-none overflow-y-auto pb-6">
+                      {/* Simulated Instagram Header */}
+                      <div className="border-b border-white/10 bg-[#0a0a0a] px-4 py-4 md:px-8 md:py-6 flex flex-row items-center gap-4 md:gap-8">
+                        {/* Profile Photo */}
+                        <div className="relative flex-shrink-0">
+                          <div className="w-14 h-14 md:w-20 md:h-20 rounded-full p-[2px] bg-gradient-to-tr from-[#f9ce34] via-[#ee2a7b] to-[#6228d7]">
+                            <div className="w-full h-full rounded-full bg-black border-2 border-black flex items-center justify-center font-mono font-bold text-xs md:text-sm text-white">
+                              WWF
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Profile Info */}
+                        <div className="flex-1 space-y-2">
+                          <div className="flex flex-wrap items-center gap-3">
+                            <h4 className="text-sm md:text-base font-semibold tracking-tight">webwithfreelancer</h4>
+                            <div className="flex gap-1.5">
+                              <span className="px-2.5 py-0.5 bg-white/15 hover:bg-white/25 transition-colors text-[10px] md:text-[11px] font-semibold rounded font-sans cursor-pointer text-white">
+                                Follow
+                              </span>
+                              <span className="px-2.5 py-0.5 bg-white/15 hover:bg-white/25 transition-colors text-[10px] md:text-[11px] font-semibold rounded font-sans cursor-pointer text-white">
+                                Message
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Stats */}
+                          <div className="flex gap-4 md:gap-6 font-sans text-[11px] md:text-xs text-white/90">
+                            <div><span className="font-semibold text-white">24</span> posts</div>
+                            <div><span className="font-semibold text-white">1.2k</span> followers</div>
+                            <div><span className="font-semibold text-white">180</span> following</div>
+                          </div>
+
+                          {/* Bio */}
+                          <div className="text-[10px] md:text-[11.5px] leading-relaxed text-white/80 font-sans">
+                            <span className="font-bold text-white block">WebWithFreelancer</span>
+                            <span>Designing & deploying premium web platforms across Nepal 🇳🇵</span>
+                            <span className="block mt-0.5 text-white/50">● 24+ sites delivered (92% renewal rate)</span>
+                            <span className="block text-white/50">● Onboarded 5+ students in an active team</span>
+                            <a href="https://instagram.com/webwithfreelancer" target="_blank" rel="noreferrer" className="text-blue-400 hover:underline block mt-0.5">
+                              instagram.com/webwithfreelancer
+                            </a>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Mock Instagram Feed Grid */}
+                      <div className="px-4 py-4 md:px-8">
+                        <div className="grid grid-cols-3 gap-2 md:gap-3">
+                          {[
+                            { title: '🌾 Rice Nepal', category: 'E-commerce platform successfully launched for local grain distribution.' },
+                            { title: '🏫 Himalayan Academy', category: 'Empowering local community schools with structured information.' },
+                            { title: '🧘‍♀️ Sound Healing', category: 'Wellness business and training portal now live.' },
+                            { title: '👥 Team Onboarding', category: 'Welcoming 5 new student developers to the WebWithFreelancer team!' },
+                            { title: '🚚 Last Transit', category: 'Logistics portal with fleet tracking system deployed.' },
+                            { title: '📈 92% Renewal', category: 'Delivering quality and maintaining long term relationships.' }
+                          ].map((post, idx) => (
+                            <a 
+                              key={idx}
+                              href="https://instagram.com/webwithfreelancer"
+                              target="_blank"
+                              rel="noreferrer"
+                              className="group relative aspect-square bg-[#0f0f12] border border-white/5 rounded overflow-hidden flex flex-col justify-between p-2 md:p-3 hover:border-white/20 transition-all"
+                            >
+                              {/* Visual element representing a post */}
+                              <div className="flex-1 flex flex-col justify-center items-center text-center space-y-1">
+                                <span className="text-xs md:text-sm font-bold font-outfit text-white tracking-wide">{post.title}</span>
+                                <span className="text-[9px] text-white/40 leading-normal max-w-[100px] hidden md:block">{post.category}</span>
+                              </div>
+                              <div className="text-[8px] font-mono text-white/30 text-right uppercase">
+                                View Post
+                              </div>
+                              {/* Hover overlay */}
+                              <div className="absolute inset-0 bg-black/85 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4">
+                                <div className="flex items-center gap-1 text-white font-sans text-xs">
+                                  <span>❤️</span> <span className="font-bold">142</span>
+                                </div>
+                                <div className="flex items-center gap-1 text-white font-sans text-xs">
+                                  <span>💬</span> <span className="font-bold">28</span>
+                                </div>
+                              </div>
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <iframe 
+                      src={currentSite.url} 
+                      className="w-full h-full border-0 absolute inset-0 z-10"
+                      title={`${currentSite.name} Live Preview`}
+                      sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
+                    />
+                  )}
                 </div>
               </div>
 
