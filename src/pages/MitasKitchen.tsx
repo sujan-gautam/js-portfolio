@@ -66,6 +66,14 @@ const MitasKitchen = () => {
             <div className="inline-flex items-center gap-2 px-3 py-1.5 border border-white/20 rounded text-white/60 font-mono text-[11px] tracking-[0.05em]">
               Full Stack
             </div>
+            <a 
+              href="https://mitaskitchen.com/" 
+              target="_blank" 
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#CB2729] text-white font-mono text-[11px] font-semibold tracking-[0.08em] uppercase rounded hover:bg-[#a01c1e] transition-colors"
+            >
+              <ArrowUpRight size={14} /> Visit Live Site
+            </a>
           </div>
         </section>
 
@@ -81,7 +89,7 @@ const MitasKitchen = () => {
               <div className="flex-1 flex justify-center">
                 <div className="flex items-center gap-2 bg-black border border-white/10 rounded px-3 py-1.5 font-mono text-[11px] text-white/50 w-full max-w-[360px]">
                   <Lock size={10} className="text-green-500" />
-                  mitaskitchen.local
+                  mitaskitchen.com
                 </div>
               </div>
             </div>
@@ -239,6 +247,9 @@ const MitasKitchen = () => {
           <Link to="/" className="font-mono text-[11px] text-white/50 hover:text-white transition-colors">
             ← Back to Portfolio
           </Link>
+          <a href="https://mitaskitchen.com/" target="_blank" rel="noreferrer" className="font-mono text-[11px] text-[#CB2729] hover:underline tracking-[0.04em]">
+            ↗ mitaskitchen.com
+          </a>
         </div>
       </footer>
     </div>
