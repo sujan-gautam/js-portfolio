@@ -19,6 +19,7 @@ import Privacy from "./pages/Privacy.tsx";
 import Terms from "./pages/Terms.tsx";
 import { FeedPostPage, StoryPage } from "./pages/PostPage.tsx";
 import TechyPos from "./pages/TechyPos.tsx";
+import MitasKitchen from "./pages/MitasKitchen.tsx";
 
 // Admin layout
 import AdminLayout from "@/components/admin/AdminLayout";
@@ -106,6 +107,7 @@ const App = () => (
             <Route path="/privacy/" element={<Privacy />} />
             <Route path="/terms/" element={<Terms />} />
             <Route path="/techy-pos/" element={<TechyPos />} />
+            <Route path="/mitas-kitchen/" element={<MitasKitchen />} />
 
             {/* ── SEO: Individual Post & Story Pages (Google indexable) ── */}
             <Route path="/feed/post/:id" element={<FeedPostPage />} />
