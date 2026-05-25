@@ -93,17 +93,13 @@ const MitasKitchen = () => {
                 </div>
               </div>
             </div>
-            <div className="relative w-full aspect-video overflow-hidden bg-[#0a0a0a] flex items-center justify-center">
-              <div className="text-center p-8">
-                <div className="w-20 h-20 rounded-full bg-white/5 mx-auto flex items-center justify-center mb-6">
-                  <ChefHat size={32} className="text-[#CB2729]" />
-                </div>
-                <h2 className="text-3xl font-bold tracking-tight mb-4">MiTa's Kitchen Dashboard</h2>
-                <p className="text-white/50 max-w-md mx-auto">
-                  A comprehensive internal tool orchestrating order handling, inventory tracking, and staff workflows behind the scenes.
-                </p>
-              </div>
-              <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/80 pointer-events-none"></div>
+            <div className="relative w-full aspect-video overflow-hidden bg-[#0a0a0a]">
+              <iframe 
+                src="https://mitaskitchen.com/" 
+                className="w-full h-full border-0 absolute inset-0 z-10"
+                title="MiTa's Kitchen Preview"
+                sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
+              />
             </div>
           </div>
         </section>

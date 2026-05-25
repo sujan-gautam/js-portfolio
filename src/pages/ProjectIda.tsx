@@ -90,17 +90,13 @@ const ProjectIda = () => {
                 </div>
               </div>
             </div>
-            <div className="relative w-full aspect-video overflow-hidden bg-[#0a0a0a] flex items-center justify-center">
-              <div className="text-center p-8">
-                <div className="w-20 h-20 rounded-full bg-white/5 mx-auto flex items-center justify-center mb-6">
-                  <LineChart size={32} className="text-[#CB2729]" />
-                </div>
-                <h2 className="text-3xl font-bold tracking-tight mb-4">Project IDA Workspace</h2>
-                <p className="text-white/50 max-w-md mx-auto">
-                  A high-performance EDA pipeline processing massive datasets, orchestrating automated analysis, and generating statistical insights securely in the cloud.
-                </p>
-              </div>
-              <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/80 pointer-events-none"></div>
+            <div className="relative w-full aspect-video overflow-hidden bg-[#0a0a0a]">
+              <iframe 
+                src="https://projectida.org/" 
+                className="w-full h-full border-0 absolute inset-0 z-10"
+                title="Project IDA Preview"
+                sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
+              />
             </div>
           </div>
         </section>

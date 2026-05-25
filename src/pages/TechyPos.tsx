@@ -93,16 +93,13 @@ const TechyPos = () => {
                 </div>
               </div>
             </div>
-            <div className="relative w-full pt-[56.25%] overflow-hidden bg-[#0a0a0a]">
-              <iframe
-                src="https://www.techyms.com/"
-                title="Techy MS Live Preview"
-                loading="lazy"
-                sandbox="allow-scripts allow-same-origin"
-                className="absolute top-0 left-0 w-[150%] h-[150%] border-none pointer-events-none"
-                style={{ transform: 'scale(0.667)', transformOrigin: 'top left' }}
-              ></iframe>
-              <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black pointer-events-none opacity-60"></div>
+            <div className="relative w-full aspect-video overflow-hidden bg-[#0a0a0a]">
+              <iframe 
+                src="https://www.techyms.com/" 
+                className="w-full h-full border-0 absolute inset-0 z-10"
+                title="Techy MS Preview"
+                sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
+              />
             </div>
           </div>
         </section>
