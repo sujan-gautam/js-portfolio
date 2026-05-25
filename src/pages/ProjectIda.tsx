@@ -13,7 +13,7 @@ const ProjectIda = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-black text-white font-outfit relative overflow-x-hidden selection:bg-[#CB2729] selection:text-white">
+    <div className="min-h-screen bg-black text-white relative overflow-x-hidden selection:bg-[#CB2729] selection:text-white" style={{ fontFamily: "'Inter', sans-serif" }}>
       <SEO 
         title="Project IDA — Project Showcase | Sujan Gautam" 
         description="A multi-tenant SaaS EDA pipeline for automated statistical analysis, dataset parsing, and isolated data projects."
@@ -51,7 +51,7 @@ const ProjectIda = () => {
             <em className="not-italic text-transparent" style={{ WebkitTextStroke: '1.5px rgba(255,255,255,0.2)' }}>IDA</em><br />
             Pipeline
           </h1>
-          <p className="text-white/60 text-base md:text-lg max-w-[480px] leading-relaxed">
+          <p style={{ fontFamily: "'Inter', sans-serif" }} className="text-white/55 text-[15px] md:text-[17px] max-w-[480px] leading-[1.75] font-normal tracking-[0.01em]">
             A multi-tenant SaaS Exploratory Data Analysis (EDA) platform. It allows users to upload datasets, run automated statistics, and securely manage isolated data projects.
           </p>
           
@@ -135,33 +135,33 @@ const ProjectIda = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Breakdown */}
             <div className="bg-[#111] border border-white/10 rounded-lg p-8 hover:border-white/20 transition-colors">
-              <h3 className="font-outfit text-xl font-bold tracking-tight mb-4 flex items-center gap-3">
+              <h3 className="text-[17px] font-semibold tracking-tight mb-4 flex items-center gap-3" style={{ fontFamily: "'Inter', sans-serif" }}>
                 <span className="w-2 h-2 rounded-full bg-[#CB2729]"></span>
                 Project Breakdown
               </h3>
-              <p className="text-white/60 text-sm leading-relaxed">
+              <p className="text-[13.5px] text-white/60 leading-[1.75] font-normal" style={{ fontFamily: "'Inter', sans-serif" }}>
                 Project IDA was conceived as an automated statistical analysis platform. We engineered a robust multi-tenant SaaS application where users can effortlessly upload raw datasets, securely manage isolated data projects, and run complex Exploratory Data Analysis (EDA) pipelines in seconds.
               </p>
             </div>
 
             {/* Problems */}
             <div className="bg-[#111] border border-white/10 rounded-lg p-8 hover:border-white/20 transition-colors">
-              <h3 className="font-outfit text-xl font-bold tracking-tight mb-4 flex items-center gap-3">
+              <h3 className="text-[17px] font-semibold tracking-tight mb-4 flex items-center gap-3" style={{ fontFamily: "'Inter', sans-serif" }}>
                 <span className="w-2 h-2 rounded-full bg-[#CB2729]"></span>
                 Problems Faced
               </h3>
-              <p className="text-white/60 text-sm leading-relaxed">
-                Handling unstructured datasets from concurrent users poses massive security and performance risks. Without strict boundaries, one tenant’s processing load could crash the server, or worse, cross-project data leakage could compromise highly sensitive uploaded information.
+              <p className="text-[13.5px] text-white/60 leading-[1.75] font-normal" style={{ fontFamily: "'Inter', sans-serif" }}>
+                Handling unstructured datasets from concurrent users poses massive security and performance risks. Without strict boundaries, one tenant's processing load could crash the server, or worse, cross-project data leakage could compromise highly sensitive uploaded information.
               </p>
             </div>
 
             {/* Solutions */}
             <div className="bg-[#111] border border-white/10 rounded-lg p-8 hover:border-white/20 transition-colors">
-              <h3 className="font-outfit text-xl font-bold tracking-tight mb-4 flex items-center gap-3">
+              <h3 className="text-[17px] font-semibold tracking-tight mb-4 flex items-center gap-3" style={{ fontFamily: "'Inter', sans-serif" }}>
                 <span className="w-2 h-2 rounded-full bg-green-500"></span>
                 Solutions Delivered
               </h3>
-              <p className="text-white/60 text-sm leading-relaxed">
+              <p className="text-[13.5px] text-white/60 leading-[1.75] font-normal" style={{ fontFamily: "'Inter', sans-serif" }}>
                 We designed a decoupled, service-based architecture that isolates authentication, tenant control, file parsing, and data analysis. This prevents heavy processing from affecting UI responsiveness. Combined with strict role permissions and audit tracking, it ensures 100% data isolation.
               </p>
             </div>
@@ -190,8 +190,8 @@ const ProjectIda = () => {
                 <div className="w-10 h-10 border border-white/10 rounded-md flex items-center justify-center bg-black mb-6 text-white">
                   {f.icon}
                 </div>
-                <h3 className="text-xl font-bold tracking-tight mb-3">{f.title}</h3>
-                <p className="text-sm text-white/50 leading-relaxed">{f.desc}</p>
+                <h3 className="text-[18px] font-semibold tracking-tight mb-3" style={{ fontFamily: "'Inter', sans-serif" }}>{f.title}</h3>
+                <p className="text-[13.5px] text-white/50 leading-[1.75] font-normal" style={{ fontFamily: "'Inter', sans-serif" }}>{f.desc}</p>
               </div>
             ))}
           </div>
@@ -205,7 +205,7 @@ const ProjectIda = () => {
             <h2 className="text-3xl md:text-4xl font-black tracking-tight leading-tight mb-4">
               Decoupled &<br />Secure.
             </h2>
-            <p className="text-sm text-white/50 leading-relaxed max-w-[380px]">
+            <p className="text-[13.5px] text-white/50 leading-[1.75] font-normal max-w-[380px]" style={{ fontFamily: "'Inter', sans-serif" }}>
               Processing user-uploaded datasets requires an architecture that won't buckle under heavy compute loads. By separating the web servers from the analysis workers, the platform remains highly responsive regardless of how large the datasets get.
             </p>
           </div>

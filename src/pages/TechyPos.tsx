@@ -13,7 +13,7 @@ const TechyPos = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-black text-white font-outfit relative overflow-x-hidden selection:bg-[#CB2729] selection:text-white">
+    <div className="min-h-screen bg-black text-white relative overflow-x-hidden selection:bg-[#CB2729] selection:text-white" style={{ fontFamily: "'Inter', sans-serif" }}>
       <SEO 
         title="Techy MS — Project Showcase | Sujan Gautam" 
         description="A full-stack repair management platform built for Techy franchise stores — handling job tracking, live stock, and technician accountability in one system."
@@ -51,7 +51,7 @@ const TechyPos = () => {
             <em className="not-italic text-transparent" style={{ WebkitTextStroke: '1.5px rgba(255,255,255,0.2)' }}>POS &amp;</em><br />
             Inventory
           </h1>
-          <p className="text-white/60 text-base md:text-lg max-w-[480px] leading-relaxed">
+          <p style={{ fontFamily: "'Inter', sans-serif" }} className="text-white/55 text-[15px] md:text-[17px] max-w-[480px] leading-[1.75] font-normal tracking-[0.01em]">
             A full-stack repair management platform built for Techy franchise stores — handling job tracking, live stock, and technician accountability in one system.
           </p>
           
@@ -142,7 +142,7 @@ const TechyPos = () => {
                 <span className="w-2 h-2 rounded-full bg-[#CB2729]"></span>
                 Project Breakdown
               </h3>
-              <p className="text-white/60 text-sm leading-relaxed">
+              <p className="text-[13.5px] text-white/60 leading-[1.75] font-normal" style={{ fontFamily: "'Inter', sans-serif" }}>
                 The Techy franchise needed a unified system to handle repair tickets, customer checkouts, and component inventory. We mapped their entire physical workflow into a digital SaaS product, effectively linking the front counter POS with the back-room technician desks.
               </p>
             </div>
@@ -153,7 +153,7 @@ const TechyPos = () => {
                 <span className="w-2 h-2 rounded-full bg-[#CB2729]"></span>
                 Problems Faced
               </h3>
-              <p className="text-white/60 text-sm leading-relaxed">
+              <p className="text-[13.5px] text-white/60 leading-[1.75] font-normal" style={{ fontFamily: "'Inter', sans-serif" }}>
                 Staff were dealing with out-of-sync inventory numbers because parts used in repairs weren't immediately deducted from the POS system. Furthermore, lacking an audit trail meant it was nearly impossible to track misallocated parts or assign accountability across different shifts.
               </p>
             </div>
@@ -164,7 +164,7 @@ const TechyPos = () => {
                 <span className="w-2 h-2 rounded-full bg-green-500"></span>
                 Solutions Delivered
               </h3>
-              <p className="text-white/60 text-sm leading-relaxed">
+              <p className="text-[13.5px] text-white/60 leading-[1.75] font-normal" style={{ fontFamily: "'Inter', sans-serif" }}>
                 We engineered an atomic transaction pipeline connecting MongoDB (for flexible repair job states) and MySQL (for rigid inventory counts). Implementing WebSockets ensured live stock updates globally, while strict JWT-based role logging created a 100% auditable history of every part movement.
               </p>
             </div>
@@ -193,8 +193,8 @@ const TechyPos = () => {
                 <div className="w-10 h-10 border border-white/10 rounded-md flex items-center justify-center bg-black mb-6 text-white">
                   {f.icon}
                 </div>
-                <h3 className="text-xl font-bold tracking-tight mb-3">{f.title}</h3>
-                <p className="text-sm text-white/50 leading-relaxed">{f.desc}</p>
+                <h3 className="text-[18px] font-semibold tracking-tight mb-3" style={{ fontFamily: "'Inter', sans-serif" }}>{f.title}</h3>
+                <p className="text-[13.5px] text-white/50 leading-[1.75] font-normal" style={{ fontFamily: "'Inter', sans-serif" }}>{f.desc}</p>
               </div>
             ))}
           </div>
@@ -208,7 +208,7 @@ const TechyPos = () => {
             <h2 className="text-3xl md:text-4xl font-black tracking-tight leading-tight mb-4">
               Built to<br />last at<br />scale.
             </h2>
-            <p className="text-sm text-white/50 leading-relaxed max-w-[380px]">
+          <p className="text-[13.5px] text-white/50 leading-[1.75] font-normal max-w-[380px]" style={{ fontFamily: "'Inter', sans-serif" }}>
               The backend is designed around real-time state consistency — repair jobs and stock changes are atomic where they need to be, with a hybrid database approach that plays to each engine's strengths.
             </p>
           </div>
