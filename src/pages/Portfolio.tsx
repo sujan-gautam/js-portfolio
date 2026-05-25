@@ -170,11 +170,29 @@ INSTRUCTIONS:
     setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
   };
 
+  const resolveProjectUrl = (url: string): string => {
+    const u = (url || "").trim();
+    if (!u) return "#";
+    // Internal route (starts with /): resolve against main domain
+    if (u.startsWith("/")) return `https://sujan1919.com.np${u}`;
+    // Already a full URL
+    if (u.startsWith("http://") || u.startsWith("https://")) return u;
+    // Bare domain — add https
+    return `https://${u}`;
+  };
+
   const openPreview = (url: string) => {
-    let u = url || "";
-    if (u && !u.startsWith("http")) u = `https://${u}`;
-    setPreviewUrl(u);
-    setIframeLoading(true);
+    const resolved = resolveProjectUrl(url);
+    if (!resolved || resolved === "#") return;
+    const isInternal = (url || "").trim().startsWith("/");
+    if (isInternal) {
+      // Internal route — open directly in a new tab on the main domain
+      window.open(resolved, "_blank", "noopener,noreferrer");
+    } else {
+      // External URL — show in the iframe preview
+      setPreviewUrl(resolved);
+      setIframeLoading(true);
+    }
   };
 
   return (
