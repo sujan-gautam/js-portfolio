@@ -23,6 +23,7 @@ import MitasKitchen from "./pages/MitasKitchen.tsx";
 import ProjectIda from "./pages/ProjectIda.tsx";
 import GoldenDeals from "./pages/GoldenDeals.tsx";
 import WebWithFreelancer from "./pages/WebWithFreelancer.tsx";
+import Trace from "./pages/Trace.tsx";
 
 // Admin layout
 import AdminLayout from "@/components/admin/AdminLayout";
@@ -114,6 +115,7 @@ const App = () => (
             <Route path="/project-ida/" element={<ProjectIda />} />
             <Route path="/golden-deals/" element={<GoldenDeals />} />
             <Route path="/webwithfreelancer/" element={<WebWithFreelancer />} />
+            <Route path="/trace/" element={<Trace />} />
 
             {/* ── SEO: Individual Post & Story Pages (Google indexable) ── */}
             <Route path="/feed/post/:id" element={<FeedPostPage />} />
