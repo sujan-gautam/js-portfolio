@@ -508,8 +508,10 @@ const AdminVisitors = () => {
                           <div className="flex items-center gap-2 mb-1">
                             {s.isReturning ? <span className="w-2 h-2 bg-emerald-500 rounded-full" title="Returning Visitor" /> : <span className="w-2 h-2 bg-blue-500 rounded-full" title="New Visitor" />}
                             <p className="font-semibold text-slate-800">{s.ip}</p>
+                            <span className="text-[9px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-full">{new Date(s.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                           </div>
                           <p className="text-[10px] text-slate-500 flex items-center gap-1">{deviceIcon(s.device)} {s.browser} · {s.os}</p>
+                          <p className="text-[9px] text-slate-400 mt-1">Res: {s.screenResolution || "?"} · Net: {s.connectionType || "?"}</p>
                         </td>
                         <td className="px-4 py-3 align-top">
                           <div className="flex items-start gap-1">
@@ -534,21 +536,30 @@ const AdminVisitors = () => {
                           </p>
                         </td>
                         <td className="px-4 py-3 align-top">
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-3 mb-1.5">
                             <div>
                               <p className="text-xs font-medium text-slate-700">{formatTime(s.totalTimeSpent)}</p>
-                              <p className="text-[10px] text-slate-400">Duration</p>
+                              <p className="text-[9px] text-slate-400 uppercase tracking-wider">Dur</p>
                             </div>
                             <div>
                               <p className="text-xs font-medium text-slate-700">{s.pages.length}</p>
-                              <p className="text-[10px] text-slate-400">Pages</p>
+                              <p className="text-[9px] text-slate-400 uppercase tracking-wider">Pg</p>
+                            </div>
+                            <div>
+                              <p className="text-xs font-medium text-slate-700">{s.totalClicks || 0}</p>
+                              <p className="text-[9px] text-slate-400 uppercase tracking-wider">Clk</p>
                             </div>
                           </div>
+                          <div className="w-full bg-slate-100 rounded-full h-1.5 mt-1 overflow-hidden">
+                            <div className="bg-indigo-400 h-1.5 rounded-full" style={{ width: `${s.maxScroll || 0}%` }} />
+                          </div>
+                          <p className="text-[9px] text-slate-400 mt-0.5">Scroll: {s.maxScroll || 0}%</p>
                         </td>
                         <td className="px-4 py-3 align-top">
                            <div className="flex flex-col gap-1 max-w-[200px]">
-                              <p className="text-xs text-emerald-600 truncate"><span className="text-slate-400">Enter:</span> {s.entryPage}</p>
-                              {s.pages.length > 1 && <p className="text-xs text-rose-600 truncate"><span className="text-slate-400">Exit:</span> {s.exitPage}</p>}
+                              <p className="text-xs text-emerald-600 truncate"><span className="text-slate-400">In:</span> {s.entryPage}</p>
+                              {s.pages.length > 1 && <p className="text-xs text-rose-600 truncate"><span className="text-slate-400">Out:</span> {s.exitPage}</p>}
+                              <p className="text-[10px] text-slate-500 truncate mt-0.5" title={s.referrer}><span className="text-slate-400">Ref:</span> {s.referrer === "direct" || !s.referrer ? "Direct" : s.referrer}</p>
                            </div>
                         </td>
                         <td className="px-4 py-3 text-right align-top">
@@ -675,19 +686,7 @@ const AdminVisitors = () => {
                                        </div>
                                  </div>
 
-                                 {/* Session Timeline */}
-                                 <div>
-                                   <h4 className="text-xs font-semibold uppercase text-slate-500 tracking-wider mb-3">Session Timeline</h4>
-                                   <div className="space-y-2">
-                                     {s.pages.map((p:any, i:number) => (
-                                       <div key={i} className="flex items-center gap-2 bg-white p-2 rounded border border-slate-100">
-                                         <div className="w-5 h-5 rounded-full bg-indigo-500 text-white flex items-center justify-center text-[9px] font-bold shrink-0">{i+1}</div>
-                                         <span className="font-mono text-xs text-indigo-700 truncate flex-1">{p.page}</span>
-                                         <span className="text-[10px] bg-slate-100 px-1.5 py-0.5 rounded text-slate-500 whitespace-nowrap">{formatTime(p.timeSpent)}</span>
-                                       </div>
-                                     ))}
-                                   </div>
-                                 </div>
+
 
                                  {/* Technical Details */}
                                  <div>
