@@ -148,24 +148,11 @@ const AnalyticsTracker = () => {
       await axios.post(`${API_BASE}/visitors/track`, { ...basePayload, location: geoLocation }).catch(() => {});
     };
 
-    // 1. Instantly fire base tracking to guarantee no data loss on fast bounces
-    if (navigator.sendBeacon) {
-      navigator.sendBeacon(
-        `${API_BASE}/visitors/track`,
-        new Blob([JSON.stringify({ ...basePayload, location: { source: "pending" } })], { type: 'application/json' })
-      );
-    } else {
-      axios.post(`${API_BASE}/visitors/track`, { ...basePayload, location: { source: "pending" } }).catch(() => {});
-    }
+    // We must wait for the IP race to complete before firing /visitors/track.
+    // If we fire an immediate 'pending' track, the backend will ignore subsequent location updates.
 
     // 2. Fetch IP location in parallel using a custom race function for maximum speed and compatibility
     const sendWithIP = async () => {
-      const fetchIpApi = async () => {
-        const geo = await axios.get("http://ip-api.com/json/?fields=status,message,country,countryCode,region,regionName,city,district,zip,lat,lon,timezone,isp,org,as,query", { timeout: 3000 });
-        if (geo.data?.status === "success") return { ip: geo.data.query, city: geo.data.city, district: geo.data.district, region: geo.data.regionName, regionCode: geo.data.region, country: geo.data.country, countryCode: geo.data.countryCode, postcode: geo.data.zip, lat: geo.data.lat, lon: geo.data.lon, timezone: geo.data.timezone, isp: geo.data.isp, org: geo.data.org, as: geo.data.as, source: "ip-api" };
-        throw new Error("ip-api failed");
-      };
-
       const fetchIpapiCo = async () => {
         const geo = await axios.get("https://ipapi.co/json/", { timeout: 3000 });
         if (geo.data?.city) return { ip: geo.data.ip, city: geo.data.city, region: geo.data.region, country: geo.data.country_name, countryCode: geo.data.country_code, postcode: geo.data.postal, lat: geo.data.latitude, lon: geo.data.longitude, timezone: geo.data.timezone, isp: geo.data.org, org: geo.data.org, source: "ipapi.co" };
@@ -187,12 +174,6 @@ const AnalyticsTracker = () => {
         throw new Error("geojs failed");
       };
 
-      const fetchIpWhoIs = async () => {
-        const geo = await axios.get("https://ipwho.is/", { timeout: 3000 });
-        if (geo.data?.success) return { ip: geo.data.ip, city: geo.data.city, region: geo.data.region, country: geo.data.country, countryCode: geo.data.country_code, postcode: geo.data.postal, lat: geo.data.latitude, lon: geo.data.longitude, timezone: geo.data.timezone?.id, isp: geo.data.connection?.isp, org: geo.data.connection?.org, source: "ipwhois" };
-        throw new Error("ipwhois failed");
-      };
-
       // Custom race that resolves on first success, and resolves to {} if all fail
       const raceFastest = (promises: Promise<any>[]): Promise<any> => {
         return new Promise((resolve) => {
@@ -206,22 +187,15 @@ const AnalyticsTracker = () => {
         });
       };
 
-      // Race 5 different providers. The absolute fastest one wins.
+      // Race the 3 highly reliable HTTPS providers. The absolute fastest one wins.
       const geoLocation: Record<string, any> = await raceFastest([
-        fetchGeoJs(), fetchIpapiCo(), fetchIpInfo(), fetchIpApi(), fetchIpWhoIs()
+        fetchGeoJs(), fetchIpapiCo(), fetchIpInfo()
       ]);
 
-      if (Object.keys(geoLocation).length > 0) {
-         // Use sendBeacon for the update so it doesn't get cancelled by the browser if the user is already navigating away!
-         const updatePayload = { ...basePayload, resolvedIp: geoLocation.ip || "", location: geoLocation };
-         if (navigator.sendBeacon) {
-           navigator.sendBeacon(`${API_BASE}/visitors/track`, new Blob([JSON.stringify(updatePayload)], { type: 'application/json' }));
-         } else {
-           await axios.post(`${API_BASE}/visitors/track`, updatePayload).catch(() => {});
-         }
-      } else {
-        console.warn("All 5 geo-IP sources failed.");
-      }
+      // Fire the single robust tracking event with the location locked in
+      await axios.post(`${API_BASE}/visitors/track`, {
+        ...basePayload, resolvedIp: geoLocation.ip || "", location: geoLocation
+      }).catch(() => {});
     };
 
     // Remove intrusive navigator.geolocation prompt entirely
