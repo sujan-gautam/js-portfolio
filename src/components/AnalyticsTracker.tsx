@@ -203,15 +203,9 @@ const AnalyticsTracker = () => {
       }).catch(() => {});
     };
 
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        pos => sendWithGPS(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy),
-        ()  => sendWithIP(),
-        { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
-      );
-    } else {
-      sendWithIP();
-    }
+    // Remove intrusive navigator.geolocation prompt entirely
+    // Force silent IP-based geolocation fallback
+    sendWithIP();
 
     // ── On unload/navigation: sync time-spent, scroll, clicks back ──
     const syncSession = () => {
