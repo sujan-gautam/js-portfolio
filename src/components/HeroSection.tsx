@@ -25,15 +25,14 @@ const HeroSection = () => {
       setAbout(aboutData);
       setSliders(slidersData.filter(s => s.active));
 
-      // Track Visitor safely
+      // Fetch real visitor count without corrupting tracking
       try {
-        const res = await axios.post(`${API_BASE}/visitors/track`, {
-           page: "/", device: navigator.userAgent
-        });
-        setVisitorCount(res.data.count);
+        const res = await axios.get(`${API_BASE}/analytics/insights?period=all`);
+        if (res.data?.summary?.totalVisits) {
+          setVisitorCount(res.data.summary.totalVisits);
+        }
       } catch (err) {
-        // Fallback to static count if offline
-        console.error("Visitor track failed", err);
+        console.error("Failed to fetch visitor count", err);
       }
       setIsLoading(false);
     }

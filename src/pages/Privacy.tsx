@@ -5,12 +5,7 @@ import { Shield } from "lucide-react";
 
 const Privacy = () => {
   useEffect(() => {
-    // Track page view
-    axios.post(`${API_BASE}/visitors/track`, {
-      page: "/privacy/",
-      browser: navigator.userAgent
-    }).catch(err => console.error("Tracking failed", err));
-    
+    // AnalyticsTracker component globally handles visitor tracking
     window.scrollTo(0, 0);
   }, []);
 

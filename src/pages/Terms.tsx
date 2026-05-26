@@ -1,16 +1,9 @@
 import { useEffect } from "react";
-import axios from "axios";
-import { API_BASE } from "@/config";
 import { FileText } from "lucide-react";
 
 const Terms = () => {
   useEffect(() => {
-    // Track page view
-    axios.post(`${API_BASE}/visitors/track`, {
-      page: "/terms/",
-      browser: navigator.userAgent
-    }).catch(err => console.error("Tracking failed", err));
-
+    // AnalyticsTracker component globally handles visitor tracking
     window.scrollTo(0, 0);
   }, []);
 

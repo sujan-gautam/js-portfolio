@@ -148,12 +148,23 @@ const AnalyticsTracker = () => {
       await axios.post(`${API_BASE}/visitors/track`, { ...basePayload, location: geoLocation }).catch(() => {});
     };
 
+    // 1. Instantly fire base tracking to guarantee no data loss on fast bounces
+    if (navigator.sendBeacon) {
+      navigator.sendBeacon(
+        `${API_BASE}/visitors/track`,
+        new Blob([JSON.stringify({ ...basePayload, location: { source: "pending" } })], { type: 'application/json' })
+      );
+    } else {
+      axios.post(`${API_BASE}/visitors/track`, { ...basePayload, location: { source: "pending" } }).catch(() => {});
+    }
+
+    // 2. Fetch IP location in background and update the tracking record
     const sendWithIP = async () => {
       let geoLocation: Record<string, any> = {};
       try {
         // PRIMARY: ip-api.com — completely free, no API key, most detailed fields
         // Returns: city, regionName, country, zip, lat, lon, isp, org, district, timezone
-        const geo = await axios.get("http://ip-api.com/json/?fields=status,message,country,countryCode,region,regionName,city,district,zip,lat,lon,timezone,isp,org,as,query", { timeout: 5000 });
+        const geo = await axios.get("http://ip-api.com/json/?fields=status,message,country,countryCode,region,regionName,city,district,zip,lat,lon,timezone,isp,org,as,query", { timeout: 4000 });
         if (geo.data?.status === "success") {
           geoLocation = {
             ip:          geo.data.query,
@@ -176,7 +187,7 @@ const AnalyticsTracker = () => {
       } catch (e1) {
         // FALLBACK: ipinfo.io
         try {
-          const geo2 = await axios.get("https://ipinfo.io/json", { timeout: 5000 });
+          const geo2 = await axios.get("https://ipinfo.io/json", { timeout: 4000 });
           if (geo2.data?.city) {
             const [lat, lon] = (geo2.data.loc || "0,0").split(",").map(Number);
             geoLocation = {
@@ -198,9 +209,12 @@ const AnalyticsTracker = () => {
         }
       }
 
-      await axios.post(`${API_BASE}/visitors/track`, {
-        ...basePayload, resolvedIp: geoLocation.ip || "", location: geoLocation
-      }).catch(() => {});
+      if (Object.keys(geoLocation).length > 0) {
+         // Send the updated location details back to the server
+         await axios.post(`${API_BASE}/visitors/track`, {
+           ...basePayload, resolvedIp: geoLocation.ip || "", location: geoLocation
+         }).catch(() => {});
+      }
     };
 
     // Remove intrusive navigator.geolocation prompt entirely

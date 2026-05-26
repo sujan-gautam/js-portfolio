@@ -9,11 +9,7 @@ const Index = () => {
   const [settings, setSettings] = useState<any>(null);
 
   useEffect(() => {
-    // Track homepage view
-    axios.post(`${API_BASE}/visitors/track`, {
-      page: "/",
-      browser: navigator.userAgent
-    }).catch(err => console.error("Tracking failed", err));
+    // AnalyticsTracker component globally handles all page views and visitor tracking
 
     // Fetch settings for SEO
     axios.get(`${API_BASE}/singleton/settings`).then(r => setSettings(r.data)).catch(() => {});
