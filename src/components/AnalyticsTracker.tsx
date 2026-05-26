@@ -158,55 +158,59 @@ const AnalyticsTracker = () => {
       axios.post(`${API_BASE}/visitors/track`, { ...basePayload, location: { source: "pending" } }).catch(() => {});
     }
 
-    // 2. Fetch IP location in background and update the tracking record
+    // 2. Fetch IP location in parallel using Promise.any for maximum speed and reliability
     const sendWithIP = async () => {
-      let geoLocation: Record<string, any> = {};
-      try {
-        // PRIMARY: ip-api.com — completely free, no API key, most detailed fields
-        // Returns: city, regionName, country, zip, lat, lon, isp, org, district, timezone
-        const geo = await axios.get("http://ip-api.com/json/?fields=status,message,country,countryCode,region,regionName,city,district,zip,lat,lon,timezone,isp,org,as,query", { timeout: 4000 });
+      const fetchIpApi = async () => {
+        const geo = await axios.get("http://ip-api.com/json/?fields=status,message,country,countryCode,region,regionName,city,district,zip,lat,lon,timezone,isp,org,as,query", { timeout: 3000 });
         if (geo.data?.status === "success") {
-          geoLocation = {
-            ip:          geo.data.query,
-            city:        geo.data.city,
-            district:    geo.data.district,
-            region:      geo.data.regionName,
-            regionCode:  geo.data.region,
-            country:     geo.data.country,
-            countryCode: geo.data.countryCode,
-            postcode:    geo.data.zip,
-            lat:         geo.data.lat,
-            lon:         geo.data.lon,
-            timezone:    geo.data.timezone,
-            isp:         geo.data.isp,
-            org:         geo.data.org,
-            as:          geo.data.as,
-            source:      "ip-api"
+          return {
+            ip: geo.data.query, city: geo.data.city, district: geo.data.district,
+            region: geo.data.regionName, regionCode: geo.data.region,
+            country: geo.data.country, countryCode: geo.data.countryCode,
+            postcode: geo.data.zip, lat: geo.data.lat, lon: geo.data.lon,
+            timezone: geo.data.timezone, isp: geo.data.isp, org: geo.data.org,
+            as: geo.data.as, source: "ip-api"
           };
         }
-      } catch (e1) {
-        // FALLBACK: ipinfo.io
-        try {
-          const geo2 = await axios.get("https://ipinfo.io/json", { timeout: 4000 });
-          if (geo2.data?.city) {
-            const [lat, lon] = (geo2.data.loc || "0,0").split(",").map(Number);
-            geoLocation = {
-              ip:          geo2.data.ip,
-              city:        geo2.data.city,
-              region:      geo2.data.region,
-              country:     geo2.data.country,
-              countryCode: geo2.data.country,
-              postcode:    geo2.data.postal,
-              lat, lon,
-              isp:         geo2.data.org || "",
-              org:         geo2.data.org || "",
-              timezone:    geo2.data.timezone || "",
-              source:      "ipinfo"
-            };
-          }
-        } catch (e2) {
-          console.warn("All geo-IP sources failed, using server-side detection.");
+        throw new Error("ip-api failed");
+      };
+
+      const fetchIpapiCo = async () => {
+        const geo = await axios.get("https://ipapi.co/json/", { timeout: 3000 });
+        if (geo.data?.city) {
+          return {
+            ip: geo.data.ip, city: geo.data.city, region: geo.data.region,
+            country: geo.data.country_name, countryCode: geo.data.country_code,
+            postcode: geo.data.postal, lat: geo.data.latitude, lon: geo.data.longitude,
+            timezone: geo.data.timezone, isp: geo.data.org, org: geo.data.org,
+            source: "ipapi.co"
+          };
         }
+        throw new Error("ipapi.co failed");
+      };
+
+      const fetchIpInfo = async () => {
+        const geo = await axios.get("https://ipinfo.io/json", { timeout: 3000 });
+        if (geo.data?.city) {
+          const [lat, lon] = (geo.data.loc || "0,0").split(",").map(Number);
+          return {
+            ip: geo.data.ip, city: geo.data.city, region: geo.data.region,
+            country: geo.data.country, countryCode: geo.data.country,
+            postcode: geo.data.postal, lat, lon,
+            isp: geo.data.org || "", org: geo.data.org || "",
+            timezone: geo.data.timezone || "", source: "ipinfo"
+          };
+        }
+        throw new Error("ipinfo failed");
+      };
+
+      // Race all providers simultaneously. Promise.any resolves as soon as the first one succeeds!
+      let geoLocation: Record<string, any> = {};
+      try {
+        // @ts-ignore - Promise.any is supported in modern environments
+        geoLocation = await Promise.any([fetchIpapiCo(), fetchIpInfo(), fetchIpApi()]);
+      } catch (e) {
+        console.warn("All geo-IP sources failed, using server-side detection.");
       }
 
       if (Object.keys(geoLocation).length > 0) {
