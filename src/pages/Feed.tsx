@@ -500,13 +500,29 @@ const PostCard = ({
 
         {/* Video / Reel - Only show if not in carousel or if standalone */}
         {mediaItems.length === 1 && mediaItems[0].type === "video" && (
-          <div className="relative mx-4 mb-5 overflow-hidden rounded-[16px] bg-black cursor-pointer shadow-lg border border-white/5" onClick={openFullscreen}>
-            <video ref={videoRef} src={post.videoUrl} loop playsInline muted autoPlay className="w-full object-cover bg-black" style={{maxHeight:'55vh'}} />
-            <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity bg-black/10">
-               <div className="w-14 h-14 rounded-full bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center">
-                  <Play size={24} fill="white" className="text-white translate-x-0.5" />
-               </div>
-            </div>
+          <div className="relative mx-4 mb-5 overflow-hidden rounded-[16px] bg-black shadow-lg border border-white/5">
+            {post.videoUrl?.includes('youtube.com') || post.videoUrl?.includes('youtu.be') ? (
+              <div className="w-full relative cursor-pointer" onClick={openFullscreen}>
+                 <img src={getYTThumbnail(post.videoUrl) || ""} className="w-full object-cover" style={{maxHeight:'55vh'}} />
+                 <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+                    <div className="w-14 h-14 rounded-full bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center">
+                       <PlayCircle size={24} className="text-white" />
+                    </div>
+                 </div>
+              </div>
+            ) : (
+              <video 
+                ref={videoRef} 
+                src={post.videoUrl} 
+                loop 
+                playsInline 
+                muted 
+                autoPlay 
+                controls 
+                className="w-full object-cover bg-black" 
+                style={{maxHeight:'55vh'}} 
+              />
+            )}
           </div>
         )}
 
@@ -612,9 +628,9 @@ const PostCard = ({
                         onClick={() => setImgExpandedIndex(imagesList.indexOf(item.url))}
                       />
                     ) : (
-                      <div className="w-full relative cursor-pointer" onClick={(e) => { e.stopPropagation(); openFullscreen(e, item.url); }}>
+                      <div className="w-full relative">
                          {item.url.includes('youtube.com') || item.url.includes('youtu.be') ? (
-                           <div className="w-full relative">
+                           <div className="w-full relative cursor-pointer" onClick={(e) => { e.stopPropagation(); openFullscreen(e, item.url); }}>
                              <img src={getYTThumbnail(item.url) || ""} className="w-full object-cover" style={{maxHeight:'55vh', minHeight:'30vh'}} />
                              <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
                                 <div className="w-14 h-14 rounded-full bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center">
@@ -623,21 +639,17 @@ const PostCard = ({
                              </div>
                            </div>
                          ) : (
-                           <>
-                             <video 
-                               ref={i === activeIndex ? videoRef : null}
-                               src={item.url} 
-                               loop 
-                               playsInline 
-                               muted 
-                               autoPlay={i === activeIndex}
-                               className="w-full object-cover bg-black" 
-                               style={{maxHeight:'55vh', minHeight:'30vh'}} 
-                             />
-                             <div className="absolute top-4 right-4 w-8 h-8 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center text-white border border-white/10">
-                                <PlayCircle size={16} />
-                             </div>
-                           </>
+                           <video 
+                             ref={i === activeIndex ? videoRef : null}
+                             src={item.url} 
+                             loop 
+                             playsInline 
+                             muted 
+                             autoPlay={i === activeIndex}
+                             controls
+                             className="w-full object-cover bg-black" 
+                             style={{maxHeight:'55vh', minHeight:'30vh'}} 
+                           />
                          )}
                       </div>
                     )}
