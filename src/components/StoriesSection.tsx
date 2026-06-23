@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import YouTube from "react-youtube";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import SEO from "@/components/SEO";
 import { ChevronLeft, ChevronRight, Play, Pause, Loader2, Send, MessageSquare, X, UserCheck, Music, Star, Volume2, VolumeX, Lock, ExternalLink, BarChart2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -312,6 +313,55 @@ const StoriesSection = () => {
   return (
     <div className="px-4 py-4 relative">
       <style>{storyAnimations}</style>
+      {storyViewerOpen && currentViewerStory && (
+        <SEO 
+          title={currentViewerStory.title ? `${currentViewerStory.title} — Sujan Gautam` : "Exclusive Story — Sujan Gautam"}
+          description={currentViewerStory.description || currentViewerStory.caption || "View an exclusive story from Sujan Gautam's portfolio."}
+          type={currentViewerStory.type === "video" ? "video.other" : "article"}
+          image={currentViewerStory.type !== "video" ? getMediaUrl(currentViewerStory.image, currentViewerStory.isMembersOnly || false) : undefined}
+          video={currentViewerStory.type === "video" ? getMediaUrl(currentViewerStory.image, currentViewerStory.isMembersOnly || false) : undefined}
+          url={`https://sujan1919.com.np/?story=${currentViewerStory.id}`}
+          publishedTime={currentViewerStory.createdAt}
+          structuredData={(() => {
+            const canonicalUrl = `https://sujan1919.com.np/?story=${currentViewerStory.id}`;
+            const isVideo = currentViewerStory.type === "video";
+            const mediaUrl = getMediaUrl(currentViewerStory.image, currentViewerStory.isMembersOnly || false) || "https://res.cloudinary.com/dspj4fc14/image/upload/v1782236706/exact-echo/og/og_feed.jpg";
+            const desc = currentViewerStory.description || currentViewerStory.caption || "View an exclusive story from Sujan Gautam's portfolio.";
+            const ogImage = isVideo ? "https://res.cloudinary.com/dspj4fc14/image/upload/v1782236706/exact-echo/og/og_feed.jpg" : mediaUrl;
+
+            const mediaSchema = isVideo ? {
+              "@context": "https://schema.org",
+              "@type": "VideoObject",
+              "@id": canonicalUrl + "#video",
+              "name": currentViewerStory.title || "Exclusive Story — Sujan Gautam",
+              "description": desc,
+              "contentUrl": mediaUrl,
+              "thumbnailUrl": ogImage,
+              "uploadDate": currentViewerStory.createdAt,
+              "duration": currentViewerStory.duration ? `PT${currentViewerStory.duration}S` : undefined,
+              "author": { "@type": "Person", "name": "Sujan Gautam", "url": "https://sujan1919.com.np/" },
+              "publisher": {
+                "@type": "Person",
+                "name": "Sujan Gautam",
+                "url": "https://sujan1919.com.np/",
+                "logo": { "@type": "ImageObject", "url": "https://res.cloudinary.com/dspj4fc14/image/upload/v1782238482/exact-echo/favicon.jpg" }
+              },
+              "url": canonicalUrl
+            } : {
+              "@context": "https://schema.org",
+              "@type": "ImageObject",
+              "@id": canonicalUrl + "#image",
+              "name": currentViewerStory.title || "Exclusive Story — Sujan Gautam",
+              "description": desc,
+              "contentUrl": mediaUrl,
+              "url": canonicalUrl,
+              "author": { "@type": "Person", "name": "Sujan Gautam", "url": "https://sujan1919.com.np/" },
+              "uploadDate": currentViewerStory.createdAt
+            };
+            return mediaSchema;
+          })()}
+        />
+      )}
       <p className="text-xs font-bold tracking-[0.2em] text-white mb-4 uppercase">
         STORIES:
       </p>
