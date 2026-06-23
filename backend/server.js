@@ -1101,6 +1101,119 @@ app.get("*", async (req, res, next) => {
           }
         }
       };
+    } else if (pathClean === "/blog") {
+      title = "Blog — Sujan Gautam | Technical Articles & Coding Guides";
+      desc = "Read the latest articles, coding tutorials, and web development insights by Sujan Gautam. Topics include React, Node.js, and scaling software architectures.";
+      keywords = "Sujan Gautam blog, coding guides, web development tutorials, react nodejs developer blog";
+      ogImage = "https://res.cloudinary.com/dspj4fc14/image/upload/v1782236706/exact-echo/og/og_feed.jpg";
+
+      schemaData = {
+        "@context": "https://schema.org",
+        "@type": "Blog",
+        "name": "Sujan Gautam's Technical Blog",
+        "url": "https://sujan1919.com.np/blog",
+        "description": "Read technical articles, tutorials and software engineering insights by Sujan Gautam.",
+        "author": { "@id": "https://sujan1919.com.np/#person" }
+      };
+    } else if (pathClean === "/trace") {
+      title = "Trace — Interactive Time-Travel Debugger | Sujan Gautam";
+      desc = "Explore Trace, an advanced time-travel debugger designed to help developers trace, visualize, and debug JavaScript code execution step-by-step in real-time.";
+      keywords = "Trace debugger, time travel debugger, javascript debugging tool, sujan gautam trace";
+      ogImage = "https://res.cloudinary.com/dspj4fc14/image/upload/v1782236705/exact-echo/og/og_portfolio.jpg";
+
+      schemaData = {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Trace — Time-Travel Debugger",
+        "description": "An advanced interactive tool designed to help developers debug, visualize, and trace code execution.",
+        "applicationCategory": "DeveloperApplication",
+        "url": "https://trace.sujan1919.com.np",
+        "author": { "@id": "https://sujan1919.com.np/#person" }
+      };
+    } else if (pathClean === "/techy-pos") {
+      title = "Techy POS — Custom Inventory & Retail POS Platform | Sujan Gautam";
+      desc = "Explore Techy POS, a custom Point of Sale and inventory management platform designed for specialized electronics retail operations.";
+      keywords = "Techy POS, point of sale system, inventory management software, retail dashboard";
+      ogImage = "https://res.cloudinary.com/dspj4fc14/image/upload/v1782236705/exact-echo/og/og_portfolio.jpg";
+
+      schemaData = {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Techy POS",
+        "description": "A custom POS and inventory management platform developed for a specialized electronics franchise.",
+        "applicationCategory": "BusinessApplication",
+        "url": "https://sujan1919.com.np/techy-pos/",
+        "author": { "@id": "https://sujan1919.com.np/#person" }
+      };
+    } else if (pathClean === "/mitas-kitchen") {
+      title = "Mitas Himalayan Kitchen — Premium Restaurant Website | Sujan Gautam";
+      desc = "Explore the web design and development of Mitas Himalayan Kitchen, a fully functional restaurant website with menu management and ordering.";
+      keywords = "restaurant website, mitas kitchen, nepalese restaurant web design, online menu system";
+      ogImage = "https://res.cloudinary.com/dspj4fc14/image/upload/v1782236705/exact-echo/og/og_portfolio.jpg";
+
+      schemaData = {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "name": "Mitas Himalayan Kitchen",
+        "description": "Fully functional restaurant website designed and developed for Mitas Himalayan Kitchen.",
+        "url": "https://sujan1919.com.np/mitas-kitchen/",
+        "author": { "@id": "https://sujan1919.com.np/#person" }
+      };
+    } else if (pathClean === "/golden-deals") {
+      title = "Golden Deals — Full-Stack E-Commerce Web Application | Sujan Gautam";
+      desc = "Explore Golden Deals, a robust full-stack e-commerce web application featuring secure payments, cart management, and admin panels.";
+      keywords = "e-commerce web application, golden deals online shop, full stack ecommerce portfolio";
+      ogImage = "https://res.cloudinary.com/dspj4fc14/image/upload/v1782236705/exact-echo/og/og_portfolio.jpg";
+
+      schemaData = {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Golden Deals",
+        "description": "A full-stack project built with Node.js backend and React-based frontend.",
+        "applicationCategory": "WebApplication",
+        "url": "https://sujan1919.com.np/golden-deals/",
+        "author": { "@id": "https://sujan1919.com.np/#person" }
+      };
+    } else if (pathClean === "/webwithfreelancer") {
+      title = "Web With Freelancer — Freelance Portal & Client Studio | Sujan Gautam";
+      desc = "Explore Web With Freelancer, a client portal and booking workspace designed for seamless digital project delivery.";
+      keywords = "freelance developer portal, webwithfreelancer, client management workspace";
+      ogImage = "https://res.cloudinary.com/dspj4fc14/image/upload/v1782236705/exact-echo/og/og_portfolio.jpg";
+
+      schemaData = {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Web With Freelancer",
+        "description": "A client portal and booking workspace designed for seamless digital project delivery.",
+        "applicationCategory": "BusinessApplication",
+        "url": "https://sujan1919.com.np/webwithfreelancer/",
+        "author": { "@id": "https://sujan1919.com.np/#person" }
+      };
+    } else if (pathClean === "/project-ida") {
+      title = "Project IDA — Client Custom Design & Web Suite | Sujan Gautam";
+      desc = "Explore Project IDA, a specialized full-stack custom web solution and dashboard designed to streamline internal client workflows.";
+      keywords = "Project IDA, custom enterprise software, dashboard web app";
+      ogImage = "https://res.cloudinary.com/dspj4fc14/image/upload/v1782236705/exact-echo/og/og_portfolio.jpg";
+
+      schemaData = {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Project IDA",
+        "description": "A specialized full-stack custom web solution and dashboard designed to streamline internal client workflows.",
+        "applicationCategory": "BusinessApplication",
+        "url": "https://sujan1919.com.np/project-ida/",
+        "author": { "@id": "https://sujan1919.com.np/#person" }
+      };
+    } else if (pathClean === "/privacy") {
+      title = "Privacy Policy — Sujan Gautam";
+      desc = "Privacy Policy for sujan1919.com.np. Learn how we handle your personal data and privacy settings.";
+      keywords = "privacy policy sujan gautam";
+      ogImage = "https://res.cloudinary.com/dspj4fc14/image/upload/v1782236920/exact-echo/og/og_home.jpg";
+    } else if (pathClean === "/terms") {
+      title = "Terms of Service — Sujan Gautam";
+      desc = "Terms of Service for sujan1919.com.np. Read the terms, conditions, and usage policies of this website.";
+      keywords = "terms of service sujan gautam";
+      ogImage = "https://res.cloudinary.com/dspj4fc14/image/upload/v1782236920/exact-echo/og/og_home.jpg";
     }
 
     $('title').text(title);
