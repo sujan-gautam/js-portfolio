@@ -762,6 +762,16 @@ app.get("*", async (req, res, next) => {
     return next();
   }
 
+  // Ensure database connection is fully ready before executing SSR-lite rendering queries
+  try {
+    if (mongoose.connection.readyState !== 1) {
+      console.log("SEO: Database connection not ready, connecting...");
+      await mongoose.connect(process.env.MONGO_URI, { serverSelectionTimeoutMS: 5000 });
+    }
+  } catch (err) {
+    console.error("SEO: Database connection failed during request:", err.message);
+  }
+
   try {
     const rawHtml = await getHtmlTemplate(req);
     const $ = cheerio.load(rawHtml);
@@ -792,7 +802,9 @@ app.get("*", async (req, res, next) => {
       if (req.query.story) {
         try {
           servedStory = await Models.Story.findById(req.query.story).lean();
-        } catch (e) { /* silent fallback */ }
+        } catch (e) {
+          console.error("SEO: Homepage story query error:", e);
+        }
       }
 
       if (servedStory) {
