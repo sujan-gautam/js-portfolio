@@ -722,21 +722,35 @@ async function getHtmlTemplate(req) {
     return cachedHtml;
   }
 
-  // PRODUCTION FIRST: Always prefer the compiled dist/index.html
-  // Root index.html contains /src/main.tsx which 404s in production
+  // PRODUCTION FIRST: Always prefer the compiled dist/raw-index.html
+  // (dist/index.html is renamed to dist/raw-index.html at build time so Vercel
+  //  does NOT serve it directly as a static file — all requests go through SSR)
   try {
-    const prodLocalPath = path.join(process.cwd(), "dist", "index.html");
+    const prodLocalPath = path.join(process.cwd(), "dist", "raw-index.html");
     if (fs.existsSync(prodLocalPath)) {
       cachedHtml = fs.readFileSync(prodLocalPath, "utf-8");
       cacheTime = now;
-      console.log("SEO: Loaded HTML template from dist/index.html");
+      console.log("SEO: Loaded HTML template from dist/raw-index.html");
       return cachedHtml;
     }
   } catch (err) {
-    console.log("dist/index.html not found, trying HTTP fetch...");
+    console.log("dist/raw-index.html not found, trying HTTP fetch...");
   }
 
-  // Fetch the compiled index over HTTP (Vercel serves static dist via /raw-index.html rewrite)
+  // Fallback: also try dist/index.html (legacy / first deploy before rename)
+  try {
+    const legacyPath = path.join(process.cwd(), "dist", "index.html");
+    if (fs.existsSync(legacyPath)) {
+      cachedHtml = fs.readFileSync(legacyPath, "utf-8");
+      cacheTime = now;
+      console.log("SEO: Loaded HTML template from dist/index.html (legacy)");
+      return cachedHtml;
+    }
+  } catch (err) {
+    console.log("dist/index.html not found either, trying HTTP fetch...");
+  }
+
+  // Fetch the compiled index over HTTP (/raw-index.html is served as static file from dist/)
   try {
     const protocol = req.headers["x-forwarded-proto"] || req.protocol || "https";
     const host = req.headers.host;
@@ -768,6 +782,7 @@ async function getHtmlTemplate(req) {
   // Ultimate fallback — minimal shell
   return `<!doctype html><html lang="en"><head><meta charset="UTF-8"/><title>Sujan Gautam</title></head><body><div id="root"></div></body></html>`;
 }
+
 
 app.get("*", async (req, res, next) => {
   // If the request is for API or static assets/files, let Vercel/Express static routing handle it
