@@ -105,6 +105,19 @@ app.use(session({
 app.use(passport.initialize());
 app.use(passport.session()); // Session support for passport handshake
 
+// Ensure database connection is ready before handling any requests (prevents serverless cold-start race conditions)
+app.use(async (req, res, next) => {
+  try {
+    if (mongoose.connection.readyState !== 1) {
+      console.log("DB: Connection not ready, connecting...");
+      await mongoose.connect(MONGO_URI, { serverSelectionTimeoutMS: 5000 });
+    }
+  } catch (err) {
+    console.error("DB: Connection failed during request:", err.message);
+  }
+  next();
+});
+
 // Routes
 app.use("/api", crudRoutes);
 app.use("/api/auth", authRoutes);
@@ -760,16 +773,6 @@ app.get("*", async (req, res, next) => {
   // If the request is for API or static assets/files, let Vercel/Express static routing handle it
   if (req.path.startsWith("/api") || req.path.includes(".")) {
     return next();
-  }
-
-  // Ensure database connection is fully ready before executing SSR-lite rendering queries
-  try {
-    if (mongoose.connection.readyState !== 1) {
-      console.log("SEO: Database connection not ready, connecting...");
-      await mongoose.connect(process.env.MONGO_URI, { serverSelectionTimeoutMS: 5000 });
-    }
-  } catch (err) {
-    console.error("SEO: Database connection failed during request:", err.message);
   }
 
   try {
