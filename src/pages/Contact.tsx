@@ -108,10 +108,12 @@ const Contact = () => {
     }
 
     setSubmitting(true);
+    (window as any).reportActivity?.('form_submit_start', 'Contact Form', `Name: ${formData.name || 'Anonymous'}`);
     try {
       await contactsDB.sendEmail(formData);
       setSubmitted(true);
       toast.success("Message sent successfully.");
+      (window as any).reportActivity?.('form_submit_success', 'Contact Form Submitted', `Name: ${formData.name}, Email: ${formData.email}`);
       setFormData({ name: "", email: "", phone: "", message: "" });
       setTimeout(() => {
         setSubmitted(false);
@@ -119,6 +121,7 @@ const Contact = () => {
       }, 3000);
     } catch (error: any) {
        toast.error(error.message || "Failed to send message. Please try again.");
+       (window as any).reportActivity?.('form_submit_error', 'Contact Form Failed', `Error: ${error.message || 'Unknown error'}`);
     }
     setSubmitting(false);
   };
@@ -249,7 +252,7 @@ const Contact = () => {
 
       {/* Persistent CTA Bar - Matches About/Portfolio design */}
       <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[1000] w-[90%] md:w-auto">
-         <div className="relative group cursor-pointer" onClick={() => setIsModalOpen(true)}>
+         <div className="relative group cursor-pointer" onClick={() => { setIsModalOpen(true); (window as any).reportActivity?.('modal_open', 'Contact Modal', 'Clicked: Want to collab or hire me?'); }}>
             <button 
                className="relative flex items-center gap-4 px-8 md:px-10 py-3 md:py-3.5 rounded-full border border-white/5 bg-[#0a0a0a]/90 backdrop-blur-xl hover:bg-[#111] transition-all duration-300 shadow-xl"
             >

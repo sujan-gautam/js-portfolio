@@ -244,6 +244,13 @@ const VisitorRecordSchema = new mongoose.Schema({
   scrollDepth: { type: Number, default: 0 },       // max % scrolled
   clickCount: { type: Number, default: 0 },        // clicks during session
   isReturning: { type: Boolean, default: false },  // returning visitor
+  activities: [{
+    type: { type: String }, // 'visit', 'click', 'section_view', 'modal_open', 'play_music', 'submit_form', etc.
+    target: String,
+    details: String,
+    path: String,
+    timestamp: { type: Date, default: Date.now }
+  }],
   timestamp: { type: Date, default: Date.now }
 });
 

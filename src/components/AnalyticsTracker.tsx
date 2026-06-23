@@ -53,7 +53,7 @@ const AnalyticsTracker = () => {
   const clickCountRef   = useRef<number>(0);
   const sessionPageViews = useRef<number>(0);
 
-  /* ── Scroll tracker ── */
+  /* ── Scroll depth tracker ── */
   useEffect(() => {
     const onScroll = () => {
       const scrollPct = Math.round(
@@ -65,14 +65,7 @@ const AnalyticsTracker = () => {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  /* ── Click tracker ── */
-  useEffect(() => {
-    const onClick = () => { clickCountRef.current += 1; };
-    document.addEventListener('click', onClick);
-    return () => document.removeEventListener('click', onClick);
-  }, []);
-
-  /* ── Per-page-view tracking ── */
+  /* ── Per-page-view tracking & Activity Engine ── */
   useEffect(() => {
     if (location.pathname.startsWith('/admin')) return;
 
@@ -123,6 +116,19 @@ const AnalyticsTracker = () => {
     // Mark as returning for future sessions
     localStorage.setItem(RETURNING_KEY, '1');
 
+    // Define the global window-level logger
+    (window as any).reportActivity = async (type: string, target: string, details = "") => {
+      const payload = {
+        sessionID: sessionId,
+        page: window.location.pathname,
+        type,
+        target,
+        details
+      };
+      
+      axios.post(`${API_BASE}/analytics/track-activity`, payload).catch(() => {});
+    };
+
     // ── GPS → IP fallback geo chain ──
     const sendWithGPS = async (lat: number, lon: number, accuracy: number) => {
       let geoLocation: Record<string, any> = { lat, lon, accuracy };
@@ -148,10 +154,7 @@ const AnalyticsTracker = () => {
       await axios.post(`${API_BASE}/visitors/track`, { ...basePayload, location: geoLocation }).catch(() => {});
     };
 
-    // We must wait for the IP race to complete before firing /visitors/track.
-    // If we fire an immediate 'pending' track, the backend will ignore subsequent location updates.
-
-    // 2. Fetch IP location in parallel using a custom race function for maximum speed and compatibility
+    // Fetch IP location and fire initial track
     const sendWithIP = async () => {
       const fetchIpapiCo = async () => {
         const geo = await axios.get("https://ipapi.co/json/", { timeout: 3000 });
@@ -174,7 +177,6 @@ const AnalyticsTracker = () => {
         throw new Error("geojs failed");
       };
 
-      // Custom race that resolves on first success, and resolves to {} if all fail
       const raceFastest = (promises: Promise<any>[]): Promise<any> => {
         return new Promise((resolve) => {
           let rejected = 0;
@@ -187,26 +189,159 @@ const AnalyticsTracker = () => {
         });
       };
 
-      // Race the 3 highly reliable HTTPS providers. The absolute fastest one wins.
       const geoLocation: Record<string, any> = await raceFastest([
         fetchGeoJs(), fetchIpapiCo(), fetchIpInfo()
       ]);
 
-      // Fire the single robust tracking event with the location locked in
       await axios.post(`${API_BASE}/visitors/track`, {
         ...basePayload, resolvedIp: geoLocation.ip || "", location: geoLocation
+      }).then(() => {
+        // Log page load as first activity in database
+        (window as any).reportActivity?.('visit', `Landed on page: ${location.pathname}`, `Referrer: ${document.referrer || 'direct'}`);
       }).catch(() => {});
     };
 
-    // Remove intrusive navigator.geolocation prompt entirely
-    // Force silent IP-based geolocation fallback
     sendWithIP();
 
-    // ── On unload/navigation: sync time-spent, scroll, clicks back ──
+    // ── Global Clicks Tracking on All Pages and Subpages ──
+    const handleGlobalClick = (e: MouseEvent) => {
+      clickCountRef.current += 1;
+      const target = e.target as HTMLElement;
+      if (!target) return;
+
+      // Find closest interactive element
+      const interactiveEl = target.closest('a, button, input[type="submit"], input[type="button"], [role="button"], .cursor-pointer, [data-clickable="true"]');
+      if (!interactiveEl) return;
+
+      const tagName = interactiveEl.tagName.toLowerCase();
+      let text = (interactiveEl.textContent || '').trim().replace(/\s+/g, ' ');
+      
+      // If element contains SVG icon and no text, look for helper title
+      if (!text && interactiveEl.querySelector('svg')) {
+        text = interactiveEl.querySelector('title')?.textContent || '';
+      }
+
+      if (text.length > 50) text = text.substring(0, 50) + '...';
+
+      let eventTarget = text || 'Unnamed interactive element';
+      let details = '';
+
+      if (tagName === 'a') {
+        const href = interactiveEl.getAttribute('href') || '';
+        eventTarget = text ? `Link: "${text}"` : `Link to ${href}`;
+        details = `URL: ${href}`;
+        
+        // Mark external links, mailto, tel, etc.
+        if (href.startsWith('mailto:')) {
+          eventTarget = `Email Link: "${text || href.replace('mailto:', '')}"`;
+          details = `Email: ${href.replace('mailto:', '')}`;
+        } else if (href.startsWith('tel:')) {
+          eventTarget = `Phone Link: "${text || href.replace('tel:', '')}"`;
+          details = `Phone: ${href.replace('tel:', '')}`;
+        } else if (href.startsWith('http') && !href.includes(window.location.host)) {
+          details = `External URL: ${href}`;
+        }
+      } else if (tagName === 'button' || interactiveEl.getAttribute('role') === 'button') {
+        eventTarget = text ? `Button: "${text}"` : `Button (${interactiveEl.className.split(' ')[0] || 'unnamed'})`;
+        const ariaLabel = interactiveEl.getAttribute('aria-label');
+        if (ariaLabel) details = `Aria Label: ${ariaLabel}`;
+      } else if (tagName === 'input') {
+        const type = (interactiveEl as HTMLInputElement).type;
+        const val = (interactiveEl as HTMLInputElement).value;
+        const name = (interactiveEl as HTMLInputElement).name;
+        eventTarget = `Input field: ${name || type}`;
+        details = `Value: ${val || ''}`;
+      }
+
+      // Send activity
+      (window as any).reportActivity?.('click', eventTarget, details);
+    };
+
+    document.addEventListener('click', handleGlobalClick);
+
+    // ── Dynamic Section View Observer for All Pages and Subpages ──
+    const getSectionName = (el: HTMLElement) => {
+      if (el.getAttribute('data-section')) return el.getAttribute('data-section')!;
+      if (el.id) {
+        return el.id.replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+      }
+      const heading = el.querySelector('h1, h2, h3, h4');
+      if (heading && heading.textContent) {
+        const text = heading.textContent.trim().replace(/\s+/g, ' ');
+        if (text.length > 0 && text.length < 35) return text;
+      }
+      if (el.tagName.toLowerCase() === 'article') return 'Article Content';
+      return el.className ? `Block: ${el.className.split(' ')[0]}` : 'Unnamed Section';
+    };
+
+    const activeViews = new Map<HTMLElement, number>();
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        const el = entry.target as HTMLElement;
+        if (entry.isIntersecting) {
+          activeViews.set(el, Date.now());
+        } else {
+          const startTime = activeViews.get(el);
+          if (startTime) {
+            const duration = Math.round((Date.now() - startTime) / 1000);
+            activeViews.delete(el);
+
+            if (duration >= 1.5) { // Viewed for at least 1.5 seconds
+              const name = getSectionName(el);
+              (window as any).reportActivity?.('section_view', name, `Viewed section for ${duration}s`);
+            }
+          }
+        }
+      });
+    }, {
+      threshold: 0.35 // Must cover at least 35% of screen height
+    });
+
+    const findAndObserve = () => {
+      // Find sections or articles
+      const selectors = [
+        'section',
+        'article',
+        '#hero',
+        '#projects',
+        '#skills',
+        '#services',
+        '#stories',
+        '#videos',
+        '#about',
+        '#contact',
+        '.section-block',
+        '[data-section]'
+      ];
+      const targets = document.querySelectorAll(selectors.join(', '));
+      targets.forEach(t => observer.observe(t));
+    };
+
+    // Run observation after components settle
+    const observerTimer = setTimeout(findAndObserve, 800);
+
+    // ── On unload/navigation: sync metrics back ──
     const syncSession = () => {
       const timeSpent   = Math.round((Date.now() - pageStartRef.current) / 1000);
       const currentPV   = parseInt(sessionStorage.getItem(PV_KEY) || '1');
       const exitPage    = location.pathname;
+
+      // Close out any currently visible sections and record their time spent
+      activeViews.forEach((startTime, el) => {
+        const duration = Math.round((Date.now() - startTime) / 1000);
+        if (duration >= 1.5) {
+          const name = getSectionName(el);
+          // Fire-and-forget sync
+          axios.post(`${API_BASE}/analytics/track-activity`, {
+            sessionID: sessionId,
+            page: location.pathname,
+            type: 'section_view',
+            target: name,
+            details: `Viewed section for ${duration}s`
+          }).catch(() => {});
+        }
+      });
 
       const payload = {
         sessionID:  sessionId,
@@ -219,14 +354,12 @@ const AnalyticsTracker = () => {
         bounced:     currentPV <= 1,
       };
 
-      // Use sendBeacon for reliability on page unload
       if (navigator.sendBeacon) {
         navigator.sendBeacon(
           `${API_BASE}/analytics/update-session`,
           new Blob([JSON.stringify(payload)], { type: 'application/json' })
         );
       } else {
-        // Fallback: fire-and-forget
         axios.post(`${API_BASE}/analytics/update-session`, payload).catch(() => {});
       }
     };
@@ -234,6 +367,9 @@ const AnalyticsTracker = () => {
     window.addEventListener('beforeunload', syncSession);
     return () => {
       syncSession();
+      document.removeEventListener('click', handleGlobalClick);
+      observer.disconnect();
+      clearTimeout(observerTimer);
       window.removeEventListener('beforeunload', syncSession);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps

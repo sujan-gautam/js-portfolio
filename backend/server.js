@@ -511,6 +511,49 @@ app.post("/api/analytics/update-session", async (req, res) => {
   }
 });
 
+// ── Log detailed visitor activity (clicks, views, etc.) ──────────────────────
+app.post("/api/analytics/track-activity", async (req, res) => {
+  try {
+    const { sessionID, page, type, target, details } = req.body;
+    if (!sessionID) return res.status(400).json({ error: "sessionID required" });
+
+    // Append to the most recent page view record of this session
+    const record = await Models.VisitorRecord.findOne({ sessionID }).sort({ timestamp: -1 });
+    if (record) {
+      if (!record.activities) record.activities = [];
+      
+      // Avoid duplicate clicks or views if they occur too rapidly
+      const isDuplicate = record.activities.some(act => 
+        act.type === type && 
+        act.target === target && 
+        act.path === (page || record.page || "/") &&
+        Math.abs(new Date(act.timestamp).getTime() - Date.now()) < 500
+      );
+
+      if (!isDuplicate) {
+        record.activities.push({
+          type,
+          target,
+          details: details || "",
+          path: page || record.page || "/",
+          timestamp: new Date()
+        });
+
+        // Increment clickCount for click events
+        if (type === 'click') {
+          record.clickCount = (record.clickCount || 0) + 1;
+        }
+
+        await record.save();
+      }
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("track-activity error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 
 
 

@@ -162,8 +162,13 @@ const StoriesSection = () => {
 
   const togglePlayBg = () => {
     if (!bgPlayer) return;
-    if (isPlayingBg) { bgPlayer.pauseVideo(); setIsPlayingBg(false); }
-    else { bgPlayer.playVideo(); setIsPlayingBg(true); }
+    if (isPlayingBg) {
+      bgPlayer.pauseVideo(); setIsPlayingBg(false);
+      (window as any).reportActivity?.('music_pause', `Paused: ${currentBgMusic?.title || 'Background Music'}`, `Artist: ${currentBgMusic?.artist || ''}`);
+    } else {
+      bgPlayer.playVideo(); setIsPlayingBg(true);
+      (window as any).reportActivity?.('play_music', `Played: ${currentBgMusic?.title || 'Background Music'}`, `Artist: ${currentBgMusic?.artist || ''}`);
+    }
   };
 
   const openStories = () => {
@@ -171,6 +176,8 @@ const StoriesSection = () => {
     setStoryIndex(0);
     setStoryViewerOpen(true);
     setCommentsDrawerOpen(false);
+    const firstStory = stories[0];
+    (window as any).reportActivity?.('modal_open', `Opened Story Viewer`, `Story: ${firstStory?.title || 'Untitled'} (${firstStory?.type || 'image'})`);
   };
 
   const handlePollVote = async (layerId: string, optionId: string) => {
@@ -196,6 +203,7 @@ const StoriesSection = () => {
 
     try {
       await axios.post(`${API_BASE}/collection/stories/${currentViewerStory.id}/vote`, { layerId, optionId });
+      (window as any).reportActivity?.('poll_vote', `Voted on: ${currentViewerStory.title || 'Story Poll'}`, `Option: ${optionId}`);
     } catch { /* Silent fail fallback */ }
   };
 
@@ -207,6 +215,8 @@ const StoriesSection = () => {
         console.warn("YouTube pause failed:", err);
       }
     }
+    const closedStory = stories[storyIndex];
+    (window as any).reportActivity?.('modal_close', `Closed Story Viewer`, `Last Story: ${closedStory?.title || 'Untitled'}`);
     setStoryViewerOpen(false);
   };
 
@@ -230,13 +240,24 @@ const StoriesSection = () => {
 
   const nextStory = (e: any) => {
     e.stopPropagation();
-    if (storyIndex < stories.length - 1) { setStoryIndex(i => i + 1); setCommentsDrawerOpen(false); }
-    else closeStories();
+    if (storyIndex < stories.length - 1) {
+      setStoryIndex(i => i + 1);
+      setCommentsDrawerOpen(false);
+      const nextS = stories[storyIndex + 1];
+      (window as any).reportActivity?.('story_nav', `Swiped to next story: ${nextS?.title || 'Untitled'}`, `Index: ${storyIndex + 1}`);
+    } else {
+      closeStories();
+    }
   };
 
   const prevStory = (e: any) => {
     e.stopPropagation();
-    if (storyIndex > 0) { setStoryIndex(i => i - 1); setCommentsDrawerOpen(false); }
+    if (storyIndex > 0) {
+      setStoryIndex(i => i - 1);
+      setCommentsDrawerOpen(false);
+      const prevS = stories[storyIndex - 1];
+      (window as any).reportActivity?.('story_nav', `Swiped to previous story: ${prevS?.title || 'Untitled'}`, `Index: ${storyIndex - 1}`);
+    }
   };
 
   const handleReact = async (e: any, type: string) => {
@@ -264,6 +285,7 @@ const StoriesSection = () => {
     }));
     try {
       await axios.post(`${API_BASE}/collection/stories/${currentViewerStory.id}/react`, { type });
+      (window as any).reportActivity?.('react_story', `Reacted to: ${currentViewerStory.title || 'Story'}`, `Reaction: ${type}`);
     } catch (err: any) {
       setStories(prev => prev.map(s => s.id === currentViewerStory.id ? { ...s, reacts: { ...s.reacts, [type]: Math.max(0, ((s.reacts as any)?.[type] || 0) - 1) } as any } : s));
       if (err.response?.data?.error) showAlert(err.response.data.error);
@@ -282,6 +304,7 @@ const StoriesSection = () => {
 
     try {
       await axios.post(`${API_BASE}/collection/stories/${currentViewerStory.id}/comment`, { text: textPayload, device: navigator.userAgent });
+      (window as any).reportActivity?.('comment_story', `Commented on: ${currentViewerStory.title || 'Story'}`, `Comment: ${textPayload.substring(0, 80)}`);
     } catch (err: any) {
       setStories(prev => prev.map(s => s.id === currentViewerStory.id ? { ...s, comments: (s.comments || []).filter(c => c.text !== textPayload) } : s));
       if (err.response?.data?.error) showAlert(err.response.data.error);

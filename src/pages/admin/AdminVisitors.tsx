@@ -6,7 +6,8 @@ import {
   Trash2, Search, Laptop, Smartphone, Link,
   LayoutDashboard, Globe2, ChevronDown,
   Timer, MousePointerClick, DoorOpen, DoorClosed, LineChart, MessageSquare,
-  MapPin, Wifi, Building2, Navigation
+  MapPin, Wifi, Building2, Navigation, Music, MousePointer2, Eye, Play,
+  Star, Send, X, ThumbsUp, BarChart2, Zap, TrendingUp, CheckCircle2
 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
@@ -33,12 +34,33 @@ const formatTime = (seconds: number) => {
   return m > 0 ? `${m}m ${s}s` : `${s}s`;
 };
 
+// Activity type → visual config
+const ACTIVITY_CONFIG: Record<string, { icon: React.ReactNode; color: string; bg: string; label: string }> = {
+  visit:             { icon: <Globe size={11}/>,          color: "text-blue-600",    bg: "bg-blue-100",    label: "Page Visit" },
+  click:             { icon: <MousePointer2 size={11}/>,  color: "text-slate-600",   bg: "bg-slate-100",   label: "Click" },
+  section_view:      { icon: <Eye size={11}/>,            color: "text-indigo-600",  bg: "bg-indigo-100",  label: "Section Viewed" },
+  modal_open:        { icon: <Play size={11}/>,           color: "text-emerald-600", bg: "bg-emerald-100", label: "Opened" },
+  modal_close:       { icon: <X size={11}/>,              color: "text-rose-500",    bg: "bg-rose-100",    label: "Closed" },
+  play_music:        { icon: <Music size={11}/>,          color: "text-purple-600",  bg: "bg-purple-100",  label: "Played Music" },
+  music_pause:       { icon: <Music size={11}/>,          color: "text-slate-500",   bg: "bg-slate-100",   label: "Paused Music" },
+  react_story:       { icon: <ThumbsUp size={11}/>,       color: "text-pink-600",    bg: "bg-pink-100",    label: "Reacted" },
+  comment_story:     { icon: <MessageSquare size={11}/>,  color: "text-sky-600",     bg: "bg-sky-100",     label: "Commented" },
+  poll_vote:         { icon: <BarChart2 size={11}/>,       color: "text-amber-600",   bg: "bg-amber-100",   label: "Voted on Poll" },
+  story_nav:         { icon: <ChevronDown size={11} className="rotate-[-90deg]"/>, color: "text-slate-500", bg: "bg-slate-100", label: "Story Nav" },
+  form_submit_start: { icon: <Send size={11}/>,           color: "text-blue-500",    bg: "bg-blue-50",     label: "Form Started" },
+  form_submit_success:{ icon: <CheckCircle2 size={11}/>,  color: "text-emerald-600", bg: "bg-emerald-100", label: "Form Sent ✓" },
+  form_submit_error: { icon: <X size={11}/>,              color: "text-red-600",     bg: "bg-red-100",     label: "Form Failed" },
+};
+
+const getActivityConfig = (type: string) =>
+  ACTIVITY_CONFIG[type] || { icon: <Zap size={11}/>, color: "text-slate-500", bg: "bg-slate-100", label: type };
+
 // Group raw logs into sessions
 const groupIntoSessions = (logs: VisitorRecord[]) => {
   const sessions: Record<string, any> = {};
 
-  logs.forEach(log => {
-    const sid = log.sessionID || log.ip; // fallback to IP if no sessionID
+  logs.forEach((log: any) => {
+    const sid = log.sessionID || log.ip;
     if (!sessions[sid]) {
       sessions[sid] = {
         id: sid,
@@ -58,13 +80,14 @@ const groupIntoSessions = (logs: VisitorRecord[]) => {
         totalTimeSpent: 0,
         totalClicks: 0,
         maxScroll: 0,
-        pages: []
+        pages: [],
+        activities: []
       };
     }
-    
+
     // Ensure we don't duplicate the exact same page view timestamp
     const exists = sessions[sid].pages.find((p: any) => p.page === log.page && Math.abs(new Date(p.timestamp).getTime() - new Date(log.timestamp).getTime()) < 1000);
-    
+
     if (!exists) {
       sessions[sid].pages.push({
         id: log.id,
@@ -78,13 +101,43 @@ const groupIntoSessions = (logs: VisitorRecord[]) => {
       sessions[sid].totalClicks += (log.clickCount || 0);
       sessions[sid].maxScroll = Math.max(sessions[sid].maxScroll, log.scrollDepth || 0);
     }
+
+    // Merge activities from all page-view records into one flat session list
+    if (log.activities && Array.isArray(log.activities)) {
+      sessions[sid].activities.push(...log.activities);
+    }
   });
 
   return Object.values(sessions).map(s => {
     s.pages.sort((a: any, b: any) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+    // Sort merged activities by timestamp chronologically
+    s.activities.sort((a: any, b: any) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
     s.entryPage = s.pages[0]?.page || "/";
     s.exitPage = s.pages[s.pages.length - 1]?.page || "/";
-    s.timestamp = s.pages[0]?.timestamp || s.timestamp; // Start of session
+    s.timestamp = s.pages[0]?.timestamp || s.timestamp;
+
+    // Compute highest engaged section from section_view activities
+    const sectionTimes: Record<string, number> = {};
+    s.activities.forEach((a: any) => {
+      if (a.type === 'section_view' && a.target) {
+        const match = (a.details || '').match(/(\d+)s/);
+        const dur = match ? parseInt(match[1]) : 1;
+        sectionTimes[a.target] = (sectionTimes[a.target] || 0) + dur;
+      }
+    });
+    const topSection = Object.entries(sectionTimes).sort((a: any, b: any) => b[1] - a[1])[0];
+    s.highestEngagedSection = topSection ? { name: topSection[0], seconds: topSection[1] } : null;
+
+    // Summarise special actions
+    s.specialActions = [
+      s.activities.some((a: any) => a.type === 'form_submit_success') && '✉️ Contacted',
+      s.activities.some((a: any) => a.type === 'play_music')           && '🎵 Played Music',
+      s.activities.some((a: any) => a.type === 'modal_open')           && '👁️ Opened Story',
+      s.activities.some((a: any) => a.type === 'comment_story')        && '💬 Commented',
+      s.activities.some((a: any) => a.type === 'react_story')          && '❤️ Reacted',
+      s.activities.some((a: any) => a.type === 'poll_vote')            && '📊 Voted on Poll',
+    ].filter(Boolean);
+
     return s;
   }).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 };
@@ -572,164 +625,237 @@ const AdminVisitors = () => {
                       {expanded === s.id && (
                         <tr className="bg-slate-50/80">
                           <td colSpan={5} className="px-0 py-0 border-t border-slate-100">
-                             <div className="p-4 md:p-6 bg-white/50 border-l-2 border-indigo-500 m-2 rounded shadow-sm space-y-5">
-                               
-                               {/* ── INTERACTIVE MAP ── */}
-                               {s.location?.lat && s.location?.lon ? (
-                                 <div>
-                                   <div className="flex items-center justify-between mb-2">
-                                     <h4 className="text-xs font-semibold uppercase text-slate-500 tracking-wider flex items-center gap-1">
-                                       <MapPin size={11} className="text-rose-500"/> Live Location Map
-                                     </h4>
-                                     <div className="flex items-center gap-2">
-                                       {s.location?.source === "gps" ? (
-                                         <span className="inline-flex items-center gap-1 text-[9px] bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full px-2 py-0.5 font-semibold">
-                                           <Navigation size={8}/> GPS Precise {s.location.accuracy ? `±${Math.round(s.location.accuracy)}m` : ""}
-                                         </span>
-                                       ) : (
-                                         <span className="inline-flex items-center gap-1 text-[9px] bg-blue-50 text-blue-700 border border-blue-200 rounded-full px-2 py-0.5 font-semibold">
-                                           <Globe size={8}/> IP-based location
-                                         </span>
-                                       )}
-                                       <a
-                                         href={`https://www.google.com/maps?q=${s.location.lat},${s.location.lon}`}
-                                         target="_blank"
-                                         rel="noopener noreferrer"
-                                         className="text-[10px] text-indigo-600 hover:underline font-medium flex items-center gap-0.5"
-                                       >
-                                         Open in Google Maps ↗
-                                       </a>
-                                     </div>
-                                   </div>
-                                   <div className="rounded-xl overflow-hidden border border-slate-200 shadow-sm">
-                                     <VisitorMap
-                                       lat={s.location.lat}
-                                       lon={s.location.lon}
-                                       label={[s.location?.city, s.location?.region, s.location?.country].filter(Boolean).join(", ")}
-                                       isGps={s.location?.source === "gps"}
-                                       accuracy={s.location?.accuracy}
-                                     />
-                                   </div>
-                                   <p className="text-[10px] text-slate-400 mt-1.5 text-center">
-                                     📍 {s.location.lat.toFixed(5)}, {s.location.lon.toFixed(5)}
-                                     {s.location?.postcode && ` · Postal: ${s.location.postcode}`}
-                                   </p>
-                                 </div>
-                               ) : (
-                                 <div className="h-24 bg-slate-50 rounded-xl border border-dashed border-slate-200 flex items-center justify-center">
-                                   <p className="text-xs text-slate-400">📍 No coordinates available for this visitor</p>
-                                 </div>
-                               )}
+                            <div className="p-4 md:p-6 bg-white/50 border-l-4 border-indigo-500 m-2 rounded-xl shadow-sm space-y-5">
 
-                               {/* ── 3-COLUMN GRID ── */}
-                               <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                                   <div>
-                                      <h4 className="text-xs font-semibold uppercase text-slate-500 tracking-wider mb-3">Session Timeline</h4>
-                                      <div className="space-y-3 relative before:absolute before:inset-0 before:ml-2 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-indigo-500 before:via-slate-200 before:to-slate-200">
-                                         {s.pages.map((p:any, i:number) => (
-                                            <div key={i} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
-                                               <div className="flex items-center justify-center w-4 h-4 rounded-full border-2 border-white bg-indigo-500 text-slate-500 shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10" />
-                                               <div className="w-[calc(100%-2rem)] md:w-[calc(50%-1.5rem)] bg-white p-2.5 rounded border border-slate-200 shadow-sm text-sm flex justify-between items-center">
-                                                  <span className="font-mono text-xs text-indigo-700 truncate">{p.page}</span>
-                                                  <span className="text-[10px] bg-slate-100 px-1.5 py-0.5 rounded text-slate-500 whitespace-nowrap">{formatTime(p.timeSpent)}</span>
-                                               </div>
+                              {/* ── ENGAGEMENT SUMMARY ── */}
+                              <div>
+                                <h4 className="text-xs font-semibold uppercase text-slate-500 tracking-wider mb-3 flex items-center gap-1.5">
+                                  <TrendingUp size={12} className="text-indigo-500"/> Session Summary
+                                </h4>
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                  <div className="bg-white rounded-xl border border-slate-100 p-3 text-center shadow-sm">
+                                    <p className="text-lg font-bold text-indigo-600">{formatTime(s.totalTimeSpent)}</p>
+                                    <p className="text-[10px] text-slate-400 uppercase tracking-wider mt-0.5">Total Time</p>
+                                  </div>
+                                  <div className="bg-white rounded-xl border border-slate-100 p-3 text-center shadow-sm">
+                                    <p className="text-lg font-bold text-emerald-600">{s.pages.length}</p>
+                                    <p className="text-[10px] text-slate-400 uppercase tracking-wider mt-0.5">Pages Visited</p>
+                                  </div>
+                                  <div className="bg-white rounded-xl border border-slate-100 p-3 text-center shadow-sm">
+                                    <p className="text-lg font-bold text-amber-600">{s.totalClicks || 0}</p>
+                                    <p className="text-[10px] text-slate-400 uppercase tracking-wider mt-0.5">Total Clicks</p>
+                                  </div>
+                                  <div className="bg-white rounded-xl border border-slate-100 p-3 text-center shadow-sm">
+                                    <p className="text-lg font-bold text-purple-600">{s.activities?.length || 0}</p>
+                                    <p className="text-[10px] text-slate-400 uppercase tracking-wider mt-0.5">Events Logged</p>
+                                  </div>
+                                </div>
+
+                                {/* Highest Engaged Section + Special Actions */}
+                                <div className="mt-3 flex flex-wrap gap-2">
+                                  {s.highestEngagedSection && (
+                                    <span className="inline-flex items-center gap-1.5 bg-indigo-50 text-indigo-700 border border-indigo-100 rounded-full px-3 py-1 text-[10px] font-semibold">
+                                      <Eye size={9}/> Most Viewed: {s.highestEngagedSection.name} ({s.highestEngagedSection.seconds}s)
+                                    </span>
+                                  )}
+                                  {s.specialActions?.map((action: string, i: number) => (
+                                    <span key={i} className="inline-flex items-center bg-slate-50 border border-slate-200 rounded-full px-3 py-1 text-[10px] font-semibold text-slate-700">
+                                      {action}
+                                    </span>
+                                  ))}
+                                  <span className="inline-flex items-center gap-1.5 bg-slate-50 text-slate-600 border border-slate-200 rounded-full px-3 py-1 text-[10px] font-semibold">
+                                    <MousePointerClick size={9}/> Scroll: {s.maxScroll || 0}%
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* ── INTERACTIVE MAP ── */}
+                              {s.location?.lat && s.location?.lon ? (
+                                <div>
+                                  <div className="flex items-center justify-between mb-2">
+                                    <h4 className="text-xs font-semibold uppercase text-slate-500 tracking-wider flex items-center gap-1">
+                                      <MapPin size={11} className="text-rose-500"/> Live Location Map
+                                    </h4>
+                                    <div className="flex items-center gap-2">
+                                      {s.location?.source === "gps" ? (
+                                        <span className="inline-flex items-center gap-1 text-[9px] bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full px-2 py-0.5 font-semibold">
+                                          <Navigation size={8}/> GPS Precise {s.location.accuracy ? `±${Math.round(s.location.accuracy)}m` : ""}
+                                        </span>
+                                      ) : (
+                                        <span className="inline-flex items-center gap-1 text-[9px] bg-blue-50 text-blue-700 border border-blue-200 rounded-full px-2 py-0.5 font-semibold">
+                                          <Globe size={8}/> IP-based location
+                                        </span>
+                                      )}
+                                      <a href={`https://www.google.com/maps?q=${s.location.lat},${s.location.lon}`} target="_blank" rel="noopener noreferrer"
+                                        className="text-[10px] text-indigo-600 hover:underline font-medium flex items-center gap-0.5">
+                                        Open in Google Maps ↗
+                                      </a>
+                                    </div>
+                                  </div>
+                                  <div className="rounded-xl overflow-hidden border border-slate-200 shadow-sm">
+                                    <VisitorMap lat={s.location.lat} lon={s.location.lon}
+                                      label={[s.location?.city, s.location?.region, s.location?.country].filter(Boolean).join(", ")}
+                                      isGps={s.location?.source === "gps"} accuracy={s.location?.accuracy} />
+                                  </div>
+                                  <p className="text-[10px] text-slate-400 mt-1.5 text-center">
+                                    📍 {s.location.lat.toFixed(5)}, {s.location.lon.toFixed(5)}
+                                    {s.location?.postcode && ` · Postal: ${s.location.postcode}`}
+                                  </p>
+                                </div>
+                              ) : (
+                                <div className="h-20 bg-slate-50 rounded-xl border border-dashed border-slate-200 flex items-center justify-center">
+                                  <p className="text-xs text-slate-400">📍 No coordinates available for this visitor</p>
+                                </div>
+                              )}
+
+                              {/* ── FULL ACTIVITY TIMELINE ── */}
+                              <div>
+                                <h4 className="text-xs font-semibold uppercase text-slate-500 tracking-wider mb-3 flex items-center gap-1.5">
+                                  <Activity size={12} className="text-indigo-500"/> Full Activity Timeline
+                                  <span className="ml-1 text-[9px] bg-indigo-100 text-indigo-600 rounded-full px-2 py-0.5 font-bold">{s.activities?.length || 0} events</span>
+                                </h4>
+                                {s.activities && s.activities.length > 0 ? (
+                                  <div className="relative pl-6 space-y-1 max-h-[480px] overflow-y-auto pr-1">
+                                    {/* Vertical line */}
+                                    <div className="absolute left-[9px] top-0 bottom-0 w-0.5 bg-gradient-to-b from-indigo-300 via-slate-200 to-transparent" />
+                                    {s.activities.map((act: any, idx: number) => {
+                                      const cfg = getActivityConfig(act.type);
+                                      return (
+                                        <div key={idx} className="relative flex items-start gap-2.5 py-1 group">
+                                          {/* Dot on the line */}
+                                          <div className={cn("absolute -left-[17px] w-4 h-4 rounded-full flex items-center justify-center shrink-0 border-2 border-white shadow-sm z-10", cfg.bg, cfg.color)}>
+                                            {cfg.icon}
+                                          </div>
+                                          {/* Event card */}
+                                          <div className="flex-1 bg-white rounded-lg border border-slate-100 px-3 py-2 shadow-sm group-hover:border-indigo-200 transition-colors">
+                                            <div className="flex items-start justify-between gap-2">
+                                              <div className="min-w-0">
+                                                <span className={cn("text-[9px] font-bold uppercase tracking-wider mr-1.5", cfg.color)}>{cfg.label}</span>
+                                                <span className="text-[11px] text-slate-700 font-medium leading-snug">{act.target}</span>
+                                                {act.details && (
+                                                  <p className="text-[10px] text-slate-400 mt-0.5 truncate" title={act.details}>{act.details}</p>
+                                                )}
+                                              </div>
+                                              <div className="shrink-0 text-right">
+                                                <p className="text-[9px] text-slate-400 whitespace-nowrap">
+                                                  {new Date(act.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                                                </p>
+                                                {act.path && act.path !== s.entryPage && (
+                                                  <p className="text-[8px] text-indigo-400 font-mono mt-0.5 truncate max-w-[100px]">{act.path}</p>
+                                                )}
+                                              </div>
                                             </div>
-                                         ))}
-                                      </div>
-                                   </div>
-                                 <div className="space-y-4">
-                                       {/* Full Location Block */}
-                                       <div>
-                                         <h4 className="text-xs font-semibold uppercase text-slate-500 tracking-wider mb-2 flex items-center gap-1"><MapPin size={11}/> Location Details</h4>
-                                         <div className="grid grid-cols-2 gap-2 text-xs">
-                                           <div className="bg-white p-2 rounded border border-slate-100 col-span-2">
-                                             <p className="text-[10px] text-slate-400 mb-0.5">Full Address</p>
-                                             <p className="font-medium text-slate-700">
-                                               {s.location?.displayName ||
-                                                [s.location?.district, s.location?.city, s.location?.region, s.location?.country].filter(Boolean).join(", ") ||
-                                                "Unknown"}
-                                             </p>
-                                           </div>
-                                           <div className="bg-white p-2 rounded border border-slate-100">
-                                             <p className="text-[10px] text-slate-400 mb-0.5">City / District</p>
-                                             <p className="font-medium text-slate-700">{[s.location?.city, s.location?.district].filter(Boolean).join(" · ") || "—"}</p>
-                                           </div>
-                                           <div className="bg-white p-2 rounded border border-slate-100">
-                                             <p className="text-[10px] text-slate-400 mb-0.5">Region / State</p>
-                                             <p className="font-medium text-slate-700">{s.location?.region || "—"}</p>
-                                           </div>
-                                           <div className="bg-white p-2 rounded border border-slate-100">
-                                             <p className="text-[10px] text-slate-400 mb-0.5">Country</p>
-                                             <p className="font-medium text-slate-700">{s.location?.country || "—"} {s.location?.countryCode && `(${s.location.countryCode})`}</p>
-                                           </div>
-                                           <div className="bg-white p-2 rounded border border-slate-100">
-                                             <p className="text-[10px] text-slate-400 mb-0.5">Postal Code</p>
-                                             <p className="font-medium text-slate-700">{s.location?.postcode || "—"}</p>
-                                           </div>
-                                           <div className="bg-white p-2 rounded border border-slate-100">
-                                             <p className="text-[10px] text-slate-400 mb-0.5 flex items-center gap-0.5"><Wifi size={9}/> ISP</p>
-                                             <p className="font-medium text-slate-700 truncate" title={s.location?.isp}>{s.location?.isp || "—"}</p>
-                                           </div>
-                                           <div className="bg-white p-2 rounded border border-slate-100">
-                                             <p className="text-[10px] text-slate-400 mb-0.5 flex items-center gap-0.5"><Building2 size={9}/> Org / AS</p>
-                                             <p className="font-medium text-slate-700 truncate">{s.location?.org || s.location?.as || "—"}</p>
-                                           </div>
-                                           <div className="bg-white p-2 rounded border border-slate-100">
-                                             <p className="text-[10px] text-slate-400 mb-0.5">IP Address</p>
-                                             <p className="font-mono text-xs text-slate-700">{s.ip || "—"}</p>
-                                           </div>
-                                           <div className="bg-white p-2 rounded border border-slate-100">
-                                             <p className="text-[10px] text-slate-400 mb-0.5">Timezone</p>
-                                             <p className="font-medium text-slate-700">{s.location?.timezone || s.timezone || "—"}</p>
-                                           </div>
-                                         </div>
-                                       </div>
-                                 </div>
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                ) : (
+                                  <div className="bg-slate-50 rounded-xl border border-dashed border-slate-200 p-6 text-center">
+                                    <Activity size={20} className="mx-auto text-slate-300 mb-2"/>
+                                    <p className="text-xs text-slate-400">No detailed activities recorded yet for this session.</p>
+                                    <p className="text-[10px] text-slate-300 mt-1">New visitor sessions will log activities automatically.</p>
+                                  </div>
+                                )}
+                              </div>
 
+                              {/* ── 2-COLUMN: LOCATION + DEVICE ── */}
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                {/* Location Details */}
+                                <div>
+                                  <h4 className="text-xs font-semibold uppercase text-slate-500 tracking-wider mb-2 flex items-center gap-1"><MapPin size={11}/> Location Details</h4>
+                                  <div className="grid grid-cols-2 gap-2 text-xs">
+                                    <div className="bg-white p-2 rounded border border-slate-100 col-span-2">
+                                      <p className="text-[10px] text-slate-400 mb-0.5">Full Address</p>
+                                      <p className="font-medium text-slate-700">
+                                        {s.location?.displayName || [s.location?.district, s.location?.city, s.location?.region, s.location?.country].filter(Boolean).join(", ") || "Unknown"}
+                                      </p>
+                                    </div>
+                                    <div className="bg-white p-2 rounded border border-slate-100">
+                                      <p className="text-[10px] text-slate-400 mb-0.5">City / District</p>
+                                      <p className="font-medium text-slate-700">{[s.location?.city, s.location?.district].filter(Boolean).join(" · ") || "—"}</p>
+                                    </div>
+                                    <div className="bg-white p-2 rounded border border-slate-100">
+                                      <p className="text-[10px] text-slate-400 mb-0.5">Region / State</p>
+                                      <p className="font-medium text-slate-700">{s.location?.region || "—"}</p>
+                                    </div>
+                                    <div className="bg-white p-2 rounded border border-slate-100">
+                                      <p className="text-[10px] text-slate-400 mb-0.5">Country</p>
+                                      <p className="font-medium text-slate-700">{s.location?.country || "—"} {s.location?.countryCode && `(${s.location.countryCode})`}</p>
+                                    </div>
+                                    <div className="bg-white p-2 rounded border border-slate-100">
+                                      <p className="text-[10px] text-slate-400 mb-0.5">Postal Code</p>
+                                      <p className="font-medium text-slate-700">{s.location?.postcode || "—"}</p>
+                                    </div>
+                                    <div className="bg-white p-2 rounded border border-slate-100">
+                                      <p className="text-[10px] text-slate-400 mb-0.5 flex items-center gap-0.5"><Wifi size={9}/> ISP</p>
+                                      <p className="font-medium text-slate-700 truncate" title={s.location?.isp}>{s.location?.isp || "—"}</p>
+                                    </div>
+                                    <div className="bg-white p-2 rounded border border-slate-100">
+                                      <p className="text-[10px] text-slate-400 mb-0.5 flex items-center gap-0.5"><Building2 size={9}/> Org / AS</p>
+                                      <p className="font-medium text-slate-700 truncate">{s.location?.org || s.location?.as || "—"}</p>
+                                    </div>
+                                    <div className="bg-white p-2 rounded border border-slate-100">
+                                      <p className="text-[10px] text-slate-400 mb-0.5">IP Address</p>
+                                      <p className="font-mono text-xs text-slate-700">{s.ip || "—"}</p>
+                                    </div>
+                                    <div className="bg-white p-2 rounded border border-slate-100">
+                                      <p className="text-[10px] text-slate-400 mb-0.5">Timezone</p>
+                                      <p className="font-medium text-slate-700">{s.location?.timezone || s.timezone || "—"}</p>
+                                    </div>
+                                  </div>
+                                </div>
 
+                                {/* Device & Session Details */}
+                                <div>
+                                  <h4 className="text-xs font-semibold uppercase text-slate-500 tracking-wider mb-2">Device & Session</h4>
+                                  <div className="grid grid-cols-2 gap-2 text-xs">
+                                    <div className="bg-white p-2 rounded border border-slate-100">
+                                      <p className="text-[10px] text-slate-400 mb-0.5">Start Time</p>
+                                      <p className="font-medium text-slate-700">{new Date(s.timestamp).toLocaleString()}</p>
+                                    </div>
+                                    <div className="bg-white p-2 rounded border border-slate-100">
+                                      <p className="text-[10px] text-slate-400 mb-0.5">Referrer</p>
+                                      <p className="font-medium text-slate-700 truncate">{s.referrer === "direct" || !s.referrer ? "Direct" : s.referrer}</p>
+                                    </div>
+                                    <div className="bg-white p-2 rounded border border-slate-100">
+                                      <p className="text-[10px] text-slate-400 mb-0.5">Device / Browser</p>
+                                      <p className="font-medium text-slate-700 capitalize">{s.device} / {s.browser}</p>
+                                    </div>
+                                    <div className="bg-white p-2 rounded border border-slate-100">
+                                      <p className="text-[10px] text-slate-400 mb-0.5">OS / Screen</p>
+                                      <p className="font-medium text-slate-700">{s.os} / {s.screenResolution || "—"}</p>
+                                    </div>
+                                    <div className="bg-white p-2 rounded border border-slate-100">
+                                      <p className="text-[10px] text-slate-400 mb-0.5">Max Scroll</p>
+                                      <p className="font-medium text-slate-700">{s.maxScroll}%</p>
+                                    </div>
+                                    <div className="bg-white p-2 rounded border border-slate-100">
+                                      <p className="text-[10px] text-slate-400 mb-0.5">Total Clicks</p>
+                                      <p className="font-medium text-slate-700">{s.totalClicks}</p>
+                                    </div>
+                                    <div className="bg-white p-2 rounded border border-slate-100">
+                                      <p className="text-[10px] text-slate-400 mb-0.5">Network</p>
+                                      <p className="font-medium text-slate-700">{s.connectionType || "—"}</p>
+                                    </div>
+                                    <div className="bg-white p-2 rounded border border-slate-100">
+                                      <p className="text-[10px] text-slate-400 mb-0.5">Language</p>
+                                      <p className="font-medium text-slate-700">{s.language || "—"}</p>
+                                    </div>
+                                    <div className="bg-white p-2 rounded border border-slate-100">
+                                      <p className="text-[10px] text-slate-400 mb-0.5">Viewport</p>
+                                      <p className="font-medium text-slate-700">{s.viewport || "—"}</p>
+                                    </div>
+                                    <div className="bg-white p-2 rounded border border-slate-100">
+                                      <p className="text-[10px] text-slate-400 mb-0.5">Visitor Type</p>
+                                      <p className="font-medium text-slate-700">{s.isReturning ? "Returning" : "New"}</p>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
 
-                                 {/* Technical Details */}
-                                 <div>
-                                   <h4 className="text-xs font-semibold uppercase text-slate-500 tracking-wider mb-2">Device & Session</h4>
-                                   <div className="grid grid-cols-2 gap-2 text-xs">
-                                     <div className="bg-white p-2 rounded border border-slate-100">
-                                       <p className="text-[10px] text-slate-400 mb-0.5">Start Time</p>
-                                       <p className="font-medium text-slate-700">{new Date(s.timestamp).toLocaleString()}</p>
-                                     </div>
-                                     <div className="bg-white p-2 rounded border border-slate-100">
-                                       <p className="text-[10px] text-slate-400 mb-0.5">Referrer</p>
-                                       <p className="font-medium text-slate-700 truncate">{s.referrer === "direct" || !s.referrer ? "Direct" : s.referrer}</p>
-                                     </div>
-                                     <div className="bg-white p-2 rounded border border-slate-100">
-                                       <p className="text-[10px] text-slate-400 mb-0.5">Device / Browser</p>
-                                       <p className="font-medium text-slate-700 capitalize">{s.device} / {s.browser}</p>
-                                     </div>
-                                     <div className="bg-white p-2 rounded border border-slate-100">
-                                       <p className="text-[10px] text-slate-400 mb-0.5">OS / Screen</p>
-                                       <p className="font-medium text-slate-700">{s.os} / {s.screenResolution || "—"}</p>
-                                     </div>
-                                     <div className="bg-white p-2 rounded border border-slate-100">
-                                       <p className="text-[10px] text-slate-400 mb-0.5">Max Scroll</p>
-                                       <p className="font-medium text-slate-700">{s.maxScroll}%</p>
-                                     </div>
-                                     <div className="bg-white p-2 rounded border border-slate-100">
-                                       <p className="text-[10px] text-slate-400 mb-0.5">Total Clicks</p>
-                                       <p className="font-medium text-slate-700">{s.totalClicks}</p>
-                                     </div>
-                                     <div className="bg-white p-2 rounded border border-slate-100">
-                                       <p className="text-[10px] text-slate-400 mb-0.5">Network</p>
-                                       <p className="font-medium text-slate-700">{s.connectionType || "—"}</p>
-                                     </div>
-                                     <div className="bg-white p-2 rounded border border-slate-100">
-                                       <p className="text-[10px] text-slate-400 mb-0.5">Language</p>
-                                       <p className="font-medium text-slate-700">{s.language || "—"}</p>
-                                     </div>
-                                   </div>
-                                 </div>
-
-                               </div>{/* end 3-col grid */}
-                             </div>{/* end outer wrapper */}
-                           </td>
+                            </div>{/* end outer wrapper */}
+                            </td>
                          </tr>
                        )}
                     </React.Fragment>
