@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, Navigate } from "react-router-dom";
 import axios from "axios";
 import { API_BASE } from "@/config";
 import { ArrowLeft, Calendar, Eye, Heart, Share2, Lock, Loader2 } from "lucide-react";
@@ -332,154 +332,21 @@ export const FeedPostPage = () => {
 };
 
 /* ─── Story Page ─────────────────────────────────── */
+/**
+ * StoryPage — /story/:id
+ *
+ * SEO behaviour  : The backend SSR handler injects story-specific <title>,
+ *                  <meta>, OG tags, and JSON-LD at this URL so Google can
+ *                  crawl and index each story independently.
+ *
+ * User behaviour : As soon as the React app boots, we immediately redirect
+ *                  the browser to /?story=:id  so the user lands on the
+ *                  homepage with the immersive story modal auto-opened.
+ */
 export const StoryPage = () => {
   const { id } = useParams<{ id: string }>();
-  const [story, setStory] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    setLoading(true);
-    // Fetch individual story by ID
-    axios.get(`${API_BASE}/collection/stories/${id}`).then(r => {
-      setStory(r.data);
-      setLoading(false);
-    }).catch((err) => {
-      console.error("Failed to fetch story:", err);
-      setLoading(false);
-    });
-  }, [id]);
-
-  useEffect(() => {
-    if (!story) return;
-
-    const isVid = story.mediaUrl?.match(/\.(mp4|webm|mov)$/i);
-    const siteName = "Sujan Gautam | Sujan1919";
-    const title = story.title ? `${story.title} | ${siteName}` : `Story by ${siteName}`;
-    const desc = (story.description || story.caption || "Exclusive Story").slice(0, 160);
-    const image = story.mediaUrl || story.imageUrl || story.thumbnailUrl || `${SITE}/favicon.ico`;
-    const url = `${SITE}/story/${story._id || story.id}`;
-
-    document.title = title;
-    setMeta("description", desc);
-    setMeta("og:title", title, true);
-    setMeta("og:description", desc, true);
-    setMeta("og:image", image, true);
-    setMeta("og:url", url, true);
-    setMeta("og:type", isVid ? "video.other" : "article", true);
-
-    const articleSchema = {
-      "@context": "https://schema.org",
-      "@type": "BlogPosting",
-      "headline": title,
-      "description": desc,
-      "image": [image],
-      "datePublished": story.createdAt,
-      "author": { "@type": "Person", "name": "Sujan Gautam" },
-      "url": url
-    };
-
-    let schema: any = articleSchema;
-    if (isVid) {
-      schema = [articleSchema, {
-        "@context": "https://schema.org",
-        "@type": "VideoObject",
-        "name": story.title || "Story Video",
-        "description": desc,
-        "thumbnailUrl": image,
-        "contentUrl": story.mediaUrl,
-        "uploadDate": story.createdAt
-      }];
-    }
-
-    injectJsonLd("ld-story", schema);
-    return () => removeJsonLd("ld-story");
-  }, [story]);
-
-  if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" /></div>;
-  if (!story) return <div className="min-h-screen flex flex-col items-center justify-center gap-4"><p className="text-slate-500">Story not found</p><Link to="/" className="text-indigo-600 underline">Go Home</Link></div>;
-
-  const isVid = story.mediaUrl?.match(/\.(mp4|webm|mov)$/i);
-
-  const siteName = "Sujan Gautam | Sujan1919";
-  const profession = "Software Developer & UI Architect";
-  const title = story.title ? `${story.title} | ${siteName}` : `Story by ${siteName} | ${profession}`;
-  const desc = `${story.description || story.caption || "Exclusive Story"} - Featured by Sujan Gautam (sujan1919), a leading Software Developer.`.slice(0, 160);
-  const image = story.mediaUrl || story.imageUrl || story.thumbnailUrl || undefined;
-  const url = `${SITE}/story/${story._id || story.id}`;
-
-  const articleSchema = {
-    "@context": "https://schema.org",
-    "@type": "BlogPosting",
-    "headline": title,
-    "description": desc,
-    "image": image ? [image] : [`${SITE}/favicon.ico`],
-    "datePublished": story.createdAt,
-    "dateModified": story.updatedAt || story.createdAt,
-    "author": { "@type": "Person", "name": "Sujan Gautam", "url": SITE },
-    "publisher": { "@type": "Organization", "name": "Sujan Gautam Portfolio", "logo": { "@type": "ImageObject", url: `${SITE}/favicon.ico` } },
-    "url": url,
-    "mainEntityOfPage": { "@type": "WebPage", "@id": url }
-  };
-
-  let videoSchema: any = null;
-  if (isVid) {
-    videoSchema = {
-      "@context": "https://schema.org",
-      "@type": "VideoObject",
-      "name": story.title || "Story Video by Sujan Gautam",
-      "description": desc,
-      "thumbnailUrl": image,
-      "uploadDate": story.createdAt,
-      "contentUrl": story.mediaUrl,
-      "author": { "@type": "Person", "name": "Sujan Gautam" }
-    };
-  }
-
-  const structuredData = videoSchema ? [articleSchema, videoSchema] : articleSchema;
-
-  return (
-    <>
-      <SEO 
-        title={title} 
-        description={desc} 
-        type="article" 
-        image={!isVid ? image : undefined} 
-        video={isVid ? story.mediaUrl : undefined}
-        url={url} 
-        publishedTime={story.createdAt} 
-        structuredData={structuredData} 
-      />
-    <div className="max-w-2xl mx-auto px-4 py-10 min-h-screen">
-      <Link to="/" className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-slate-900 mb-8 transition-colors">
-        <ArrowLeft size={16} /> Back to Home
-      </Link>
-
-      <article>
-        {story.mediaUrl && (
-          isVid
-            ? <video src={story.mediaUrl} controls autoPlay muted playsInline className="w-full rounded-2xl mb-6 max-h-[70vh] bg-black object-cover" />
-            : <img src={story.mediaUrl} alt={story.title || "Story"} className="w-full rounded-2xl object-cover mb-6 max-h-[70vh]" loading="eager" />
-        )}
-
-        <h1 className="text-2xl font-semibold text-slate-900 mb-3">{story.title || "Story"}</h1>
-        {story.description && <p className="text-slate-600 leading-relaxed whitespace-pre-wrap mb-4">{story.description}</p>}
-        {story.caption && <p className="text-slate-500 text-sm italic">{story.caption}</p>}
-
-        <div className="flex items-center gap-4 text-xs text-slate-400 mt-4 pt-4 border-t border-slate-100">
-          <span className="flex items-center gap-1"><Calendar size={12} />{new Date(story.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</span>
-          {story.views > 0 && <span className="flex items-center gap-1"><Eye size={12} />{story.views} views</span>}
-        </div>
-      </article>
-
-      <div className="mt-12 p-5 bg-slate-50 rounded-2xl flex items-center gap-4 border border-slate-100">
-        <img src={`${SITE}/favicon.ico`} className="w-12 h-12 rounded-full bg-slate-200" alt="Sujan Gautam" />
-        <div>
-          <p className="font-semibold text-slate-900">Sujan Gautam</p>
-          <p className="text-sm text-slate-500">Software Developer & UI Architect</p>
-          <Link to="/about/" className="text-xs text-indigo-600 hover:underline">View Profile</Link>
-        </div>
-      </div>
-    </div>
-    </>
-  );
+  // Instantly redirect to the homepage with the story modal param.
+  // The StoriesSection component will detect ?story=<id> and auto-open it.
+  return <Navigate to={`/?story=${id}`} replace />;
 };

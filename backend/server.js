@@ -1335,7 +1335,42 @@ app.get("*", async (req, res, next) => {
 
           if (story.isMembersOnly) robots = "noindex, nofollow";
 
-          const mediaSchema = isVideo ? {
+          // Article schema — Google-supported rich result type (enables image/date in search results)
+          const articleSchema = {
+            "@type": "Article",
+            "@id": canonicalUrl + "#article",
+            "headline": story.title || "Exclusive Story — Sujan Gautam",
+            "description": desc,
+            "image": [
+              {
+                "@type": "ImageObject",
+                "url": ogImage,
+                "width": 1200,
+                "height": 630
+              }
+            ],
+            "datePublished": story.createdAt,
+            "dateModified": story.updatedAt || story.createdAt,
+            "author": {
+              "@type": "Person",
+              "@id": "https://sujan1919.com.np/#person",
+              "name": "Sujan Gautam",
+              "url": "https://sujan1919.com.np/"
+            },
+            "publisher": {
+              "@type": "Person",
+              "@id": "https://sujan1919.com.np/#person",
+              "name": "Sujan Gautam",
+              "url": "https://sujan1919.com.np/",
+              "logo": { "@type": "ImageObject", "url": "https://res.cloudinary.com/dspj4fc14/image/upload/v1782238482/exact-echo/favicon.jpg" }
+            },
+            "url": canonicalUrl,
+            "mainEntityOfPage": { "@type": "WebPage", "@id": canonicalUrl + "#webpage" },
+            "isPartOf": { "@id": "https://sujan1919.com.np/#website" }
+          };
+
+          // VideoObject schema for video stories (adds to video carousel eligibility)
+          const videoSchema = isVideo ? {
             "@type": "VideoObject",
             "@id": canonicalUrl + "#video",
             "name": story.title || "Exclusive Story — Sujan Gautam",
@@ -1353,37 +1388,31 @@ app.get("*", async (req, res, next) => {
               "logo": { "@type": "ImageObject", "url": "https://res.cloudinary.com/dspj4fc14/image/upload/v1782238482/exact-echo/favicon.jpg" }
             },
             "url": canonicalUrl
-          } : {
-            "@type": "ImageObject",
-            "@id": canonicalUrl + "#image",
-            "name": story.title || "Exclusive Story — Sujan Gautam",
-            "description": desc,
-            "contentUrl": mediaUrl,
-            "url": canonicalUrl,
-            "author": { "@type": "Person", "@id": "https://sujan1919.com.np/#person", "name": "Sujan Gautam", "url": "https://sujan1919.com.np/" },
-            "uploadDate": story.createdAt
-          };
+          } : null;
+
+          const graphItems = [
+            {
+              "@type": "WebPage",
+              "@id": canonicalUrl + "#webpage",
+              "url": canonicalUrl,
+              "name": title,
+              "description": desc,
+              "inLanguage": "en-US",
+              "isPartOf": { "@id": "https://sujan1919.com.np/#website" },
+              "author": { "@id": "https://sujan1919.com.np/#person" },
+              "image": { "@type": "ImageObject", "url": ogImage }
+            },
+            articleSchema,
+            ...(videoSchema ? [videoSchema] : []),
+            buildBreadcrumb([
+              { name: "Stories", url: "https://sujan1919.com.np/" },
+              { name: story.title || "Story", url: canonicalUrl }
+            ])
+          ];
 
           schemaData = {
             "@context": "https://schema.org",
-            "@graph": [
-              {
-                "@type": "WebPage",
-                "@id": canonicalUrl + "#webpage",
-                "url": canonicalUrl,
-                "name": title,
-                "description": desc,
-                "inLanguage": "en-US",
-                "isPartOf": { "@id": "https://sujan1919.com.np/#website" },
-                "author": { "@id": "https://sujan1919.com.np/#person" },
-                "image": { "@type": "ImageObject", "url": ogImage }
-              },
-              mediaSchema,
-              buildBreadcrumb([
-                { name: "Stories", url: "https://sujan1919.com.np/feed/" },
-                { name: story.title || "Story", url: canonicalUrl }
-              ])
-            ]
+            "@graph": graphItems
           };
         }
       } catch (err) {
