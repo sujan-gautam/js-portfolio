@@ -788,134 +788,203 @@ app.get("*", async (req, res, next) => {
 
     if (pathClean === "" || pathClean === "/") {
       // Home Page
-      title = "Sujan Gautam — Full-Stack Software Engineer | Hattiesburg, MS";
-      desc = "Sujan Gautam is a full-stack software engineer and web developer based in Hattiesburg, MS. Building responsive websites and digital solutions for clients worldwide. Available for freelance.";
-      ogImage = "https://res.cloudinary.com/dspj4fc14/image/upload/v1782236920/exact-echo/og/og_home.jpg";
-      
-      // Fetch live home content for rich schema
-      let homeStories = [], homeFeedCount = 0;
-      try {
-        homeStories = await Models.Story.find({ active: true }).sort({ createdAt: -1 }).limit(6).lean();
-        homeFeedCount = await Models.Feed.countDocuments();
-      } catch (e) { /* non-critical */ }
+      let servedStory = null;
+      if (req.query.story) {
+        try {
+          servedStory = await Models.Story.findById(req.query.story).lean();
+        } catch (e) { /* silent fallback */ }
+      }
 
-      const storyItems = homeStories.map((s, i) => ({
-        "@type": "ListItem",
-        "position": i + 1,
-        "url": `https://sujan1919.com.np/story/${s._id}`,
-        "name": s.title || "Exclusive Story — Sujan Gautam"
-      }));
+      if (servedStory) {
+        const isVideo = servedStory.type === "video";
+        const mediaUrl = servedStory.mediaUrl || servedStory.image || "https://res.cloudinary.com/dspj4fc14/image/upload/v1782236706/exact-echo/og/og_feed.jpg";
+        title = servedStory.title ? `${servedStory.title} — Sujan Gautam` : "Exclusive Story — Sujan Gautam";
+        desc = servedStory.description || servedStory.caption || "View an exclusive story from Sujan Gautam's portfolio.";
+        ogImage = servedStory.thumbnail || (isVideo ? "https://res.cloudinary.com/dspj4fc14/image/upload/v1782236706/exact-echo/og/og_feed.jpg" : mediaUrl);
+        canonicalUrl = `https://sujan1919.com.np/?story=${req.query.story}`;
 
-      schemaData = {
-        "@context": "https://schema.org",
-        "@graph": [
-          {
-            "@type": "WebPage",
-            "@id": "https://sujan1919.com.np/#webpage",
-            "url": "https://sujan1919.com.np/",
-            "name": "Sujan Gautam — Full-Stack Software Engineer | Hattiesburg, MS",
-            "description": "Sujan Gautam is a full-stack software engineer and web developer based in Hattiesburg, MS. Building responsive websites and digital solutions for clients worldwide. Available for freelance.",
-            "inLanguage": "en-US",
-            "isPartOf": { "@id": "https://sujan1919.com.np/#website" },
-            "about": { "@id": "https://sujan1919.com.np/#person" },
-            "image": {
-              "@type": "ImageObject",
-              "url": "https://res.cloudinary.com/dspj4fc14/image/upload/v1782236920/exact-echo/og/og_home.jpg",
-              "width": 1200,
-              "height": 630
-            },
-            "mainEntity": {
-              "@type": "ItemList",
-              "name": "Featured Content by Sujan Gautam",
-              "description": "Portfolio highlights, stories, posts and media by full-stack developer Sujan Gautam.",
-              "numberOfItems": 5 + storyItems.length,
-              "itemListElement": [
-                {
-                  "@type": "ListItem", "position": 1,
-                  "name": "Portfolio Projects",
-                  "url": "https://sujan1919.com.np/portfolio/",
-                  "description": "Web apps, POS systems and software tools built by Sujan Gautam"
-                },
-                {
-                  "@type": "ListItem", "position": 2,
-                  "name": `Feed — ${homeFeedCount}+ Posts`,
-                  "url": "https://sujan1919.com.np/feed/",
-                  "description": "Personal posts, updates and photos by Sujan Gautam"
-                },
-                {
-                  "@type": "ListItem", "position": 3,
-                  "name": "About Sujan Gautam",
-                  "url": "https://sujan1919.com.np/about/",
-                  "description": "Full-stack developer, USM Computer Science student, 4.0 GPA, available for freelance"
-                },
-                {
-                  "@type": "ListItem", "position": 4,
-                  "name": "Blog — Technical Articles",
-                  "url": "https://sujan1919.com.np/blog/",
-                  "description": "Coding tutorials and web development insights by Sujan Gautam"
-                },
-                {
-                  "@type": "ListItem", "position": 5,
-                  "name": "Contact & Hire",
-                  "url": "https://sujan1919.com.np/contact/",
-                  "description": "Hire Sujan Gautam for freelance web development projects"
-                },
-                ...storyItems.map(s => ({ ...s, "position": s.position + 5 }))
-              ]
-            }
-          },
-          {
+        if (servedStory.isMembersOnly) robots = "noindex, nofollow";
+
+        const mediaSchema = isVideo ? {
+          "@type": "VideoObject",
+          "@id": canonicalUrl + "#video",
+          "name": servedStory.title || "Exclusive Story — Sujan Gautam",
+          "description": desc,
+          "contentUrl": mediaUrl,
+          "thumbnailUrl": ogImage,
+          "uploadDate": servedStory.createdAt,
+          "duration": servedStory.duration ? `PT${servedStory.duration}S` : undefined,
+          "author": { "@type": "Person", "@id": "https://sujan1919.com.np/#person", "name": "Sujan Gautam", "url": "https://sujan1919.com.np/" },
+          "publisher": {
             "@type": "Person",
             "@id": "https://sujan1919.com.np/#person",
             "name": "Sujan Gautam",
             "url": "https://sujan1919.com.np/",
-            "image": {
-              "@type": "ImageObject",
-              "url": ogImage,
-              "width": 1200,
-              "height": 630
-            },
-            "jobTitle": "Full-Stack Software Engineer",
-            "description": "Full-stack web developer and software engineer based in Hattiesburg, MS. Available for freelance projects.",
-            "email": "gautamsujan1919@gmail.com",
-            "telephone": "+18179707616",
-            "address": {
-              "@type": "PostalAddress",
-              "addressLocality": "Hattiesburg",
-              "addressRegion": "MS",
-              "addressCountry": "US"
-            },
-            "sameAs": [
-              "https://www.instagram.com/webwithfreelancer"
-            ],
-            "knowsLanguage": ["en", "ne", "hi"],
-            "nationality": "Nepalese",
-            "alumniOf": [
-              {
-                "@type": "EducationalOrganization",
-                "name": "University of Southern Mississippi"
-              }
-            ]
+            "logo": { "@type": "ImageObject", "url": "https://res.cloudinary.com/dspj4fc14/image/upload/v1782238482/exact-echo/favicon.jpg" }
           },
-          {
-            "@type": "WebSite",
-            "@id": "https://sujan1919.com.np/#website",
-            "url": "https://sujan1919.com.np/",
-            "name": "Sujan Gautam Portfolio",
-            "description": "Portfolio and personal site of Sujan Gautam, full-stack software engineer.",
-            "publisher": { "@id": "https://sujan1919.com.np/#person" },
-            "potentialAction": {
-              "@type": "SearchAction",
-              "target": {
-                "@type": "EntryPoint",
-                "urlTemplate": "https://sujan1919.com.np/feed/?search={search_term_string}"
+          "url": canonicalUrl
+        } : {
+          "@type": "ImageObject",
+          "@id": canonicalUrl + "#image",
+          "name": servedStory.title || "Exclusive Story — Sujan Gautam",
+          "description": desc,
+          "contentUrl": mediaUrl,
+          "url": canonicalUrl,
+          "author": { "@type": "Person", "@id": "https://sujan1919.com.np/#person", "name": "Sujan Gautam", "url": "https://sujan1919.com.np/" },
+          "uploadDate": servedStory.createdAt
+        };
+
+        schemaData = {
+          "@context": "https://schema.org",
+          "@graph": [
+            {
+              "@type": "WebPage",
+              "@id": canonicalUrl + "#webpage",
+              "url": canonicalUrl,
+              "name": title,
+              "description": desc,
+              "inLanguage": "en-US",
+              "isPartOf": { "@id": "https://sujan1919.com.np/#website" },
+              "author": { "@id": "https://sujan1919.com.np/#person" },
+              "image": { "@type": "ImageObject", "url": ogImage }
+            },
+            mediaSchema,
+            buildBreadcrumb([
+              { name: "Stories", url: "https://sujan1919.com.np/feed/" },
+              { name: servedStory.title || "Story", url: canonicalUrl }
+            ])
+          ]
+        };
+      } else {
+        title = "Sujan Gautam — Full-Stack Software Engineer | Hattiesburg, MS";
+        desc = "Sujan Gautam is a full-stack software engineer and web developer based in Hattiesburg, MS. Building responsive websites and digital solutions for clients worldwide. Available for freelance.";
+        ogImage = "https://res.cloudinary.com/dspj4fc14/image/upload/v1782236920/exact-echo/og/og_home.jpg";
+        
+        // Fetch live home content for rich schema
+        let homeStories = [], homeFeedCount = 0;
+        try {
+          homeStories = await Models.Story.find({ active: true }).sort({ createdAt: -1 }).limit(6).lean();
+          homeFeedCount = await Models.Feed.countDocuments();
+        } catch (e) { /* non-critical */ }
+
+        const storyItems = homeStories.map((s, i) => ({
+          "@type": "ListItem",
+          "position": i + 1,
+          "url": `https://sujan1919.com.np/story/${s._id}`,
+          "name": s.title || "Exclusive Story — Sujan Gautam"
+        }));
+
+        schemaData = {
+          "@context": "https://schema.org",
+          "@graph": [
+            {
+              "@type": "WebPage",
+              "@id": "https://sujan1919.com.np/#webpage",
+              "url": "https://sujan1919.com.np/",
+              "name": "Sujan Gautam — Full-Stack Software Engineer | Hattiesburg, MS",
+              "description": "Sujan Gautam is a full-stack software engineer and web developer based in Hattiesburg, MS. Building responsive websites and digital solutions for clients worldwide. Available for freelance.",
+              "inLanguage": "en-US",
+              "isPartOf": { "@id": "https://sujan1919.com.np/#website" },
+              "about": { "@id": "https://sujan1919.com.np/#person" },
+              "image": {
+                "@type": "ImageObject",
+                "url": "https://res.cloudinary.com/dspj4fc14/image/upload/v1782236920/exact-echo/og/og_home.jpg",
+                "width": 1200,
+                "height": 630
               },
-              "query-input": "required name=search_term_string"
-            }
-          },
-          buildBreadcrumb([])
-        ]
-      };
+              "mainEntity": {
+                "@type": "ItemList",
+                "name": "Featured Content by Sujan Gautam",
+                "description": "Portfolio highlights, stories, posts and media by full-stack developer Sujan Gautam.",
+                "numberOfItems": 5 + storyItems.length,
+                "itemListElement": [
+                  {
+                    "@type": "ListItem", "position": 1,
+                    "name": "Portfolio Projects",
+                    "url": "https://sujan1919.com.np/portfolio/",
+                    "description": "Web apps, POS systems and software tools built by Sujan Gautam"
+                  },
+                  {
+                    "@type": "ListItem", "position": 2,
+                    "name": `Feed — ${homeFeedCount}+ Posts`,
+                    "url": "https://sujan1919.com.np/feed/",
+                    "description": "Personal posts, updates and photos by Sujan Gautam"
+                  },
+                  {
+                    "@type": "ListItem", "position": 3,
+                    "name": "About Sujan Gautam",
+                    "url": "https://sujan1919.com.np/about/",
+                    "description": "Full-stack developer, USM Computer Science student, 4.0 GPA, available for freelance"
+                  },
+                  {
+                    "@type": "ListItem", "position": 4,
+                    "name": "Blog — Technical Articles",
+                    "url": "https://sujan1919.com.np/blog/",
+                    "description": "Coding tutorials and web development insights by Sujan Gautam"
+                  },
+                  {
+                    "@type": "ListItem", "position": 5,
+                    "name": "Contact & Hire",
+                    "url": "https://sujan1919.com.np/contact/",
+                    "description": "Hire Sujan Gautam for freelance web development projects"
+                  },
+                  ...storyItems.map(s => ({ ...s, "position": s.position + 5 }))
+                ]
+              }
+            },
+            {
+              "@type": "Person",
+              "@id": "https://sujan1919.com.np/#person",
+              "name": "Sujan Gautam",
+              "url": "https://sujan1919.com.np/",
+              "image": {
+                "@type": "ImageObject",
+                "url": ogImage,
+                "width": 1200,
+                "height": 630
+              },
+              "jobTitle": "Full-Stack Software Engineer",
+              "description": "Full-stack web developer and software engineer based in Hattiesburg, MS. Available for freelance projects.",
+              "email": "gautamsujan1919@gmail.com",
+              "telephone": "+18179707616",
+              "address": {
+                "@type": "PostalAddress",
+                "addressLocality": "Hattiesburg",
+                "addressRegion": "MS",
+                "addressCountry": "US"
+              },
+              "sameAs": [
+                "https://www.instagram.com/webwithfreelancer"
+              ],
+              "knowsLanguage": ["en", "ne", "hi"],
+              "nationality": "Nepalese",
+              "alumniOf": [
+                {
+                  "@type": "EducationalOrganization",
+                  "name": "University of Southern Mississippi"
+                }
+              ]
+            },
+            {
+              "@type": "WebSite",
+              "@id": "https://sujan1919.com.np/#website",
+              "url": "https://sujan1919.com.np/",
+              "name": "Sujan Gautam Portfolio",
+              "description": "Portfolio and personal site of Sujan Gautam, full-stack software engineer.",
+              "publisher": { "@id": "https://sujan1919.com.np/#person" },
+              "potentialAction": {
+                "@type": "SearchAction",
+                "target": {
+                  "@type": "EntryPoint",
+                  "urlTemplate": "https://sujan1919.com.np/feed/?search={search_term_string}"
+                },
+                "query-input": "required name=search_term_string"
+              }
+            },
+            buildBreadcrumb([])
+          ]
+        };
+      }
     } else if (pathClean === "/about") {
       title = "About Sujan Gautam — Full-Stack Developer | USM Computer Science, 4.0 GPA";
       desc = "Learn about Sujan Gautam — a 20-year-old full-stack developer at the University of Southern Mississippi (4.0 GPA). Fluent in HTML, CSS, JavaScript, React, Node.js, and Python. 1.5+ years experience, 12+ clients, 35+ projects.";
