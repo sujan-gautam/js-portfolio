@@ -1240,11 +1240,13 @@ app.get("*", async (req, res, next) => {
     $('meta[property="og:title"]').attr('content', title);
     $('meta[property="og:description"]').attr('content', desc);
     $('meta[property="og:image"]').attr('content', ogImage);
+    $('meta[property="og:image:alt"]').attr('content', title);
 
-    $('meta[property="twitter:url"]').attr('content', canonicalUrl);
-    $('meta[property="twitter:title"]').attr('content', title);
-    $('meta[property="twitter:description"]').attr('content', desc);
-    $('meta[property="twitter:image"]').attr('content', ogImage);
+    // Twitter meta uses name= not property=
+    $('meta[name="twitter:url"]').attr('content', canonicalUrl);
+    $('meta[name="twitter:title"]').attr('content', title);
+    $('meta[name="twitter:description"]').attr('content', desc);
+    $('meta[name="twitter:image"]').attr('content', ogImage);
 
     $('script[type="application/ld+json"]').remove();
 
