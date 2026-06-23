@@ -12,7 +12,11 @@ export const PollCard = ({ post, onUpdate, showAlert }: { post: FeedPost; onUpda
     if (hasVoted || expired) return;
     try {
       const updated = await feedAPI.votePoll(post.id, optionId, voterId);
-      if (updated) onUpdate(updated);
+      if (updated) {
+        onUpdate(updated);
+        const opt = post.pollOptions?.find(o => (o.id || (o as any)._id) === optionId);
+        (window as any).reportActivity?.('poll_vote', `Voted on post poll: ${post.pollQuestion || 'Feed Poll'}`, `Option: ${opt?.label || optionId}`);
+      }
     } catch (err: any) {
       if (err.response?.data?.error) showAlert(err.response.data.error);
     }

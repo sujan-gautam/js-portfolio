@@ -104,6 +104,7 @@ const PostCard = ({
   const [fsFlash, setFsFlash] = useState<'play' | 'pause' | null>(null);
   const fsFlashTimeout = useRef<any>(null);
   const hasTrackedView = useRef(false);
+  const visibleStartRef = useRef<number | null>(null);
   const postRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const fsVideoRef = useRef<HTMLVideoElement>(null);
@@ -174,6 +175,7 @@ const PostCard = ({
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
+            visibleStartRef.current = Date.now();
             // Dynamically update the browser URL for deep-linking/sharing
             window.history.replaceState(null, '', `?post=${post.id}`);
 
@@ -191,6 +193,14 @@ const PostCard = ({
               });
             }
           } else {
+            if (visibleStartRef.current) {
+              const duration = Math.round((Date.now() - visibleStartRef.current) / 1000);
+              if (duration >= 1.5) {
+                const name = `Feed Post: ${post.articleTitle || post.content?.substring(0, 30) || 'Untitled Post'}`;
+                (window as any).reportActivity?.('section_view', name, `Viewed post for ${duration}s`);
+              }
+              visibleStartRef.current = null;
+            }
             if (videoRef.current) {
               videoRef.current.pause();
             }
@@ -204,7 +214,16 @@ const PostCard = ({
     );
 
     if (postRef.current) observer.observe(postRef.current);
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      if (visibleStartRef.current) {
+        const duration = Math.round((Date.now() - visibleStartRef.current) / 1000);
+        if (duration >= 1.5) {
+          const name = `Feed Post: ${post.articleTitle || post.content?.substring(0, 30) || 'Untitled Post'}`;
+          (window as any).reportActivity?.('section_view', name, `Viewed post for ${duration}s`);
+        }
+      }
+    };
   }, [post.type, post.musicVideoId, post.id, playingMusicId, activeIndex]);
 
   // Handle auto-play when carousel index changes
@@ -316,6 +335,8 @@ const PostCard = ({
         } else {
           setPost(updated);
         }
+        const titleStr = post.articleTitle || post.content?.substring(0, 30) || 'Post';
+        (window as any).reportActivity?.('react_story', `Reacted to post: ${titleStr}`, `Reaction: ${type}`);
       }
     } catch (err: any) {
       if (err.response?.data?.error) showAlert(err.response.data.error);
@@ -332,6 +353,8 @@ const PostCard = ({
       } else {
         navigator.clipboard.writeText(window.location.href);
       }
+      const titleStr = post.articleTitle || post.content?.substring(0, 30) || 'Post';
+      (window as any).reportActivity?.('click', `Shared post: ${titleStr}`, `Shared or copied link`);
     } catch (err: any) {
       if (err.response?.data?.error) showAlert(err.response.data.error);
     }

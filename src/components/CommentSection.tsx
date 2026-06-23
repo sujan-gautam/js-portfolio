@@ -24,7 +24,11 @@ export const CommentSection = ({ post, onUpdate, showAlert, openOverride, setOpe
     setSubmitting(true);
     try {
       const updated = await feedAPI.addComment(post.id, text.trim(), "Anonymous", voterId);
-      if (updated) onUpdate(updated);
+      if (updated) {
+        onUpdate(updated);
+        const titleStr = post.articleTitle || post.content?.substring(0, 30) || 'Post';
+        (window as any).reportActivity?.('comment_story', `Commented on post: ${titleStr}`, `Comment: ${text.trim().substring(0, 80)}`);
+      }
       setText("");
     } catch (err: any) {
       if (err.response?.data?.error) showAlert(err.response.data.error);
