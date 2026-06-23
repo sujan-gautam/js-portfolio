@@ -6,6 +6,9 @@ import crudRoutes from "./routes/crudRoutes.js";
 import axios from "axios";
 import * as cheerio from "cheerio";
 import nodemailer from "nodemailer";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 
 import authRoutes from "./routes/authRoutes.js";
 import passport from "passport";
@@ -693,6 +696,455 @@ app.get("/api/health", (req, res) => {
     database: mongoose.connection.readyState === 1 ? "connected" : "disconnected",
     timestamp: new Date().toISOString()
   });
+});
+
+// ── Dynamic SEO Meta Tag & Schema Injector (SSR-lite for SPA pages) ──────────
+let cachedHtml = null;
+let cacheTime = 0;
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache
+
+async function getHtmlTemplate(req) {
+  const now = Date.now();
+  if (cachedHtml && (now - cacheTime < CACHE_DURATION)) {
+    return cachedHtml;
+  }
+
+  // Try local file first (for dev mode or local environment)
+  try {
+    const devPath = path.join(process.cwd(), "index.html");
+    if (fs.existsSync(devPath)) {
+      cachedHtml = fs.readFileSync(devPath, "utf-8");
+      cacheTime = now;
+      return cachedHtml;
+    }
+    const prodLocalPath = path.join(process.cwd(), "dist", "index.html");
+    if (fs.existsSync(prodLocalPath)) {
+      cachedHtml = fs.readFileSync(prodLocalPath, "utf-8");
+      cacheTime = now;
+      return cachedHtml;
+    }
+  } catch (err) {
+    console.log("Local index.html read failed, falling back to HTTP fetch...");
+  }
+
+  // Fetch over HTTP using dynamic host (for Vercel deployment)
+  try {
+    const protocol = req.headers["x-forwarded-proto"] || req.protocol || "https";
+    const host = req.headers.host;
+    const url = `${protocol}://${host}/raw-index.html`;
+    console.log("Fetching raw HTML template from:", url);
+    const response = await axios.get(url, { timeout: 5000 });
+    if (response.data) {
+      cachedHtml = response.data;
+      cacheTime = now;
+      return cachedHtml;
+    }
+  } catch (err) {
+    console.error("HTTP fetch of raw-index.html failed:", err.message);
+  }
+
+  // Ultimate fallback
+  return `<!doctype html><html lang="en"><head><meta charset="UTF-8"/><title>Sujan Gautam</title></head><body><div id="root"></div></body></html>`;
+}
+
+app.get("*", async (req, res, next) => {
+  // If the request is for API or static assets/files, let Vercel/Express static routing handle it
+  if (req.path.startsWith("/api") || req.path.includes(".")) {
+    return next();
+  }
+
+  try {
+    const rawHtml = await getHtmlTemplate(req);
+    const $ = cheerio.load(rawHtml);
+
+    // Default metadata values
+    let title = "Sujan Gautam — Full-Stack Software Engineer | Hattiesburg, MS";
+    let desc = "Sujan Gautam is a full-stack software engineer and web developer based in Hattiesburg, MS. Building responsive websites and digital solutions for clients worldwide. Available for freelance.";
+    let keywords = "Sujan Gautam, full stack developer, web developer Hattiesburg MS, freelance web developer, React developer, Node.js developer, software engineer";
+    let ogImage = "https://res.cloudinary.com/dspj4fc14/image/upload/v1782236920/exact-echo/og/og_home.jpg";
+    let canonicalUrl = `https://sujan1919.com.np${req.path}`;
+    let robots = "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1";
+    let schemaData = null;
+
+    const pathClean = req.path.replace(/\/$/, ""); // Normalize trailing slashes
+
+    if (pathClean === "" || pathClean === "/") {
+      // Home Page
+      title = "Sujan Gautam — Full-Stack Software Engineer | Hattiesburg, MS";
+      desc = "Sujan Gautam is a full-stack software engineer and web developer based in Hattiesburg, MS. Building responsive websites and digital solutions for clients worldwide. Available for freelance.";
+      ogImage = "https://res.cloudinary.com/dspj4fc14/image/upload/v1782236920/exact-echo/og/og_home.jpg";
+      
+      schemaData = {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "Person",
+            "@id": "https://sujan1919.com.np/#person",
+            "name": "Sujan Gautam",
+            "url": "https://sujan1919.com.np/",
+            "image": ogImage,
+            "jobTitle": "Full-Stack Software Engineer",
+            "description": "Full-stack web developer and software engineer based in Hattiesburg, MS. Available for freelance projects.",
+            "email": "gautamsujan1919@gmail.com",
+            "telephone": "+18179707616",
+            "address": {
+              "@type": "PostalAddress",
+              "addressLocality": "Hattiesburg",
+              "addressRegion": "MS",
+              "addressCountry": "US"
+            },
+            "sameAs": [
+              "https://www.instagram.com/webwithfreelancer"
+            ],
+            "knowsLanguage": ["en", "ne", "hi"],
+            "nationality": "Nepalese",
+            "alumniOf": [
+              {
+                "@type": "EducationalOrganization",
+                "name": "University of Southern Mississippi"
+              }
+            ]
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://sujan1919.com.np/#website",
+            "url": "https://sujan1919.com.np/",
+            "name": "Sujan Gautam Portfolio",
+            "description": "Portfolio and personal site of Sujan Gautam, full-stack software engineer.",
+            "publisher": { "@id": "https://sujan1919.com.np/#person" },
+            "potentialAction": {
+              "@type": "SearchAction",
+              "target": {
+                "@type": "EntryPoint",
+                "urlTemplate": "https://sujan1919.com.np/feed/?search={search_term_string}"
+              },
+              "query-input": "required name=search_term_string"
+            }
+          }
+        ]
+      };
+    } else if (pathClean === "/about") {
+      title = "About Sujan Gautam — Full-Stack Developer | USM Computer Science, 4.0 GPA";
+      desc = "Learn about Sujan Gautam — a 20-year-old full-stack developer at the University of Southern Mississippi (4.0 GPA). Fluent in HTML, CSS, JavaScript, React, Node.js, and Python. 1.5+ years experience, 12+ clients, 35+ projects.";
+      keywords = "Sujan Gautam about, USM computer science student, full stack developer skills, React Node.js developer portfolio, Nepali developer USA, software engineer student";
+      ogImage = "https://res.cloudinary.com/dspj4fc14/image/upload/v1782236703/exact-echo/og/og_about.jpg";
+      
+      schemaData = {
+        "@context": "https://schema.org",
+        "@type": "ProfilePage",
+        "mainEntity": {
+          "@type": "Person",
+          "@id": "https://sujan1919.com.np/#person",
+          "name": "Sujan Gautam",
+          "givenName": "Sujan",
+          "familyName": "Gautam",
+          "birthDate": "2004",
+          "gender": "Male",
+          "nationality": "Nepalese",
+          "address": {
+            "@type": "PostalAddress",
+            "addressLocality": "Hattiesburg",
+            "addressRegion": "Mississippi",
+            "addressCountry": "US"
+          },
+          "email": "gautamsujan1919@gmail.com",
+          "telephone": "+18179707616",
+          "knowsAbout": ["HTML", "CSS", "JavaScript", "React", "Node.js", "Python", "Full-Stack Development", "Web Design"],
+          "hasCredential": [
+            {
+              "@type": "EducationalOccupationalCredential",
+              "credentialCategory": "degree",
+              "educationalLevel": "Bachelor's",
+              "recognizedBy": {
+                "@type": "EducationalOrganization",
+                "name": "University of Southern Mississippi",
+                "address": { "addressLocality": "Hattiesburg", "addressRegion": "MS" }
+              }
+            }
+          ]
+        }
+      };
+    } else if (pathClean === "/portfolio") {
+      title = "Portfolio — Sujan Gautam | Web Apps, POS Systems & Full-Stack Projects";
+      desc = "Browse Sujan Gautam's completed projects: Golden Deals (full-stack Node.js/React), Techy POS (inventory management platform), Mitas Himalayan Kitchen (restaurant website), Trace Time-Travel Debugger. 35+ projects completed.";
+      keywords = "Sujan Gautam portfolio, web app projects, POS system developer, React Node.js projects, full stack portfolio, Techy POS, Golden Deals app, Trace debugger";
+      ogImage = "https://res.cloudinary.com/dspj4fc14/image/upload/v1782236705/exact-echo/og/og_portfolio.jpg";
+      
+      let projectsSchema = [];
+      try {
+        const portfolios = await Models.Portfolio.find({ active: true }).lean();
+        projectsSchema = portfolios.map(p => ({
+          "@type": p.category?.toLowerCase() === "restaurant" ? "WebSite" : "SoftwareApplication",
+          "name": p.title,
+          "description": p.description || p.shortDesc || "",
+          "applicationCategory": p.category === "pos" ? "BusinessApplication" : p.category === "debugger" ? "DeveloperApplication" : "WebApplication",
+          "url": p.link || `https://sujan1919.com.np/portfolio`,
+          "author": { "@id": "https://sujan1919.com.np/#person" }
+        }));
+      } catch (err) {
+        console.error("SEO Portfolio query error:", err);
+      }
+
+      if (projectsSchema.length === 0) {
+        projectsSchema = [
+          {
+            "@type": "SoftwareApplication",
+            "name": "Golden Deals",
+            "description": "A full-stack project built with Node.js backend and React-based frontend.",
+            "applicationCategory": "WebApplication",
+            "url": "https://sujan1919.com.np/golden-deals/",
+            "author": { "@id": "https://sujan1919.com.np/#person" }
+          },
+          {
+            "@type": "SoftwareApplication",
+            "name": "Techy POS",
+            "description": "A custom POS and inventory management platform developed for a specialized electronics franchise.",
+            "applicationCategory": "BusinessApplication",
+            "url": "https://sujan1919.com.np/techy-pos/",
+            "author": { "@id": "https://sujan1919.com.np/#person" }
+          },
+          {
+            "@type": "WebSite",
+            "name": "Mitas Himalayan Kitchen",
+            "description": "Fully functional restaurant website designed and developed for Mitas Himalayan Kitchen.",
+            "url": "https://sujan1919.com.np/mitas-kitchen/",
+            "author": { "@id": "https://sujan1919.com.np/#person" }
+          },
+          {
+            "@type": "SoftwareApplication",
+            "name": "Trace — Time-Travel Debugger",
+            "description": "An advanced interactive tool designed to help developers debug, visualize, and trace code execution.",
+            "applicationCategory": "DeveloperApplication",
+            "url": "https://trace.sujan1919.com.np",
+            "author": { "@id": "https://sujan1919.com.np/#person" }
+          }
+        ];
+      }
+
+      schemaData = {
+        "@context": "https://schema.org",
+        "@type": "CollectionPage",
+        "name": "Sujan Gautam — Project Portfolio",
+        "url": "https://sujan1919.com.np/portfolio/",
+        "description": "A showcase of full-stack web apps, POS systems, and software tools built by Sujan Gautam.",
+        "creator": { "@id": "https://sujan1919.com.np/#person" },
+        "hasPart": projectsSchema
+      };
+    } else if (pathClean === "/feed") {
+      const postId = req.query.post;
+      if (postId) {
+        try {
+          const post = await Models.Feed.findById(postId).lean();
+          if (post) {
+            title = post.seoTitle || (post.caption ? `${post.caption.slice(0, 60)} — Sujan Gautam` : "Feed Post — Sujan Gautam");
+            desc = post.seoDescription || (post.caption ? post.caption.slice(0, 155) : "Sujan Gautam feed update");
+            ogImage = post.images?.[0] || post.image || "https://res.cloudinary.com/dspj4fc14/image/upload/v1782236706/exact-echo/og/og_feed.jpg";
+            canonicalUrl = `https://sujan1919.com.np/feed/?post=${postId}`;
+
+            if (post.membersOnly) {
+              robots = "noindex, nofollow";
+            }
+
+            schemaData = {
+              "@context": "https://schema.org",
+              "@type": "BlogPosting",
+              "headline": title.slice(0, 110),
+              "description": desc,
+              "url": canonicalUrl,
+              "datePublished": post.createdAt,
+              "dateModified": post.updatedAt || post.createdAt,
+              "author": { "@id": "https://sujan1919.com.np/#person" },
+              "publisher": { "@id": "https://sujan1919.com.np/#person" },
+              "image": {
+                "@type": "ImageObject",
+                "url": ogImage,
+                "width": 1200,
+                "height": 630
+              },
+              "interactionStatistic": [
+                {
+                  "@type": "InteractionCounter",
+                  "interactionType": "https://schema.org/LikeAction",
+                  "userInteractionCount": post.likes || 0
+                }
+              ]
+            };
+          }
+        } catch (err) {
+          console.error("SEO Feed Post fetch error:", err);
+        }
+      } else {
+        title = "Feed — Sujan Gautam | Posts, Updates & Blog";
+        desc = "Sujan Gautam's personal feed — posts, updates, photos, and blog entries. Follow along for insights into his development journey and daily life.";
+        keywords = "Sujan Gautam feed, sujan1919 blog, developer posts, sujan gautam updates";
+        ogImage = "https://res.cloudinary.com/dspj4fc14/image/upload/v1782236706/exact-echo/og/og_feed.jpg";
+
+        schemaData = {
+          "@context": "https://schema.org",
+          "@type": "Blog",
+          "name": "Sujan Gautam's Feed",
+          "url": "https://sujan1919.com.np/feed/",
+          "description": "Personal posts, updates and blog entries by Sujan Gautam.",
+          "author": { "@id": "https://sujan1919.com.np/#person" }
+        };
+      }
+    } else if (pathClean.startsWith("/feed/post/") || pathClean.startsWith("/post/")) {
+      const parts = pathClean.split("/");
+      const postId = parts[parts.length - 1];
+      try {
+        const post = await Models.Feed.findById(postId).lean();
+        if (post) {
+          title = post.seoTitle || (post.caption ? `${post.caption.slice(0, 60)} — Sujan Gautam` : "Feed Post — Sujan Gautam");
+          desc = post.seoDescription || (post.caption ? post.caption.slice(0, 155) : "Sujan Gautam feed update");
+          ogImage = post.images?.[0] || post.image || "https://res.cloudinary.com/dspj4fc14/image/upload/v1782236706/exact-echo/og/og_feed.jpg";
+          canonicalUrl = `https://sujan1919.com.np/feed/?post=${postId}`;
+
+          if (post.membersOnly) {
+            robots = "noindex, nofollow";
+          }
+
+          schemaData = {
+            "@context": "https://schema.org",
+            "@type": "BlogPosting",
+            "headline": title.slice(0, 110),
+            "description": desc,
+            "url": canonicalUrl,
+            "datePublished": post.createdAt,
+            "dateModified": post.updatedAt || post.createdAt,
+            "author": { "@id": "https://sujan1919.com.np/#person" },
+            "publisher": { "@id": "https://sujan1919.com.np/#person" },
+            "image": {
+              "@type": "ImageObject",
+              "url": ogImage,
+              "width": 1200,
+              "height": 630
+            },
+            "interactionStatistic": [
+              {
+                "@type": "InteractionCounter",
+                "interactionType": "https://schema.org/LikeAction",
+                "userInteractionCount": post.likes || 0
+              }
+            ]
+          };
+        }
+      } catch (err) {
+        console.error("SEO Direct Post fetch error:", err);
+      }
+    } else if (pathClean.startsWith("/blog/")) {
+      const parts = pathClean.split("/");
+      const slug = parts[parts.length - 1];
+      try {
+        const blog = await Models.BlogPost.findOne({ slug }).lean();
+        if (blog) {
+          title = blog.seoTitle || `${blog.title} — Sujan Gautam`;
+          desc = blog.seoDescription || blog.excerpt || blog.title;
+          ogImage = blog.featuredImage || "https://res.cloudinary.com/dspj4fc14/image/upload/v1782236706/exact-echo/og/og_feed.jpg";
+          canonicalUrl = `https://sujan1919.com.np/blog/${slug}`;
+
+          schemaData = {
+            "@context": "https://schema.org",
+            "@type": "BlogPosting",
+            "headline": blog.title,
+            "description": desc,
+            "url": canonicalUrl,
+            "datePublished": blog.createdAt,
+            "dateModified": blog.updatedAt || blog.createdAt,
+            "author": { "@id": "https://sujan1919.com.np/#person" },
+            "publisher": { "@id": "https://sujan1919.com.np/#person" },
+            "image": {
+              "@type": "ImageObject",
+              "url": ogImage
+            }
+          };
+        }
+      } catch (err) {
+        console.error("SEO Blog fetch error:", err);
+      }
+    } else if (pathClean.startsWith("/story/")) {
+      const parts = pathClean.split("/");
+      const storyId = parts[parts.length - 1];
+      try {
+        const story = await Models.Story.findById(storyId).lean();
+        if (story) {
+          title = story.title ? `${story.title} — Sujan Gautam` : "Exclusive Story — Sujan Gautam";
+          desc = story.description || story.caption || "View an exclusive story from Sujan Gautam's portfolio.";
+          ogImage = story.mediaUrl || "https://res.cloudinary.com/dspj4fc14/image/upload/v1782236706/exact-echo/og/og_feed.jpg";
+          canonicalUrl = `https://sujan1919.com.np/story/${storyId}`;
+        }
+      } catch (err) {
+        console.error("SEO Story fetch error:", err);
+      }
+    } else if (pathClean === "/contact") {
+      title = "Contact Sujan Gautam — Hire a Full-Stack Developer | Hattiesburg, MS";
+      desc = "Get in touch with Sujan Gautam for freelance web development, collaborations, or project inquiries. Available via email, phone, or social media. Based in Hattiesburg, MS.";
+      keywords = "hire Sujan Gautam, contact web developer, freelance developer contact, Sujan Gautam email, full stack developer for hire";
+      ogImage = "https://res.cloudinary.com/dspj4fc14/image/upload/v1782236926/exact-echo/og/og_contact.jpg";
+      
+      schemaData = {
+        "@context": "https://schema.org",
+        "@type": "ContactPage",
+        "name": "Contact Sujan Gautam",
+        "url": "https://sujan1919.com.np/contact/",
+        "description": "Contact page for hiring or collaborating with Sujan Gautam, full-stack developer.",
+        "mainEntity": {
+          "@type": "Person",
+          "@id": "https://sujan1919.com.np/#person",
+          "name": "Sujan Gautam",
+          "email": "gautamsujan1919@gmail.com",
+          "telephone": "+18179707616",
+          "address": {
+            "@type": "PostalAddress",
+            "addressLocality": "Hattiesburg",
+            "addressRegion": "MS",
+            "addressCountry": "US"
+          }
+        }
+      };
+    }
+
+    $('title').text(title);
+    $('meta[name="description"]').attr('content', desc);
+
+    if ($('link[rel="canonical"]').length > 0) {
+      $('link[rel="canonical"]').attr('href', canonicalUrl);
+    } else {
+      $('head').append(`<link rel="canonical" href="${canonicalUrl}" />`);
+    }
+
+    if ($('meta[name="keywords"]').length > 0) {
+      $('meta[name="keywords"]').attr('content', keywords);
+    } else {
+      $('head').append(`<meta name="keywords" content="${keywords}" />`);
+    }
+    if ($('meta[name="robots"]').length > 0) {
+      $('meta[name="robots"]').attr('content', robots);
+    } else {
+      $('head').append(`<meta name="robots" content="${robots}" />`);
+    }
+
+    $('meta[property="og:url"]').attr('content', canonicalUrl);
+    $('meta[property="og:title"]').attr('content', title);
+    $('meta[property="og:description"]').attr('content', desc);
+    $('meta[property="og:image"]').attr('content', ogImage);
+
+    $('meta[property="twitter:url"]').attr('content', canonicalUrl);
+    $('meta[property="twitter:title"]').attr('content', title);
+    $('meta[property="twitter:description"]').attr('content', desc);
+    $('meta[property="twitter:image"]').attr('content', ogImage);
+
+    $('script[type="application/ld+json"]').remove();
+
+    if (schemaData) {
+      $('head').append(`<script type="application/ld+json">${JSON.stringify(schemaData)}</script>`);
+    }
+
+    res.setHeader("Content-Type", "text/html");
+    return res.send($.html());
+  } catch (err) {
+    console.error("Meta injection failed:", err);
+    return next();
+  }
 });
 
 // We still run listen manually if running locally vs Vercel

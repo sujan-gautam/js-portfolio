@@ -399,12 +399,24 @@ router.delete("/collection/:name", async (req, res) => {
 
 // Dynamic Image Redirect for Social Media SEO
 router.get("/seo/og-image", async (req, res) => {
+  const page = req.query.page;
+  const ogImages = {
+    home: "https://res.cloudinary.com/dspj4fc14/image/upload/v1782236920/exact-echo/og/og_home.jpg",
+    about: "https://res.cloudinary.com/dspj4fc14/image/upload/v1782236703/exact-echo/og/og_about.jpg",
+    portfolio: "https://res.cloudinary.com/dspj4fc14/image/upload/v1782236705/exact-echo/og/og_portfolio.jpg",
+    feed: "https://res.cloudinary.com/dspj4fc14/image/upload/v1782236706/exact-echo/og/og_feed.jpg",
+    contact: "https://res.cloudinary.com/dspj4fc14/image/upload/v1782236926/exact-echo/og/og_contact.jpg"
+  };
+
   try {
+    if (page && ogImages[page]) {
+      return res.redirect(302, ogImages[page]);
+    }
     const settings = await Models.Settings.findOne({});
-    const image = settings?.ogImage || settings?.siteLogo || settings?.favicon || 'https://sujan1919.com.np/assets/logo.png';
+    const image = settings?.ogImage || ogImages.home;
     res.redirect(302, image);
   } catch (error) {
-    res.redirect(302, 'https://sujan1919.com.np/assets/logo.png');
+    res.redirect(302, ogImages.home);
   }
 });
 

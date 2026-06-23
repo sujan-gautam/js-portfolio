@@ -19,12 +19,16 @@
       "destination": "/api/sitemap.xml"
     },
     {
+      "source": "/raw-index.html",
+      "destination": "/index.html"
+    },
+    {
       "source": "/api/(.*)",
       "destination": "/backend/server.js"
     },
     {
       "source": "/(.*)",
-      "destination": "/index.html"
+      "destination": "/backend/server.js"
     }
   ]
 }

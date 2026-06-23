@@ -1,9 +1,7 @@
 User-agent: *
 Allow: /
-
-# Block admin
+Disallow: /api/
 Disallow: /admin/
-Disallow: /admin/*
+Disallow: /members-only/
 
-# Sitemap
 Sitemap: https://sujan1919.com.np/sitemap.xml
