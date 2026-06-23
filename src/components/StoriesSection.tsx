@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import YouTube from "react-youtube";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { ChevronLeft, ChevronRight, Play, Pause, Loader2, Send, MessageSquare, X, UserCheck, Music, Star, Volume2, VolumeX, Lock, ExternalLink, BarChart2, Plus } from "lucide-react";
@@ -27,6 +28,7 @@ const StoriesSection = () => {
   const { user } = useAuth();
   const [stories, setStories] = useState<StoryItem[]>([]);
   const [music, setMusic] = useState<MusicItem[]>([]);
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [bgPlayer, setBgPlayer] = useState<any>(null);
   const [isPlayingBg, setIsPlayingBg] = useState(false);
@@ -97,6 +99,46 @@ const StoriesSection = () => {
     }
     setStoryPlayer(null);
   }, [storyViewerOpen, storyIndex]);
+
+  // Auto-open story from URL query parameter
+  useEffect(() => {
+    if (stories.length > 0) {
+      const storyId = searchParams.get("story");
+      if (storyId) {
+        const idx = stories.findIndex(s => s.id === storyId);
+        if (idx !== -1) {
+          setStoryIndex(idx);
+          setStoryViewerOpen(true);
+        }
+      }
+    }
+  }, [stories, searchParams]);
+
+  // Sync URL query parameter with current story state
+  useEffect(() => {
+    if (storyViewerOpen && stories.length > 0 && stories[storyIndex]) {
+      const currentId = stories[storyIndex].id;
+      if (searchParams.get("story") !== currentId) {
+        setSearchParams(
+          (prev) => {
+            const next = new URLSearchParams(prev);
+            next.set("story", currentId);
+            return next;
+          },
+          { replace: true }
+        );
+      }
+    } else if (!storyViewerOpen && searchParams.has("story")) {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete("story");
+          return next;
+        },
+        { replace: true }
+      );
+    }
+  }, [storyViewerOpen, storyIndex, stories, searchParams, setSearchParams]);
 
   const getMediaUrl = (storyUrl: string | undefined, isMembersOnly: boolean) => {
     if (!storyUrl) return "";
