@@ -128,7 +128,7 @@ const StoriesSection = () => {
           { replace: true }
         );
       }
-    } else if (!storyViewerOpen && searchParams.has("story")) {
+    } else if (!storyViewerOpen && !isLoading && searchParams.has("story")) {
       setSearchParams(
         (prev) => {
           const next = new URLSearchParams(prev);
@@ -138,7 +138,7 @@ const StoriesSection = () => {
         { replace: true }
       );
     }
-  }, [storyViewerOpen, storyIndex, stories, searchParams, setSearchParams]);
+  }, [storyViewerOpen, storyIndex, stories, searchParams, setSearchParams, isLoading]);
 
   const getMediaUrl = (storyUrl: string | undefined, isMembersOnly: boolean) => {
     if (!storyUrl) return "";
