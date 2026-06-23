@@ -777,6 +777,15 @@ app.get("*", async (req, res, next) => {
 
     const pathClean = req.path.replace(/\/$/, ""); // Normalize trailing slashes
 
+    // Helper: build BreadcrumbList schema for any page
+    const buildBreadcrumb = (crumbs) => ({
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://sujan1919.com.np/" },
+        ...crumbs.map((c, i) => ({ "@type": "ListItem", "position": i + 2, "name": c.name, "item": c.url }))
+      ]
+    });
+
     if (pathClean === "" || pathClean === "/") {
       // Home Page
       title = "Sujan Gautam — Full-Stack Software Engineer | Hattiesburg, MS";
@@ -791,7 +800,12 @@ app.get("*", async (req, res, next) => {
             "@id": "https://sujan1919.com.np/#person",
             "name": "Sujan Gautam",
             "url": "https://sujan1919.com.np/",
-            "image": ogImage,
+            "image": {
+              "@type": "ImageObject",
+              "url": ogImage,
+              "width": 1200,
+              "height": 630
+            },
             "jobTitle": "Full-Stack Software Engineer",
             "description": "Full-stack web developer and software engineer based in Hattiesburg, MS. Available for freelance projects.",
             "email": "gautamsujan1919@gmail.com",
@@ -829,7 +843,8 @@ app.get("*", async (req, res, next) => {
               },
               "query-input": "required name=search_term_string"
             }
-          }
+          },
+          buildBreadcrumb([])
         ]
       };
     } else if (pathClean === "/about") {
@@ -840,38 +855,45 @@ app.get("*", async (req, res, next) => {
       
       schemaData = {
         "@context": "https://schema.org",
-        "@type": "ProfilePage",
-        "mainEntity": {
-          "@type": "Person",
-          "@id": "https://sujan1919.com.np/#person",
-          "name": "Sujan Gautam",
-          "givenName": "Sujan",
-          "familyName": "Gautam",
-          "birthDate": "2004",
-          "gender": "Male",
-          "nationality": "Nepalese",
-          "address": {
-            "@type": "PostalAddress",
-            "addressLocality": "Hattiesburg",
-            "addressRegion": "Mississippi",
-            "addressCountry": "US"
-          },
-          "email": "gautamsujan1919@gmail.com",
-          "telephone": "+18179707616",
-          "knowsAbout": ["HTML", "CSS", "JavaScript", "React", "Node.js", "Python", "Full-Stack Development", "Web Design"],
-          "hasCredential": [
-            {
-              "@type": "EducationalOccupationalCredential",
-              "credentialCategory": "degree",
-              "educationalLevel": "Bachelor's",
-              "recognizedBy": {
-                "@type": "EducationalOrganization",
-                "name": "University of Southern Mississippi",
-                "address": { "addressLocality": "Hattiesburg", "addressRegion": "MS" }
-              }
+        "@graph": [
+          {
+            "@type": "ProfilePage",
+            "url": "https://sujan1919.com.np/about/",
+            "name": "About Sujan Gautam",
+            "mainEntity": {
+              "@type": "Person",
+              "@id": "https://sujan1919.com.np/#person",
+              "name": "Sujan Gautam",
+              "givenName": "Sujan",
+              "familyName": "Gautam",
+              "birthDate": "2004",
+              "gender": "Male",
+              "nationality": "Nepalese",
+              "address": {
+                "@type": "PostalAddress",
+                "addressLocality": "Hattiesburg",
+                "addressRegion": "Mississippi",
+                "addressCountry": "US"
+              },
+              "email": "gautamsujan1919@gmail.com",
+              "telephone": "+18179707616",
+              "knowsAbout": ["HTML", "CSS", "JavaScript", "React", "Node.js", "Python", "Full-Stack Development", "Web Design"],
+              "hasCredential": [
+                {
+                  "@type": "EducationalOccupationalCredential",
+                  "credentialCategory": "degree",
+                  "educationalLevel": "Bachelor's",
+                  "recognizedBy": {
+                    "@type": "EducationalOrganization",
+                    "name": "University of Southern Mississippi",
+                    "address": { "addressLocality": "Hattiesburg", "addressRegion": "MS" }
+                  }
+                }
+              ]
             }
-          ]
-        }
+          },
+          buildBreadcrumb([{ name: "About", url: "https://sujan1919.com.np/about/" }])
+        ]
       };
     } else if (pathClean === "/portfolio") {
       title = "Portfolio — Sujan Gautam | Web Apps, POS Systems & Full-Stack Projects";
@@ -932,12 +954,17 @@ app.get("*", async (req, res, next) => {
 
       schemaData = {
         "@context": "https://schema.org",
-        "@type": "CollectionPage",
-        "name": "Sujan Gautam — Project Portfolio",
-        "url": "https://sujan1919.com.np/portfolio/",
-        "description": "A showcase of full-stack web apps, POS systems, and software tools built by Sujan Gautam.",
-        "creator": { "@id": "https://sujan1919.com.np/#person" },
-        "hasPart": projectsSchema
+        "@graph": [
+          {
+            "@type": "CollectionPage",
+            "name": "Sujan Gautam — Project Portfolio",
+            "url": "https://sujan1919.com.np/portfolio/",
+            "description": "A showcase of full-stack web apps, POS systems, and software tools built by Sujan Gautam.",
+            "creator": { "@id": "https://sujan1919.com.np/#person" },
+            "hasPart": projectsSchema
+          },
+          buildBreadcrumb([{ name: "Portfolio", url: "https://sujan1919.com.np/portfolio/" }])
+        ]
       };
     } else if (pathClean === "/feed") {
       const postId = req.query.post;
@@ -956,26 +983,41 @@ app.get("*", async (req, res, next) => {
 
             schemaData = {
               "@context": "https://schema.org",
-              "@type": "BlogPosting",
-              "headline": title.slice(0, 110),
-              "description": desc,
-              "url": canonicalUrl,
-              "datePublished": post.createdAt,
-              "dateModified": post.updatedAt || post.createdAt,
-              "author": { "@id": "https://sujan1919.com.np/#person" },
-              "publisher": { "@id": "https://sujan1919.com.np/#person" },
-              "image": {
-                "@type": "ImageObject",
-                "url": ogImage,
-                "width": 1200,
-                "height": 630
-              },
-              "interactionStatistic": [
+              "@graph": [
                 {
-                  "@type": "InteractionCounter",
-                  "interactionType": "https://schema.org/LikeAction",
-                  "userInteractionCount": post.likes || 0
-                }
+                  "@type": "BlogPosting",
+                  "@id": canonicalUrl + "#article",
+                  "mainEntityOfPage": { "@type": "WebPage", "@id": canonicalUrl },
+                  "headline": title.slice(0, 110),
+                  "description": desc,
+                  "url": canonicalUrl,
+                  "datePublished": post.createdAt,
+                  "dateModified": post.updatedAt || post.createdAt,
+                  "author": { "@type": "Person", "@id": "https://sujan1919.com.np/#person", "name": "Sujan Gautam" },
+                  "publisher": {
+                    "@type": "Person",
+                    "@id": "https://sujan1919.com.np/#person",
+                    "name": "Sujan Gautam",
+                    "logo": { "@type": "ImageObject", "url": "https://res.cloudinary.com/dspj4fc14/image/upload/v1782238482/exact-echo/favicon.jpg" }
+                  },
+                  "image": {
+                    "@type": "ImageObject",
+                    "url": ogImage,
+                    "width": 1200,
+                    "height": 630
+                  },
+                  "interactionStatistic": [
+                    {
+                      "@type": "InteractionCounter",
+                      "interactionType": "https://schema.org/LikeAction",
+                      "userInteractionCount": post.likes || 0
+                    }
+                  ]
+                },
+                buildBreadcrumb([
+                  { name: "Feed", url: "https://sujan1919.com.np/feed/" },
+                  { name: title.slice(0, 60), url: canonicalUrl }
+                ])
               ]
             };
           }
@@ -990,11 +1032,16 @@ app.get("*", async (req, res, next) => {
 
         schemaData = {
           "@context": "https://schema.org",
-          "@type": "Blog",
-          "name": "Sujan Gautam's Feed",
-          "url": "https://sujan1919.com.np/feed/",
-          "description": "Personal posts, updates and blog entries by Sujan Gautam.",
-          "author": { "@id": "https://sujan1919.com.np/#person" }
+          "@graph": [
+            {
+              "@type": "Blog",
+              "name": "Sujan Gautam's Feed",
+              "url": "https://sujan1919.com.np/feed/",
+              "description": "Personal posts, updates and blog entries by Sujan Gautam.",
+              "author": { "@id": "https://sujan1919.com.np/#person" }
+            },
+            buildBreadcrumb([{ name: "Feed", url: "https://sujan1919.com.np/feed/" }])
+          ]
         };
       }
     } else if (pathClean.startsWith("/feed/post/") || pathClean.startsWith("/post/")) {
@@ -1014,26 +1061,41 @@ app.get("*", async (req, res, next) => {
 
           schemaData = {
             "@context": "https://schema.org",
-            "@type": "BlogPosting",
-            "headline": title.slice(0, 110),
-            "description": desc,
-            "url": canonicalUrl,
-            "datePublished": post.createdAt,
-            "dateModified": post.updatedAt || post.createdAt,
-            "author": { "@id": "https://sujan1919.com.np/#person" },
-            "publisher": { "@id": "https://sujan1919.com.np/#person" },
-            "image": {
-              "@type": "ImageObject",
-              "url": ogImage,
-              "width": 1200,
-              "height": 630
-            },
-            "interactionStatistic": [
+            "@graph": [
               {
-                "@type": "InteractionCounter",
-                "interactionType": "https://schema.org/LikeAction",
-                "userInteractionCount": post.likes || 0
-              }
+                "@type": "BlogPosting",
+                "@id": canonicalUrl + "#article",
+                "mainEntityOfPage": { "@type": "WebPage", "@id": canonicalUrl },
+                "headline": title.slice(0, 110),
+                "description": desc,
+                "url": canonicalUrl,
+                "datePublished": post.createdAt,
+                "dateModified": post.updatedAt || post.createdAt,
+                "author": { "@type": "Person", "@id": "https://sujan1919.com.np/#person", "name": "Sujan Gautam" },
+                "publisher": {
+                  "@type": "Person",
+                  "@id": "https://sujan1919.com.np/#person",
+                  "name": "Sujan Gautam",
+                  "logo": { "@type": "ImageObject", "url": "https://res.cloudinary.com/dspj4fc14/image/upload/v1782238482/exact-echo/favicon.jpg" }
+                },
+                "image": {
+                  "@type": "ImageObject",
+                  "url": ogImage,
+                  "width": 1200,
+                  "height": 630
+                },
+                "interactionStatistic": [
+                  {
+                    "@type": "InteractionCounter",
+                    "interactionType": "https://schema.org/LikeAction",
+                    "userInteractionCount": post.likes || 0
+                  }
+                ]
+              },
+              buildBreadcrumb([
+                { name: "Feed", url: "https://sujan1919.com.np/feed/" },
+                { name: title.slice(0, 60), url: canonicalUrl }
+              ])
             ]
           };
         }
@@ -1053,18 +1115,35 @@ app.get("*", async (req, res, next) => {
 
           schemaData = {
             "@context": "https://schema.org",
-            "@type": "BlogPosting",
-            "headline": blog.title,
-            "description": desc,
-            "url": canonicalUrl,
-            "datePublished": blog.createdAt,
-            "dateModified": blog.updatedAt || blog.createdAt,
-            "author": { "@id": "https://sujan1919.com.np/#person" },
-            "publisher": { "@id": "https://sujan1919.com.np/#person" },
-            "image": {
-              "@type": "ImageObject",
-              "url": ogImage
-            }
+            "@graph": [
+              {
+                "@type": "BlogPosting",
+                "@id": canonicalUrl + "#article",
+                "mainEntityOfPage": { "@type": "WebPage", "@id": canonicalUrl },
+                "headline": blog.title,
+                "description": desc,
+                "url": canonicalUrl,
+                "datePublished": blog.createdAt,
+                "dateModified": blog.updatedAt || blog.createdAt,
+                "author": { "@type": "Person", "@id": "https://sujan1919.com.np/#person", "name": "Sujan Gautam" },
+                "publisher": {
+                  "@type": "Person",
+                  "@id": "https://sujan1919.com.np/#person",
+                  "name": "Sujan Gautam",
+                  "logo": { "@type": "ImageObject", "url": "https://res.cloudinary.com/dspj4fc14/image/upload/v1782238482/exact-echo/favicon.jpg" }
+                },
+                "image": {
+                  "@type": "ImageObject",
+                  "url": ogImage,
+                  "width": 1200,
+                  "height": 630
+                }
+              },
+              buildBreadcrumb([
+                { name: "Blog", url: "https://sujan1919.com.np/blog/" },
+                { name: blog.title, url: canonicalUrl }
+              ])
+            ]
           };
         }
       } catch (err) {
@@ -1092,23 +1171,28 @@ app.get("*", async (req, res, next) => {
       
       schemaData = {
         "@context": "https://schema.org",
-        "@type": "ContactPage",
-        "name": "Contact Sujan Gautam",
-        "url": "https://sujan1919.com.np/contact/",
-        "description": "Contact page for hiring or collaborating with Sujan Gautam, full-stack developer.",
-        "mainEntity": {
-          "@type": "Person",
-          "@id": "https://sujan1919.com.np/#person",
-          "name": "Sujan Gautam",
-          "email": "gautamsujan1919@gmail.com",
-          "telephone": "+18179707616",
-          "address": {
-            "@type": "PostalAddress",
-            "addressLocality": "Hattiesburg",
-            "addressRegion": "MS",
-            "addressCountry": "US"
-          }
-        }
+        "@graph": [
+          {
+            "@type": "ContactPage",
+            "name": "Contact Sujan Gautam",
+            "url": "https://sujan1919.com.np/contact/",
+            "description": "Contact page for hiring or collaborating with Sujan Gautam, full-stack developer.",
+            "mainEntity": {
+              "@type": "Person",
+              "@id": "https://sujan1919.com.np/#person",
+              "name": "Sujan Gautam",
+              "email": "gautamsujan1919@gmail.com",
+              "telephone": "+18179707616",
+              "address": {
+                "@type": "PostalAddress",
+                "addressLocality": "Hattiesburg",
+                "addressRegion": "MS",
+                "addressCountry": "US"
+              }
+            }
+          },
+          buildBreadcrumb([{ name: "Contact", url: "https://sujan1919.com.np/contact/" }])
+        ]
       };
     } else if (pathClean === "/blog") {
       title = "Blog — Sujan Gautam | Technical Articles & Coding Guides";
@@ -1118,11 +1202,16 @@ app.get("*", async (req, res, next) => {
 
       schemaData = {
         "@context": "https://schema.org",
-        "@type": "Blog",
-        "name": "Sujan Gautam's Technical Blog",
-        "url": "https://sujan1919.com.np/blog",
-        "description": "Read technical articles, tutorials and software engineering insights by Sujan Gautam.",
-        "author": { "@id": "https://sujan1919.com.np/#person" }
+        "@graph": [
+          {
+            "@type": "Blog",
+            "name": "Sujan Gautam's Technical Blog",
+            "url": "https://sujan1919.com.np/blog/",
+            "description": "Read technical articles, tutorials and software engineering insights by Sujan Gautam.",
+            "author": { "@id": "https://sujan1919.com.np/#person" }
+          },
+          buildBreadcrumb([{ name: "Blog", url: "https://sujan1919.com.np/blog/" }])
+        ]
       };
     } else if (pathClean === "/trace") {
       title = "Trace — Interactive Time-Travel Debugger | Sujan Gautam";
@@ -1132,12 +1221,20 @@ app.get("*", async (req, res, next) => {
 
       schemaData = {
         "@context": "https://schema.org",
-        "@type": "SoftwareApplication",
-        "name": "Trace — Time-Travel Debugger",
-        "description": "An advanced interactive tool designed to help developers debug, visualize, and trace code execution.",
-        "applicationCategory": "DeveloperApplication",
-        "url": "https://trace.sujan1919.com.np",
-        "author": { "@id": "https://sujan1919.com.np/#person" }
+        "@graph": [
+          {
+            "@type": "SoftwareApplication",
+            "name": "Trace — Time-Travel Debugger",
+            "description": "An advanced interactive tool designed to help developers debug, visualize, and trace code execution.",
+            "applicationCategory": "DeveloperApplication",
+            "url": "https://trace.sujan1919.com.np",
+            "author": { "@id": "https://sujan1919.com.np/#person" }
+          },
+          buildBreadcrumb([
+            { name: "Portfolio", url: "https://sujan1919.com.np/portfolio/" },
+            { name: "Trace", url: "https://sujan1919.com.np/trace/" }
+          ])
+        ]
       };
     } else if (pathClean === "/techy-pos") {
       title = "Techy POS — Custom Inventory & Retail POS Platform | Sujan Gautam";
@@ -1147,12 +1244,20 @@ app.get("*", async (req, res, next) => {
 
       schemaData = {
         "@context": "https://schema.org",
-        "@type": "SoftwareApplication",
-        "name": "Techy POS",
-        "description": "A custom POS and inventory management platform developed for a specialized electronics franchise.",
-        "applicationCategory": "BusinessApplication",
-        "url": "https://sujan1919.com.np/techy-pos/",
-        "author": { "@id": "https://sujan1919.com.np/#person" }
+        "@graph": [
+          {
+            "@type": "SoftwareApplication",
+            "name": "Techy POS",
+            "description": "A custom POS and inventory management platform developed for a specialized electronics franchise.",
+            "applicationCategory": "BusinessApplication",
+            "url": "https://sujan1919.com.np/techy-pos/",
+            "author": { "@id": "https://sujan1919.com.np/#person" }
+          },
+          buildBreadcrumb([
+            { name: "Portfolio", url: "https://sujan1919.com.np/portfolio/" },
+            { name: "Techy POS", url: "https://sujan1919.com.np/techy-pos/" }
+          ])
+        ]
       };
     } else if (pathClean === "/mitas-kitchen") {
       title = "Mitas Himalayan Kitchen — Premium Restaurant Website | Sujan Gautam";
@@ -1162,11 +1267,19 @@ app.get("*", async (req, res, next) => {
 
       schemaData = {
         "@context": "https://schema.org",
-        "@type": "WebSite",
-        "name": "Mitas Himalayan Kitchen",
-        "description": "Fully functional restaurant website designed and developed for Mitas Himalayan Kitchen.",
-        "url": "https://sujan1919.com.np/mitas-kitchen/",
-        "author": { "@id": "https://sujan1919.com.np/#person" }
+        "@graph": [
+          {
+            "@type": "WebSite",
+            "name": "Mitas Himalayan Kitchen",
+            "description": "Fully functional restaurant website designed and developed for Mitas Himalayan Kitchen.",
+            "url": "https://sujan1919.com.np/mitas-kitchen/",
+            "author": { "@id": "https://sujan1919.com.np/#person" }
+          },
+          buildBreadcrumb([
+            { name: "Portfolio", url: "https://sujan1919.com.np/portfolio/" },
+            { name: "Mitas Kitchen", url: "https://sujan1919.com.np/mitas-kitchen/" }
+          ])
+        ]
       };
     } else if (pathClean === "/golden-deals") {
       title = "Golden Deals — Full-Stack E-Commerce Web Application | Sujan Gautam";
@@ -1176,12 +1289,20 @@ app.get("*", async (req, res, next) => {
 
       schemaData = {
         "@context": "https://schema.org",
-        "@type": "SoftwareApplication",
-        "name": "Golden Deals",
-        "description": "A full-stack project built with Node.js backend and React-based frontend.",
-        "applicationCategory": "WebApplication",
-        "url": "https://sujan1919.com.np/golden-deals/",
-        "author": { "@id": "https://sujan1919.com.np/#person" }
+        "@graph": [
+          {
+            "@type": "SoftwareApplication",
+            "name": "Golden Deals",
+            "description": "A full-stack project built with Node.js backend and React-based frontend.",
+            "applicationCategory": "WebApplication",
+            "url": "https://sujan1919.com.np/golden-deals/",
+            "author": { "@id": "https://sujan1919.com.np/#person" }
+          },
+          buildBreadcrumb([
+            { name: "Portfolio", url: "https://sujan1919.com.np/portfolio/" },
+            { name: "Golden Deals", url: "https://sujan1919.com.np/golden-deals/" }
+          ])
+        ]
       };
     } else if (pathClean === "/webwithfreelancer") {
       title = "Web With Freelancer — Freelance Portal & Client Studio | Sujan Gautam";
@@ -1191,12 +1312,20 @@ app.get("*", async (req, res, next) => {
 
       schemaData = {
         "@context": "https://schema.org",
-        "@type": "SoftwareApplication",
-        "name": "Web With Freelancer",
-        "description": "A client portal and booking workspace designed for seamless digital project delivery.",
-        "applicationCategory": "BusinessApplication",
-        "url": "https://sujan1919.com.np/webwithfreelancer/",
-        "author": { "@id": "https://sujan1919.com.np/#person" }
+        "@graph": [
+          {
+            "@type": "SoftwareApplication",
+            "name": "Web With Freelancer",
+            "description": "A client portal and booking workspace designed for seamless digital project delivery.",
+            "applicationCategory": "BusinessApplication",
+            "url": "https://sujan1919.com.np/webwithfreelancer/",
+            "author": { "@id": "https://sujan1919.com.np/#person" }
+          },
+          buildBreadcrumb([
+            { name: "Portfolio", url: "https://sujan1919.com.np/portfolio/" },
+            { name: "Web With Freelancer", url: "https://sujan1919.com.np/webwithfreelancer/" }
+          ])
+        ]
       };
     } else if (pathClean === "/project-ida") {
       title = "Project IDA — Client Custom Design & Web Suite | Sujan Gautam";
@@ -1206,12 +1335,20 @@ app.get("*", async (req, res, next) => {
 
       schemaData = {
         "@context": "https://schema.org",
-        "@type": "SoftwareApplication",
-        "name": "Project IDA",
-        "description": "A specialized full-stack custom web solution and dashboard designed to streamline internal client workflows.",
-        "applicationCategory": "BusinessApplication",
-        "url": "https://sujan1919.com.np/project-ida/",
-        "author": { "@id": "https://sujan1919.com.np/#person" }
+        "@graph": [
+          {
+            "@type": "SoftwareApplication",
+            "name": "Project IDA",
+            "description": "A specialized full-stack custom web solution and dashboard designed to streamline internal client workflows.",
+            "applicationCategory": "BusinessApplication",
+            "url": "https://sujan1919.com.np/project-ida/",
+            "author": { "@id": "https://sujan1919.com.np/#person" }
+          },
+          buildBreadcrumb([
+            { name: "Portfolio", url: "https://sujan1919.com.np/portfolio/" },
+            { name: "Project IDA", url: "https://sujan1919.com.np/project-ida/" }
+          ])
+        ]
       };
     } else if (pathClean === "/privacy") {
       title = "Privacy Policy — Sujan Gautam";
