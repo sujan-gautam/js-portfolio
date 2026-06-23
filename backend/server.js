@@ -709,32 +709,28 @@ async function getHtmlTemplate(req) {
     return cachedHtml;
   }
 
-  // Try local file first (for dev mode or local environment)
+  // PRODUCTION FIRST: Always prefer the compiled dist/index.html
+  // Root index.html contains /src/main.tsx which 404s in production
   try {
-    const devPath = path.join(process.cwd(), "index.html");
-    if (fs.existsSync(devPath)) {
-      cachedHtml = fs.readFileSync(devPath, "utf-8");
-      cacheTime = now;
-      return cachedHtml;
-    }
     const prodLocalPath = path.join(process.cwd(), "dist", "index.html");
     if (fs.existsSync(prodLocalPath)) {
       cachedHtml = fs.readFileSync(prodLocalPath, "utf-8");
       cacheTime = now;
+      console.log("SEO: Loaded HTML template from dist/index.html");
       return cachedHtml;
     }
   } catch (err) {
-    console.log("Local index.html read failed, falling back to HTTP fetch...");
+    console.log("dist/index.html not found, trying HTTP fetch...");
   }
 
-  // Fetch over HTTP using dynamic host (for Vercel deployment)
+  // Fetch the compiled index over HTTP (Vercel serves static dist via /raw-index.html rewrite)
   try {
     const protocol = req.headers["x-forwarded-proto"] || req.protocol || "https";
     const host = req.headers.host;
     const url = `${protocol}://${host}/raw-index.html`;
-    console.log("Fetching raw HTML template from:", url);
+    console.log("SEO: Fetching compiled HTML template from:", url);
     const response = await axios.get(url, { timeout: 5000 });
-    if (response.data) {
+    if (response.data && typeof response.data === "string" && response.data.includes("</html>")) {
       cachedHtml = response.data;
       cacheTime = now;
       return cachedHtml;
@@ -743,7 +739,20 @@ async function getHtmlTemplate(req) {
     console.error("HTTP fetch of raw-index.html failed:", err.message);
   }
 
-  // Ultimate fallback
+  // Local dev fallback: root index.html (has /src/main.tsx, only valid with Vite dev server)
+  try {
+    const devPath = path.join(process.cwd(), "index.html");
+    if (fs.existsSync(devPath)) {
+      cachedHtml = fs.readFileSync(devPath, "utf-8");
+      cacheTime = now;
+      console.log("SEO: Loaded HTML template from root index.html (dev mode)");
+      return cachedHtml;
+    }
+  } catch (err) {
+    console.log("Root index.html read failed.");
+  }
+
+  // Ultimate fallback — minimal shell
   return `<!doctype html><html lang="en"><head><meta charset="UTF-8"/><title>Sujan Gautam</title></head><body><div id="root"></div></body></html>`;
 }
 
