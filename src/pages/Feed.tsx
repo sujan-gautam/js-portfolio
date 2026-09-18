@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { feedAPI, FeedPost, FeedComment, settingsDB, AdminSettings } from "@/lib/adminData";
 import { SmartText } from "@/components/ui/SmartText";
@@ -139,6 +139,29 @@ const PostCard = ({
     type: isVideo(url) ? 'video' as const : 'image' as const,
     url
   }));
+
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [hasDomOverflow, setHasDomOverflow] = useState(false);
+  const textContentRef = useRef<HTMLDivElement>(null);
+
+  const isTextOnly = post.type === "text" || (!mediaItems.length && !post.videoUrl && post.type !== "poll" && post.type !== "article");
+
+  const isContentLong = useMemo(() => {
+    if (!post.content) return false;
+    const trimmed = post.content.trim();
+    const lines = trimmed.split('\n').filter(line => line.trim().length > 0);
+    return trimmed.length > 260 || lines.length > 3;
+  }, [post.content]);
+
+  useEffect(() => {
+    if (textContentRef.current && isTextOnly) {
+      if (textContentRef.current.scrollHeight > 105) {
+        setHasDomOverflow(true);
+      }
+    }
+  }, [post.content, isTextOnly]);
+
+  const isTooLong = isContentLong || hasDomOverflow;
 
   // Keyboard navigation for image lightbox
   useEffect(() => {
@@ -516,8 +539,40 @@ const PostCard = ({
           <>
             {/* Content */}
             {post.content && post.type !== 'article' && (
-              <div className={`px-5 pb-5 text-white/90 text-[15px] leading-[1.6] font-['Inter'] ${post.textLayout === 'quote' ? 'italic font-medium text-[18px]' : ''}`}>
-                <SmartText text={post.content} />
+              <div className="px-5 pb-5 font-['Inter']">
+                <div
+                  ref={textContentRef}
+                  className={`text-white/90 text-[15px] leading-[1.6] whitespace-pre-line break-words ${
+                    post.textLayout === 'quote' ? 'italic font-medium text-[18px]' : ''
+                  } ${isTextOnly && isTooLong && !isExpanded ? 'line-clamp-4' : ''}`}
+                >
+                  <SmartText text={post.content} />
+                </div>
+
+                {isTextOnly && isTooLong && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (isExpanded && postRef.current) {
+                        const rect = postRef.current.getBoundingClientRect();
+                        if (rect.top < 0) {
+                          postRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }
+                      }
+                      const next = !isExpanded;
+                      setIsExpanded(next);
+                      (window as any).reportActivity?.(
+                        'click',
+                        `Post text ${next ? 'expanded (see more...)' : 'collapsed (see less...)'}`,
+                        post.content?.substring(0, 40)
+                      );
+                    }}
+                    className="mt-2 text-[13px] font-semibold text-white/50 hover:text-white transition-colors cursor-pointer select-none inline-flex items-center gap-1 focus:outline-none"
+                  >
+                    {isExpanded ? 'see less...' : 'see more...'}
+                  </button>
+                )}
               </div>
             )}
 
