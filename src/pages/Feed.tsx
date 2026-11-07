@@ -770,32 +770,39 @@ const PostCard = ({
         {post.type === "article" && (
           <a
             href={`/post/${post.id}`}
-            className="group/article mb-3 flex items-start gap-3 rounded-lg border border-border bg-card p-3.5 transition-colors hover:bg-secondary focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring sm:gap-5 sm:p-4"
+            className="group/article mb-2 block rounded-sm border-t border-border pt-4 pb-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
           >
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-                <span className="font-medium text-red-500">{post.category || "Article"}</span>
-                {post.readTime && <span>{post.readTime} min read</span>}
-              </div>
-              <h2 className="mt-1.5 break-words font-poppins text-lg font-semibold leading-snug text-foreground sm:text-xl">
-                {post.articleTitle || "Untitled article"}
-              </h2>
-              {articleExcerpt && (
-                <p className="mt-1.5 line-clamp-2 text-sm leading-relaxed text-muted-foreground">{articleExcerpt}</p>
-              )}
-              <span className="mt-2.5 inline-flex items-center gap-1 text-xs font-semibold text-foreground">
-                Read article
-                <ChevronRight size={14} aria-hidden="true" className="transition-transform group-hover/article:translate-x-0.5" />
-              </span>
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+              <span className="font-semibold text-red-500">{post.category || "Article"}</span>
+              {!!post.readTime && <span>{post.readTime} min read</span>}
             </div>
-            {post.articleCover && (
-              <img
-                src={post.articleCover}
-                alt=""
-                loading="lazy"
-                className="aspect-[4/3] w-20 shrink-0 rounded-md bg-background object-contain sm:w-32"
-              />
+            {post.articleTitle && (
+              <h2 className="mt-2 break-words font-poppins text-2xl font-semibold leading-tight tracking-tight text-foreground group-hover/article:underline sm:text-4xl">
+                {post.articleTitle}
+              </h2>
             )}
+
+            <div className={`mt-4 grid items-center gap-4 ${post.articleCover ? "sm:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] sm:gap-6" : ""}`}>
+              {post.articleCover && (
+                <img
+                  src={post.articleCover}
+                  alt=""
+                  loading="lazy"
+                  className="aspect-[2/1] w-full rounded-md object-contain"
+                />
+              )}
+              <div className={post.articleCover ? "min-w-0 sm:order-first" : "min-w-0"}>
+                {articleExcerpt && (
+                  <p className="line-clamp-2 max-w-prose text-sm leading-relaxed text-muted-foreground sm:line-clamp-3">
+                    {articleExcerpt}
+                  </p>
+                )}
+                <span className={`inline-flex items-center gap-1.5 text-sm font-medium text-foreground ${articleExcerpt ? "mt-3" : ""}`}>
+                  Read article
+                  <ChevronRight size={16} aria-hidden="true" className="motion-safe:transition-transform motion-safe:group-hover/article:translate-x-1" />
+                </span>
+              </div>
+            </div>
           </a>
         )}
 
