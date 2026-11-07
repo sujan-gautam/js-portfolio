@@ -282,13 +282,12 @@ export const FeedPostPage = () => {
             <ReactionBar post={post} onReact={handleReact} />
           </div>
 
-          <div className="mt-8">
-            <CommentSection 
-              post={post} 
-              onUpdate={setPost} 
-              showAlert={(msg) => toast.error(msg)} 
+          {(!post.membersOnly || user) && (
+            <CommentSection
+              post={{ ...post, id: post.id || post._id || id }}
+              onCommentsChange={(comments) => setPost((current: any) => ({ ...current, comments }))}
             />
-          </div>
+          )}
 
           {!isArticle && <div className="flex gap-4 pt-12">
               <button onClick={() => { navigator.share?.({ title: post.caption || post.articleTitle, url: window.location.href }).catch(() => navigator.clipboard.writeText(window.location.href)); toast.success("Link copied to clipboard"); }} className="inline-flex items-center gap-2 text-[12px] font-bold bg-white/5 hover:bg-white/10 text-white px-6 py-2.5 rounded-full transition-all border border-white/5">

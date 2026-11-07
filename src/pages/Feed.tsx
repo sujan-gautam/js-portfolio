@@ -67,7 +67,6 @@ const PostCard = ({
     }
     return false;
   });
-  const [commentsOpen, setCommentsOpen] = useState(false);
   const [imgExpandedIndex, setImgExpandedIndex] = useState<number | null>(null);
   const [videoFullscreen, setVideoFullscreen] = useState(false);
   const [activeVideoUrl, setActiveVideoUrl] = useState(post.videoUrl || "");
@@ -829,10 +828,16 @@ const PostCard = ({
               <Heart size={16} aria-hidden="true" className={hasLiked ? "fill-current text-red-500" : ""} />
               {formatCount(totalReacts)}
             </button>
-            <button onClick={() => setCommentsOpen(true)} className={postAction} aria-label={`Open comments (${post.comments?.length ?? 0})`}>
-              <MessageCircle size={16} aria-hidden="true" />
-              {formatCount(post.comments?.length ?? 0)}
-            </button>
+            <CommentSection
+              post={post}
+              onCommentsChange={(comments) => setPost((current) => ({ ...current, comments }))}
+              trigger={
+                <button className={postAction} aria-label={`Open comments (${post.comments?.length ?? 0})`}>
+                  <MessageCircle size={16} aria-hidden="true" />
+                  {formatCount(post.comments?.length ?? 0)}
+                </button>
+              }
+            />
             <button onClick={handleShare} className={`ml-auto ${postAction}`}>
               <Share2 size={16} aria-hidden="true" />
               Share
@@ -840,10 +845,6 @@ const PostCard = ({
           </div>
         )}
 
-        {/* Comments Section */}
-        {commentsOpen && (
-          <CommentSection post={post} onUpdate={setPost} showAlert={showAlert} openOverride={commentsOpen} setOpenOverride={setCommentsOpen} />
-        )}
       </div>
 
       {/* Expanded image lightbox */}
