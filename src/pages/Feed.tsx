@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { feedAPI, FeedPost, settingsDB, AdminSettings } from "@/lib/adminData";
 import { SmartText } from "@/components/ui/SmartText";
 import { 
-  Heart, MessageCircle, Share2, MoreHorizontal, ArrowUpRight,
+  Heart, MessageCircle, Share2, MoreHorizontal,
   ChevronLeft, ChevronRight, X, Play, Pause, Music, Volume2, VolumeX,
   MapPin, Pin, PlayCircle,
   Link, Flag, User, EyeOff, Lock
@@ -16,7 +16,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { CommentSection } from "@/components/CommentSection";
 import { PollCard } from "@/components/PollCard";
 import SEO from "@/components/SEO";
-import { Link as RouterLink } from "react-router-dom";
 
 const postDateFormat = new Intl.DateTimeFormat("en", {
   month: "short",
@@ -24,17 +23,7 @@ const postDateFormat = new Intl.DateTimeFormat("en", {
   year: "numeric",
 });
 
-const postTypeLabels: Record<FeedPost["type"], string> = {
-  text: "Update",
-  image: "Photo",
-  poll: "Poll",
-  video: "Video",
-  reel: "Reel",
-  article: "Article",
-};
-
-const postInset = "px-4 sm:px-6";
-const postAction = "inline-flex min-h-11 items-center gap-2 rounded-md px-2 text-sm text-[#b6aca2] transition-colors hover:bg-white/5 hover:text-[#f5eee6] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#ed9685]";
+const postAction = "inline-flex min-h-11 items-center gap-2 rounded-md px-2 text-sm text-muted-foreground transition-colors hover:bg-white/5 hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring";
 
 interface MusicData {
   id: string;
@@ -359,22 +348,24 @@ const PostCard = ({
 
   const totalReacts = Object.values(post.reactions || {}).reduce((a, b) => a + b, 0);
 
+  const published = new Date(post.createdAt);
+
   if (isHidden) {
     return (
-      <div className="flex items-center gap-3 rounded-md border border-dashed border-[#443931] px-5 py-4 text-sm text-[#b6aca2]">
+      <div className="flex items-center gap-3 text-sm text-muted-foreground">
         <EyeOff size={16} aria-hidden="true" />
         <p>Post hidden</p>
-        <button onClick={() => setIsHidden(false)} className="ml-auto min-h-11 text-[#ed9685] hover:underline">Undo</button>
+        <button onClick={() => setIsHidden(false)} className="ml-auto min-h-11 text-red-500 hover:underline">Undo</button>
       </div>
     );
   }
 
   return (
     <>
-      <div ref={postRef} className="relative rounded-lg border border-[#3a312a] bg-[#1c1815]">
+      <div ref={postRef} className="relative">
         {/* Post Header */}
-        <div className={`flex items-center gap-3 py-4 sm:pt-5 ${postInset}`}>
-          <div className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#e9d8c6] text-[#38241e]">
+        <div className="mb-3 flex items-center gap-3">
+          <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-secondary text-secondary-foreground">
              {settings?.feedProfileImage ? (
                <img src={settings.feedProfileImage} alt="" className="w-full h-full object-cover" />
              ) : (
@@ -383,26 +374,25 @@ const PostCard = ({
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5">
-              <p className="truncate text-sm font-semibold text-[#f5eee6]">
+              <p className="truncate text-sm font-semibold text-foreground">
                 {settings?.feedProfileName || "Sujan Gautam"}
               </p>
               {post.pinned && (
-                <div className="flex shrink-0 items-center gap-1 text-xs text-[#ed9685]">
+                <div className="flex shrink-0 items-center gap-1 text-xs text-red-500">
                   <Pin size={12} aria-hidden="true" />
                   <span>Pinned</span>
                 </div>
               )}
             </div>
-            <div className="flex items-center gap-1.5 mt-1">
-               <p className="text-xs text-[#b6aca2]">
-                {postTypeLabels[post.type] || "Update"}
-               </p>
+            <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
+               {Number.isFinite(published.getTime()) && (
+                 <time dateTime={published.toISOString()}>{postDateFormat.format(published)}</time>
+               )}
                {post.musicVideoId && !(post.membersOnly && !user) && showMusicUI && (
                  <>
-                   <span className="text-[#8e8e93] text-[10px] opacity-40">•</span>
                    <div className="flex items-center gap-1">
-                      <Music size={10} className={isMusicActive ? "text-[#ff3b30]" : "text-[#8e8e93]"} />
-                      <p className="text-[11px] text-[#8e8e93] font-medium truncate max-w-[140px]">
+                      <Music size={10} className={isMusicActive ? "text-red-500" : "text-muted-foreground"} />
+                      <p className="text-[11px] text-muted-foreground font-medium truncate max-w-[140px]">
                         {post.musicTitle || "Original Audio"}
                       </p>
                    </div>
@@ -414,7 +404,7 @@ const PostCard = ({
             {post.musicVideoId && !(post.membersOnly && !user) && showMusicUI && (
               <button 
                 onClick={handleMuteToggle}
-                className="text-[#8e8e93] hover:text-white transition-colors px-1 h-8 w-8 flex items-center justify-center rounded-full hover:bg-white/5"
+                className="text-muted-foreground hover:text-white transition-colors px-1 h-8 w-8 flex items-center justify-center rounded-full hover:bg-white/5"
                 title={globalMute ? "Unmute Audio" : "Mute Audio"}
               >
                 {globalMute ? <VolumeX size={16} /> : <Volume2 size={16} />}
@@ -434,7 +424,7 @@ const PostCard = ({
             {menuOpen && (
               <>
                 <div className="fixed inset-0 z-[999]" onClick={() => setMenuOpen(false)} />
-                <div className="absolute top-full right-0 mt-2 w-[190px] bg-[#27201b] border border-[#443931] rounded-lg shadow-lg z-[1000] overflow-hidden animate-in fade-in zoom-in-95 duration-200 origin-top-right">
+                <div className="absolute top-full right-0 mt-2 w-[190px] bg-popover border border-border rounded-lg shadow-lg z-[1000] overflow-hidden animate-in fade-in zoom-in-95 duration-200 origin-top-right">
                   <div className="p-1.5 space-y-0.5">
                     <button 
                       onClick={() => {
@@ -490,16 +480,16 @@ const PostCard = ({
 
         {/* Members Only Gating */}
         {post.membersOnly && !user ? (
-          <div className={`pb-5 ${postInset}`}>
-            <div className="rounded-md border border-[#3a312a] bg-[#171411] p-4 sm:p-5">
-              <h3 className="flex items-center gap-2 font-semibold text-[#f5eee6]">
+          <div className="pb-4">
+            <div className="rounded-md border border-border bg-card p-4 sm:p-5">
+              <h3 className="flex items-center gap-2 font-semibold text-foreground">
                 <Lock size={16} aria-hidden="true" />
                 Members only
               </h3>
-              <p className="mt-2 text-sm text-[#b6aca2]">Sign in to view and interact with this post.</p>
+              <p className="mt-2 text-sm text-muted-foreground">Sign in to view and interact with this post.</p>
               <button
                 onClick={handleGoogleLogin}
-                className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-md bg-[#e9d8c6] px-3 text-sm font-semibold text-[#38241e] hover:bg-[#f5eee6]"
+                className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-md bg-foreground px-3 text-sm font-semibold text-background hover:bg-foreground/90"
               >
                 <img src="https://www.google.com/favicon.ico" className="size-4" alt="" />
                 Continue with Google
@@ -510,11 +500,11 @@ const PostCard = ({
           <>
             {/* Content */}
             {post.content && post.type !== 'article' && (
-              <div className={`pb-5 ${postInset}`}>
+              <div className="pb-4">
                 <div
                   ref={textContentRef}
-                  className={`whitespace-pre-line break-words text-base leading-relaxed text-[#efe6dc] ${
-                    post.textLayout === 'quote' ? 'font-[Georgia,serif] text-xl italic' : ''
+                  className={`whitespace-pre-line break-words text-base leading-relaxed text-foreground ${
+                    post.textLayout === 'quote' ? 'text-lg italic' : ''
                   } ${isTextOnly && isTooLong && !isExpanded ? 'line-clamp-4' : ''}`}
                 >
                   <SmartText text={post.content} />
@@ -540,7 +530,7 @@ const PostCard = ({
                       );
                     }}
                     aria-expanded={isExpanded}
-                    className="mt-2 min-h-11 text-sm font-medium text-[#ed9685] hover:underline"
+                    className="mt-2 min-h-11 text-sm font-medium text-red-500 hover:underline"
                   >
                     {isExpanded ? "Show less" : "Read more"}
                   </button>
@@ -550,7 +540,7 @@ const PostCard = ({
 
         {/* Video / Reel - Only show if not in carousel or if standalone */}
         {mediaItems.length === 1 && mediaItems[0].type === "video" && (
-          <div className="relative mx-4 mb-5 overflow-hidden rounded-md border border-[#3a312a] bg-black sm:mx-6">
+          <div className="relative mb-4 overflow-hidden rounded-lg border border-border bg-black">
             {post.videoUrl?.includes('youtube.com') || post.videoUrl?.includes('youtu.be') ? (
               <div className="w-full relative cursor-pointer" onClick={openFullscreen}>
                  <img src={getYTThumbnail(post.videoUrl) || ""} className="w-full object-cover" style={{maxHeight:'55vh'}} />
@@ -661,8 +651,8 @@ const PostCard = ({
 
         {/* Media Carousel (Images & Videos) */}
         {mediaItems.length > 0 && (mediaItems.length > 1 || mediaItems[0].type === "image") && (
-          <div className={`group relative mb-5 w-full ${postInset}`}>
-            <div className="relative overflow-hidden rounded-md border border-[#3a312a] bg-[#171411]">
+          <div className="group relative mb-4 w-full">
+            <div className="relative overflow-hidden rounded-md border border-border bg-card">
               <div 
                 className="flex transition-transform duration-700 ease-expo"
                 style={{ transform: `translateX(-${activeIndex * 100}%)` }}
@@ -738,12 +728,12 @@ const PostCard = ({
 
         {/* Link Preview */}
         {post.linkPreview?.url && (
-          <div className={`mb-5 ${postInset}`}>
+          <div className="mb-4">
             <a 
               href={post.linkPreview.url} 
               target="_blank" 
               rel="noopener noreferrer"
-              className="block group/link overflow-hidden rounded-md border border-[#3a312a] bg-[#171411] hover:border-[#80685a] transition-colors"
+              className="block group/link overflow-hidden rounded-md border border-border bg-card hover:border-primary transition-colors"
             >
               {post.linkPreview.image && (
                 <div className="aspect-[1.91/1] w-full overflow-hidden border-b border-white/5 bg-black">
@@ -752,11 +742,11 @@ const PostCard = ({
               )}
               <div className="p-4 space-y-1">
                 <div className="flex items-center gap-2">
-                   <span className="text-xs font-medium text-[#b6aca2]">{post.linkPreview.domain || 'LINK'}</span>
+                   <span className="text-xs font-medium text-muted-foreground">{post.linkPreview.domain || 'LINK'}</span>
                 </div>
                 <h4 className="text-[14px] font-bold text-white/90 line-clamp-1 leading-tight">{post.linkPreview.title || post.linkPreview.url}</h4>
                 {post.linkPreview.description && (
-                  <p className="text-[12px] text-[#8e8e93] line-clamp-2 leading-relaxed mt-1 font-medium">{post.linkPreview.description}</p>
+                  <p className="text-[12px] text-muted-foreground line-clamp-2 leading-relaxed mt-1 font-medium">{post.linkPreview.description}</p>
                 )}
               </div>
             </a>
@@ -764,25 +754,25 @@ const PostCard = ({
         )}
             
             {post.caption && (
-              <div className="px-6 pb-3">
+              <div className="pb-3">
                 <div className="bg-white/[0.03] border border-white/[0.05] rounded-xl p-3.5 relative">
                    <p className="text-white/80 text-[13px]">{post.caption}</p>
                 </div>
               </div>
             )}
             {post.location && (
-              <div className="px-6 pb-2 flex items-center gap-1.5 text-white/40 text-[12px] font-medium">
-                <MapPin size={13} className="text-[#CB2729]" />{post.location}
+              <div className="pb-2 flex items-center gap-1.5 text-white/40 text-[12px] font-medium">
+                <MapPin size={13} className="text-red-500" />{post.location}
               </div>
             )}
 
 
         {/* Article Preview */}
         {post.type === "article" && (
-          <div className={`mb-5 ${postInset}`}>
+          <div className="mb-4">
             <a 
               href={`/post/${post.id}`} 
-              className="block group/article overflow-hidden rounded-md border border-[#3a312a] bg-[#171411] hover:border-[#80685a] transition-all cursor-pointer"
+              className="block group/article overflow-hidden rounded-md border border-border bg-card hover:border-primary transition-all cursor-pointer"
             >
               {post.articleCover && (
                 <div className="w-full h-48 overflow-hidden bg-[#111]">
@@ -791,7 +781,7 @@ const PostCard = ({
               )}
               <div className="p-5 space-y-3">
                 <div className="flex items-center gap-2">
-                   <span className="text-xs font-medium text-[#ed9685]">
+                   <span className="text-xs font-medium text-red-500">
                      {post.category || 'ARTICLE'}
                    </span>
                    {post.readTime && (
@@ -800,8 +790,8 @@ const PostCard = ({
                      </span>
                    )}
                 </div>
-                <h3 className="break-words font-[Georgia,serif] text-2xl leading-tight text-[#f5eee6] sm:text-3xl">{post.articleTitle}</h3>
-                <div className="text-[14px] text-[#8e8e93] line-clamp-3 leading-relaxed font-normal">
+                <h3 className="break-words font-poppins text-2xl font-semibold leading-tight text-foreground sm:text-3xl">{post.articleTitle}</h3>
+                <div className="text-[14px] text-muted-foreground line-clamp-3 leading-relaxed font-normal">
                   {post.content && post.content !== post.articleTitle 
                     ? post.content 
                     : (post.seoDescription && post.seoDescription !== post.articleTitle 
@@ -818,15 +808,15 @@ const PostCard = ({
 
         {/* Poll */}
         {post.type === "poll" && (
-          <div className={`pb-5 ${postInset}`}>
+          <div className="pb-4">
             <PollCard post={post} onUpdate={setPost} showAlert={showAlert} />
           </div>
         )}
 
         {/* Tags */}
         {post.tags?.length ? (
-          <div className={`flex flex-wrap gap-x-3 gap-y-1 pb-4 ${postInset}`}>
-            {post.tags.map((t, i) => <span key={`${t}-${i}`} className="text-sm text-[#b6aca2]">#{t}</span>)}
+          <div className="flex flex-wrap gap-x-3 gap-y-1 pb-2">
+            {post.tags.map((t, i) => <span key={`${t}-${i}`} className="text-sm text-muted-foreground">#{t}</span>)}
           </div>
         ) : null}
 
@@ -834,9 +824,9 @@ const PostCard = ({
         )}
 
         {!(post.membersOnly && !user) && (
-          <div className={`flex flex-wrap items-center gap-x-2 border-t border-[#3a312a] py-1 sm:gap-x-4 ${postInset}`}>
+          <div className="-mx-2 flex flex-wrap items-center gap-x-2 sm:gap-x-4">
             <button onClick={() => handleReact("like")} className={postAction} aria-label={`Like post (${totalReacts} reactions)`}>
-              <Heart size={16} aria-hidden="true" className={hasLiked ? "fill-[#ed9685] text-[#ed9685]" : ""} />
+              <Heart size={16} aria-hidden="true" className={hasLiked ? "fill-current text-red-500" : ""} />
               {formatCount(totalReacts)}
             </button>
             <button onClick={() => setCommentsOpen(true)} className={postAction} aria-label={`Open comments (${post.comments?.length ?? 0})`}>
@@ -1071,7 +1061,7 @@ const Feed = () => {
         title="Sujan Gautam | Feed"
         description="Notes on software, design, and recent projects by Sujan Gautam."
       />
-    <main className="min-h-screen bg-[#151210] font-inter text-[#f5eee6]">
+    <main className="min-h-screen font-inter text-foreground">
       {/* System Alert Popup */}
       {alertMessage && createPortal(
         <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setAlertMessage(null)}>
@@ -1080,7 +1070,7 @@ const Feed = () => {
               <p className="text-[16px] font-bold text-white tracking-tight">System Alert</p>
               <p className="text-[13px] text-white/80 leading-relaxed font-medium">{alertMessage}</p>
             </div>
-            <button onClick={() => setAlertMessage(null)} className="w-full py-3.5 border-t border-white/10 text-[#0a84ff] font-bold text-[15px] hover:bg-white/5 active:bg-white/10 transition-colors">
+            <button onClick={() => setAlertMessage(null)} className="w-full py-3.5 border-t border-white/10 text-red-500 font-bold text-[15px] hover:bg-white/5 active:bg-white/10 transition-colors">
               OK
             </button>
           </div>
@@ -1088,70 +1078,53 @@ const Feed = () => {
         document.body
       )}
 
-      <div className="mx-auto max-w-[62rem] px-5 pb-32 pt-8 sm:px-10 sm:pt-14">
-        <header className="border-t-2 border-[#cb6f5e] pb-8 pt-5 sm:pb-10">
-          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 text-sm">
-            <RouterLink to="/" className="font-semibold hover:underline">Sujan Gautam</RouterLink>
-            <RouterLink to="/portfolio/" className="inline-flex min-h-11 items-center gap-1.5 text-[#ed9685] hover:underline">
-              Portfolio <ArrowUpRight size={15} aria-hidden="true" />
-            </RouterLink>
-          </div>
-          <div className="mt-4 grid gap-4 sm:mt-6 sm:grid-cols-[1fr_18rem] sm:items-end">
-            <h1 className="font-[Georgia,serif] text-7xl leading-[0.95] tracking-tight sm:text-[7rem]">Feed</h1>
-            <p className="max-w-xs text-base leading-relaxed text-[#b6aca2] sm:pb-1">
-              Notes on software and design, project updates, and things I’m working on.
-            </p>
-          </div>
+      <div className="mx-auto max-w-2xl px-5 pb-32 pt-8 sm:px-8 sm:pt-14">
+        <header className="mb-6 font-poppins sm:mb-8">
+          <h1 id="feed-heading" className="text-3xl font-black uppercase tracking-tight text-hero-title sm:text-5xl">
+            Feed
+          </h1>
+          <div className="mt-3 h-[3px] w-10 rounded-full bg-primary" aria-hidden="true" />
         </header>
 
-        <section aria-labelledby="feed-entries" aria-busy={loading} className="border-t border-[#443931] pt-5">
-          <h2 id="feed-entries" className="mb-6 text-sm font-semibold text-[#f5eee6]">Posts</h2>
+        <section aria-labelledby="feed-heading" aria-busy={loading} className="border-t border-border">
           {loading ? (
-            <div className="space-y-6 md:pl-40">
+            <>
               <p className="sr-only" role="status">Loading posts</p>
               {Array.from({ length: 2 }, (_, index) => (
-                <div key={index} aria-hidden="true" className="space-y-4 rounded-lg border border-[#3a312a] bg-[#1c1815] p-5">
+                <div key={index} aria-hidden="true" className="space-y-4 border-b border-border py-5">
                   <div className="flex items-center gap-3">
-                    <Skeleton className="size-9 rounded-full bg-[#302722]" />
-                    <Skeleton className="h-3 w-28 bg-[#302722]" />
+                    <Skeleton className="size-10 rounded-full" />
+                    <div className="space-y-2">
+                      <Skeleton className="h-3 w-28" />
+                      <Skeleton className="h-2.5 w-20" />
+                    </div>
                   </div>
-                  <Skeleton className="h-16 w-full rounded-md bg-[#302722]" />
+                  <Skeleton className="h-3 w-4/5" />
+                  <Skeleton className="h-3 w-3/5" />
                 </div>
               ))}
-            </div>
+            </>
           ) : posts.length === 0 ? (
-            <p role="status" className="rounded-md border border-dashed border-[#443931] px-5 py-9 text-sm text-[#b6aca2] md:ml-40">
+            <p role="status" className="py-8 text-sm text-muted-foreground">
               {loadFailed ? "Couldn’t load posts. Refresh to try again." : "No posts yet."}
             </p>
           ) : (
-            <div className="space-y-6 sm:space-y-8">
-              {posts.map((post) => {
-                const date = new Date(post.createdAt);
-                return (
-                  <article id={`post-${post.id}`} key={post.id} className="grid scroll-mt-6 gap-2 md:grid-cols-[8rem_minmax(0,1fr)] md:gap-8">
-                    <div className="text-xs text-[#b6aca2] md:pt-6 md:text-sm">
-                      {Number.isFinite(date.getTime()) && (
-                        <time dateTime={date.toISOString()}>{postDateFormat.format(date)}</time>
-                      )}
-                    </div>
-                    <div className="min-w-0">
-                      <PostCard
-                        post={post}
-                        showAlert={setAlertMessage}
-                        globalMute={globalMute}
-                        setGlobalMute={setGlobalMute}
-                        setMusicData={setMusicData}
-                        playingMusicId={musicData?.id || null}
-                        isIOS={isIOS}
-                        settings={settings}
-                        ytPlayer={ytPlayer}
-                        isMusicReady={isMusicReady}
-                      />
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
+            posts.map((post) => (
+              <article id={`post-${post.id}`} key={post.id} className="min-w-0 scroll-mt-4 border-b border-border py-5 sm:py-6">
+                <PostCard
+                  post={post}
+                  showAlert={setAlertMessage}
+                  globalMute={globalMute}
+                  setGlobalMute={setGlobalMute}
+                  setMusicData={setMusicData}
+                  playingMusicId={musicData?.id || null}
+                  isIOS={isIOS}
+                  settings={settings}
+                  ytPlayer={ytPlayer}
+                  isMusicReady={isMusicReady}
+                />
+              </article>
+            ))
           )}
         </section>
       </div>

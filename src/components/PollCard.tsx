@@ -23,7 +23,7 @@ export const PollCard = ({ post, onUpdate, showAlert }: { post: FeedPost; onUpda
   };
 
   return (
-    <div className="space-y-4 font-['Inter']">
+    <div className="space-y-4 font-inter">
       <h3 className="text-white text-[16px] font-bold leading-snug">{post.pollQuestion}</h3>
       
       <div className="space-y-2.5">
