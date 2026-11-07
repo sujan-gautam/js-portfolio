@@ -1020,8 +1020,7 @@ const Feed = () => {
     const surface = feed?.closest("main");
     if (!feed || !surface || loading || posts.length === 0) return;
 
-    let gestureEnd: number;
-    let gestureDelta = 0;
+    let gestureEnd = 0;
     let gestureHandled = false;
 
     const handleWheel = (event: WheelEvent) => {
@@ -1030,7 +1029,6 @@ const Feed = () => {
 
       window.clearTimeout(gestureEnd);
       gestureEnd = window.setTimeout(() => {
-        gestureDelta = 0;
         gestureHandled = false;
       }, 180);
       if (gestureHandled) return;
@@ -1056,10 +1054,8 @@ const Feed = () => {
         return;
       }
 
-      gestureDelta += delta;
-      if (Math.abs(gestureDelta) < 28) return;
       gestureHandled = true;
-      const target = articles[index + Math.sign(gestureDelta)];
+      const target = articles[index + Math.sign(delta)];
       if (target) {
         feed.scrollTo({
           top: target.offsetTop,
@@ -1068,9 +1064,10 @@ const Feed = () => {
       }
     };
 
-    surface.addEventListener("wheel", handleWheel, { passive: false });
+    // Handle vertical wheel input before media controls can consume it.
+    surface.addEventListener("wheel", handleWheel, { capture: true, passive: false });
     return () => {
-      surface.removeEventListener("wheel", handleWheel);
+      surface.removeEventListener("wheel", handleWheel, true);
       window.clearTimeout(gestureEnd);
     };
   }, [loading, posts.length]);
