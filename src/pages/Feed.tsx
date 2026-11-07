@@ -24,7 +24,7 @@ const postDateFormat = new Intl.DateTimeFormat("en", {
 });
 
 // Leave room for the author, caption, and actions in a typical post.
-const inlineMediaHeight = "max-h-[clamp(7rem,calc(100cqh_-_23rem),55dvh)] sm:max-h-[clamp(8rem,calc(100cqh_-_21rem),55dvh)]";
+const inlineMediaHeight = "max-h-[clamp(7rem,calc(100cqh_-_28.5rem),55dvh)] sm:max-h-[clamp(8rem,calc(100cqh_-_28rem),55dvh)]";
 const postAction = "inline-flex min-h-11 items-center gap-2 rounded-md px-2 text-sm text-muted-foreground transition-colors hover:bg-white/5 hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring";
 
 interface MusicData {
@@ -879,7 +879,6 @@ const PostCard = ({
 
 // ── Main Feed Page ────────────────────────────────────
 const Feed = () => {
-  const feedRef = useRef<HTMLElement>(null);
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadFailed, setLoadFailed] = useState(false);
@@ -1014,99 +1013,6 @@ const Feed = () => {
     }
   }, [loading]);
 
-  useEffect(() => {
-    const feed = feedRef.current;
-    const surface = feed?.closest("main");
-    if (!feed || !surface || loading || posts.length === 0) return;
-
-    let gestureEnd = 0;
-    let gestureHandled = false;
-    let drag: { start: number; end: number; position: number } | null = null;
-    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
-
-    const scrollTo = (top: number) => {
-      feed.scrollTo({ top, behavior: reducedMotion.matches ? "auto" : "smooth" });
-    };
-
-    const finishGesture = () => {
-      gestureHandled = false;
-      if (!drag) return;
-
-      const { start, end, position } = drag;
-      drag = null;
-      feed.style.removeProperty("scroll-snap-type");
-      const distance = Math.abs(position - start);
-      scrollTo(distance >= Math.min(18, Math.abs(end - start) / 2) ? end : start);
-    };
-
-    const moveDrag = (delta: number) => {
-      if (!drag) return;
-      const { start, end, position } = drag;
-      drag.position = Math.max(Math.min(start, end), Math.min(Math.max(start, end), position + delta));
-      feed.scrollTop = drag.position;
-    };
-
-    const handleWheel = (event: WheelEvent) => {
-      if (event.ctrlKey || event.shiftKey || Math.abs(event.deltaX) >= Math.abs(event.deltaY)) return;
-      event.preventDefault();
-
-      window.clearTimeout(gestureEnd);
-      gestureEnd = window.setTimeout(finishGesture, 120);
-      if (gestureHandled) return;
-
-      const mode = event.deltaMode;
-      let delta = event.deltaY;
-      if (mode === WheelEvent.DOM_DELTA_LINE) delta *= 16;
-      if (mode === WheelEvent.DOM_DELTA_PAGE) delta *= feed.clientHeight;
-      const coarse = mode !== WheelEvent.DOM_DELTA_PIXEL || Math.abs(delta) >= 60;
-      if (drag) {
-        moveDrag(delta);
-        return;
-      }
-
-      const articles = Array.from(feed.querySelectorAll<HTMLElement>(":scope > article"));
-      let top = feed.scrollTop;
-      const nextIndex = articles.findIndex((article) => article.offsetTop > top + 1);
-      const index = nextIndex < 0 ? articles.length - 1 : nextIndex - 1;
-      const current = articles[index];
-      if (!current) return;
-
-      const start = current.offsetTop;
-      const end = start + Math.max(0, current.offsetHeight - feed.clientHeight);
-      const direction = Math.sign(delta);
-      const remaining = direction > 0 ? end - top : top - start;
-      if (end > start && remaining > 1) {
-        const step = Math.min(Math.abs(delta), remaining) * direction;
-        top += step;
-        feed.scrollTop = top;
-        delta -= step;
-        if (Math.abs(delta) < 1) return;
-      }
-
-      const next = articles[index + direction];
-      if (!next) return;
-
-      if (coarse) {
-        gestureHandled = true;
-        scrollTo(next.offsetTop);
-        return;
-      }
-
-      // Keep small wheel deltas attached to the gesture until the user lets go.
-      feed.style.scrollSnapType = "none";
-      drag = { start: top, end: next.offsetTop, position: top };
-      moveDrag(delta);
-    };
-
-    // Handle vertical wheel input before media controls can consume it.
-    surface.addEventListener("wheel", handleWheel, { capture: true, passive: false });
-    return () => {
-      surface.removeEventListener("wheel", handleWheel, true);
-      window.clearTimeout(gestureEnd);
-      feed.style.removeProperty("scroll-snap-type");
-    };
-  }, [loading, posts.length]);
-
   // Handle global volume sync
   useEffect(() => {
     if (ytPlayer && typeof ytPlayer.mute === 'function') {
@@ -1143,6 +1049,17 @@ const Feed = () => {
     }
   }, [musicData?.videoId, ytPlayer]);
 
+  const heading = (
+    <header className="mx-auto w-full max-w-2xl shrink-0 px-5 pt-5 font-poppins sm:px-8 sm:pt-8">
+      <div className="border-b border-border pb-4">
+        <h1 id="feed-heading" className="text-3xl font-black uppercase tracking-tight text-hero-title sm:text-5xl">
+          Feed
+        </h1>
+        <div className="mt-3 h-[3px] w-10 rounded-full bg-primary" aria-hidden="true" />
+      </div>
+    </header>
+  );
+
   return (
     <>
       <SEO 
@@ -1166,22 +1083,13 @@ const Feed = () => {
         document.body
       )}
 
-      <header className="mx-auto w-full max-w-2xl shrink-0 px-5 pt-5 font-poppins sm:px-8 sm:pt-8">
-        <div className="border-b border-border pb-4">
-          <h1 id="feed-heading" className="text-3xl font-black uppercase tracking-tight text-hero-title sm:text-5xl">
-            Feed
-          </h1>
-          <div className="mt-3 h-[3px] w-10 rounded-full bg-primary" aria-hidden="true" />
-        </div>
-      </header>
-
       <section
-        ref={feedRef}
         aria-labelledby="feed-heading"
         aria-busy={loading}
         tabIndex={0}
-        className="relative min-h-0 flex-1 [container-type:size] snap-y snap-mandatory overflow-y-auto overscroll-y-contain [scrollbar-width:none] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+        className="relative min-h-0 flex-1 [container-type:size] overflow-y-auto overscroll-y-contain [scrollbar-width:none] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring [@media(pointer:coarse)]:snap-y [@media(pointer:coarse)]:snap-mandatory"
       >
+        {(loading || posts.length === 0) && heading}
         {loading ? (
           <div className="mx-auto w-full max-w-2xl px-5 sm:px-8">
             <p className="sr-only" role="status">Loading posts</p>
@@ -1204,9 +1112,10 @@ const Feed = () => {
             {loadFailed ? "Couldn’t load posts. Refresh to try again." : "No posts yet."}
           </p>
         ) : (
-          posts.map((post) => (
-            <article id={`post-${post.id}`} key={post.id} className="min-h-full snap-start snap-always">
-              <div className="mx-auto w-full min-w-0 max-w-2xl px-5 sm:px-8">
+          posts.map((post, index) => (
+            <div key={post.id} className="snap-start snap-always [@media(pointer:coarse)]:min-h-full">
+              {index === 0 && heading}
+              <article id={`post-${post.id}`} className="mx-auto w-full min-w-0 max-w-2xl px-5 sm:px-8">
                 <div className="border-b border-border py-5 sm:py-6">
                   <PostCard
                     post={post}
@@ -1221,8 +1130,8 @@ const Feed = () => {
                     isMusicReady={isMusicReady}
                   />
                 </div>
-              </div>
-            </article>
+              </article>
+            </div>
           ))
         )}
       </section>
