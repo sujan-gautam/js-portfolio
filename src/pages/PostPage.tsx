@@ -134,6 +134,28 @@ export const FeedPostPage = () => {
     };
   }
 
+  const published = new Date(post.createdAt);
+  const hasPublishedDate = Number.isFinite(published.getTime());
+  const dateLabel = hasPublishedDate
+    ? published.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })
+    : "";
+
+  const shareArticle = async () => {
+    const shareUrl = window.location.href;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: post.articleTitle, url: shareUrl });
+      } else {
+        await navigator.clipboard.writeText(shareUrl);
+        toast.success("Link copied");
+      }
+    } catch (error) {
+      if (!(error instanceof DOMException && error.name === "AbortError")) {
+        toast.error("Couldn’t share the article");
+      }
+    }
+  };
+
   const structuredData = videoSchema ? [articleSchema, videoSchema] : articleSchema;
 
   return (
@@ -149,44 +171,40 @@ export const FeedPostPage = () => {
         structuredData={structuredData} 
       />
     <div className="min-h-screen bg-black font-inter text-white selection:bg-primary/30 selection:text-white">
-      <div className="mx-auto max-w-3xl px-5 pb-28 pt-8 sm:px-8 sm:pt-12">
+      <div className={`mx-auto px-5 pb-28 pt-8 sm:px-8 sm:pt-12 ${isArticle ? "max-w-2xl" : "max-w-3xl"}`}>
         <Link to="/feed/" className="group mb-6 inline-flex min-h-11 items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
-          <ArrowLeft size={16} className="transition-transform group-hover:-translate-x-1" /> Back to Feed
+          <ArrowLeft size={16} className="transition-transform group-hover:-translate-x-1" /> Back to feed
         </Link>
 
         <article className={isArticle ? undefined : "animate-in fade-in slide-in-from-bottom-4 duration-700"}>
           {isArticle ? (
             <div className="space-y-6">
-              <header>
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
-                  <span className="font-medium text-red-500">{post.category || post.categoryName || "Article"}</span>
-                  {post.readTime && <span>{post.readTime} min read</span>}
-                </div>
+              <header className="border-b border-border pb-5">
+                <p className="text-sm font-medium text-red-500">{post.category || post.categoryName || "Article"}</p>
                 <h1 className="mt-2 break-words font-poppins text-3xl font-semibold leading-tight tracking-tight text-foreground sm:text-5xl">
                   {post.articleTitle}
                 </h1>
+                <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                  <Link to="/about/" rel="author" className="font-medium text-foreground hover:underline">{authorName}</Link>
+                  {hasPublishedDate && <time dateTime={published.toISOString()}>{dateLabel}</time>}
+                  {!!post.readTime && <span>{post.readTime} min read</span>}
+                </div>
               </header>
 
               {post.membersOnly && !user ? (
-                <div className="relative overflow-hidden rounded-[32px] bg-white/5 flex flex-col items-center justify-center py-24 px-8 text-center border border-white/10 shadow-2xl">
-                  <div className="absolute inset-0 bg-[#CB2729]/5 blur-3xl opacity-20 z-0" />
-                  <div className="relative z-10 flex flex-col items-center">
-                    <div className="w-20 h-20 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-8 shadow-xl">
-                      <Lock size={32} className="text-[#CB2729]" />
-                    </div>
-                    <h3 className="text-2xl font-bold text-white mb-4 tracking-tight">Members Only Insight</h3>
-                    <p className="text-white/40 text-sm mb-10 max-w-[320px] leading-relaxed">
-                      This research article is exclusive to members. Sign in to unlock the full depth of this narrative.
-                    </p>
-                    <button 
-                      onClick={handleGoogleLogin}
-                      className="h-14 px-8 bg-white text-black font-bold text-sm rounded-2xl transition-all shadow-xl flex items-center gap-4 hover:scale-105 active:scale-95"
-                    >
-                      <img src="https://www.google.com/favicon.ico" className="w-5 h-5 bg-white rounded-full p-0.5" alt="google" />
-                      Continue with Google
-                    </button>
-                  </div>
-                </div>
+                <section className="rounded-lg border border-border bg-card p-5 sm:p-6" aria-labelledby="members-heading">
+                  <h2 id="members-heading" className="flex items-center gap-2 font-semibold">
+                    <Lock size={16} aria-hidden="true" /> Members only
+                  </h2>
+                  <p className="mt-2 text-sm text-muted-foreground">Sign in to read this article.</p>
+                  <button
+                    onClick={handleGoogleLogin}
+                    className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-md bg-foreground px-4 text-sm font-medium text-background hover:bg-foreground/90"
+                  >
+                    <img src="https://www.google.com/favicon.ico" className="size-4" alt="" />
+                    Continue with Google
+                  </button>
+                </section>
               ) : (
                 <>
                   {post.articleCover && (
@@ -198,7 +216,7 @@ export const FeedPostPage = () => {
                   )}
 
                   <div
-                    className="prose prose-invert max-w-none break-words prose-headings:font-poppins prose-p:leading-relaxed prose-a:text-red-500 prose-img:rounded-lg sm:prose-lg"
+                    className="prose prose-invert max-w-none break-words prose-headings:font-poppins prose-p:leading-relaxed prose-a:text-red-500 prose-img:rounded-md sm:prose-lg"
                     dangerouslySetInnerHTML={{ __html: post.articleContent || post.content || "" }} 
                   />
                 </>
@@ -241,12 +259,26 @@ export const FeedPostPage = () => {
             </>
           )}
 
-          <div className="flex items-center justify-between mt-12 pt-8 border-t border-white/5">
-            <div className="flex items-center gap-6 text-[11px] font-bold text-white/30 uppercase tracking-widest">
-              <span className="flex items-center gap-1.5"><Calendar size={13} />{new Date(post.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</span>
-              {post.views > 0 && <span className="flex items-center gap-1.5"><Eye size={13} />{post.views} views</span>}
-            </div>
-            
+          <div className={isArticle
+            ? "mt-8 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-border pt-3"
+            : "mt-12 flex items-center justify-between border-t border-white/5 pt-8"}>
+            {isArticle ? (
+              <div className="flex flex-wrap items-center gap-x-4 text-sm text-muted-foreground">
+                <button
+                  type="button"
+                  onClick={shareArticle}
+                  className="inline-flex min-h-11 items-center gap-2 font-medium transition-colors hover:text-foreground"
+                >
+                  <Share2 size={16} aria-hidden="true" /> Share article
+                </button>
+                {post.views > 0 && <span>{post.views} views</span>}
+              </div>
+            ) : (
+              <div className="flex items-center gap-6 text-[11px] font-bold uppercase tracking-widest text-white/30">
+                <span className="flex items-center gap-1.5"><Calendar size={13} />{dateLabel}</span>
+                {post.views > 0 && <span className="flex items-center gap-1.5"><Eye size={13} />{post.views} views</span>}
+              </div>
+            )}
             <ReactionBar post={post} onReact={handleReact} />
           </div>
 
@@ -258,18 +290,17 @@ export const FeedPostPage = () => {
             />
           </div>
 
-          <div className="flex gap-4 pt-12">
+          {!isArticle && <div className="flex gap-4 pt-12">
               <button onClick={() => { navigator.share?.({ title: post.caption || post.articleTitle, url: window.location.href }).catch(() => navigator.clipboard.writeText(window.location.href)); toast.success("Link copied to clipboard"); }} className="inline-flex items-center gap-2 text-[12px] font-bold bg-white/5 hover:bg-white/10 text-white px-6 py-2.5 rounded-full transition-all border border-white/5">
                 <Share2 size={14} /> SHARE INSIGHT
               </button>
               <Link to="/feed/" className="inline-flex items-center gap-2 text-[12px] font-bold bg-[#CB2729] text-white hover:bg-[#CB2729]/90 px-6 py-2.5 rounded-full transition-all shadow-lg shadow-[#CB2729]/20">
                 DISCOVER MORE
               </Link>
-            </div>
+            </div>}
         </article>
 
-        {/* Compact & Premium Author Bio Section */}
-        <div className="mt-16 py-8 px-6 md:px-10 bg-white/[0.03] border border-white/5 rounded-[24px] relative overflow-hidden group">
+        {!isArticle && <div className="mt-16 py-8 px-6 md:px-10 bg-white/[0.03] border border-white/5 rounded-[24px] relative overflow-hidden group">
           <div className="flex flex-col sm:flex-row items-center gap-6 md:gap-10 relative z-10">
             
             {/* Minimalist Author Image */}
@@ -320,7 +351,7 @@ export const FeedPostPage = () => {
               </div>
             </div>
           </div>
-        </div>
+        </div>}
       </div>
     </div>
     </>
