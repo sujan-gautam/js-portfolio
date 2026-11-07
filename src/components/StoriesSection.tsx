@@ -152,6 +152,8 @@ const StoriesSection = () => {
 
   const hasMusic = music.length > 0 && music[0].videoId;
   const currentBgMusic = hasMusic ? music[0] : null;
+  const musicTitle = currentBgMusic?.title.replace(/&amp;/gi, "&") || "Music";
+  const musicArtist = currentBgMusic?.artist?.replace(/&amp;/gi, "&");
   const hasStories = stories.length > 0;
   const isFirstStoryRestricted = hasStories && stories[0].isMembersOnly && !user;
   const storyImage = hasStories ? getMediaUrl(stories[0].image, stories[0].isMembersOnly || false) : "";
@@ -393,11 +395,11 @@ const StoriesSection = () => {
         STORIES:
       </p>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-end gap-4">
         {isLoading ? (
           <div className="flex gap-4">
             <Skeleton className="w-16 h-16 rounded-full opacity-20 border border-white/5" />
-            <Skeleton className="w-40 h-10 rounded-2xl opacity-10 border border-white/5" />
+            <Skeleton className="h-10 w-28 rounded-xl opacity-10" />
           </div>
         ) : (
           <>
@@ -423,82 +425,72 @@ const StoriesSection = () => {
               </button>
             )}
 
-            {hasMusic && currentBgMusic && (
-              <div 
-                className="flex items-center gap-3 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-2 pr-4 shadow-xl hover:bg-white/10 transition-all cursor-pointer w-fit group font-inter animate-in fade-in slide-in-from-right-4 duration-700 active:scale-95" 
-                onClick={togglePlayBg}
-              >
-                {/* Compact Album Art with Waveform Overlay */}
-                <div className="relative w-14 h-10 rounded-lg overflow-hidden flex-shrink-0 bg-neutral-900/50">
-                  <img 
-                    src={`https://i.ytimg.com/vi/${currentBgMusic.videoId}/mqdefault.jpg`} 
-                    alt="Album Art" 
-                    className={`w-full h-full object-cover transition-opacity duration-500 ${isPlayingBg ? 'opacity-40' : 'opacity-20'}`} 
-                  />
-                  <div className="absolute inset-0 flex items-center justify-center gap-[2px] px-2.5">
-                    {[10, 18, 8, 20, 12].map((h, i) => (
-                      <div 
-                        key={i} 
-                        className="w-[2px] bg-white rounded-full transition-all duration-300"
-                        style={{ 
-                          height: isPlayingBg ? `${h}px` : '3px',
-                          animation: isPlayingBg ? `musicWave 0.7s ease-in-out infinite alternate ${i * 0.1}s` : 'none'
-                        }} 
-                      />
-                    ))}
-                  </div>
-                </div>
+            {currentBgMusic && (
+              <>
+                <button
+                  type="button"
+                  onClick={togglePlayBg}
+                  disabled={!isBgPlayerReady}
+                  aria-label={`${isPlayingBg ? "Pause" : "Play"} ${musicTitle}`}
+                  title={musicArtist ? `${musicTitle} — ${musicArtist}` : musicTitle}
+                  className="group/note flex w-32 flex-col items-center gap-2 rounded-xl font-inter focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring disabled:cursor-wait"
+                >
+                  <span className="relative z-10 block w-full rounded-xl border border-border bg-secondary px-2.5 py-1.5 text-center transition-colors group-hover/note:bg-muted">
+                    <span className="line-clamp-2 break-words text-xs font-semibold leading-tight text-foreground">{musicTitle}</span>
+                    {musicArtist && <span className="mt-0.5 block truncate text-[11px] leading-tight text-muted-foreground">{musicArtist}</span>}
+                    <span aria-hidden="true" className="absolute -bottom-1 left-8 size-2 rounded-full bg-secondary transition-colors group-hover/note:bg-muted" />
+                    <span aria-hidden="true" className="absolute -bottom-2.5 left-10 size-1 rounded-full bg-secondary transition-colors group-hover/note:bg-muted" />
+                  </span>
+                  <span className="relative flex size-14 items-center justify-center rounded-full border border-border bg-card">
+                    <Music size={20} className="text-muted-foreground" aria-hidden="true" />
+                    <img
+                      src={`https://i.ytimg.com/vi/${currentBgMusic.videoId}/mqdefault.jpg`}
+                      alt=""
+                      className="absolute inset-0 size-full rounded-full object-cover"
+                      onError={(event) => { event.currentTarget.hidden = true; }}
+                    />
+                    <span className="absolute -bottom-0.5 -right-0.5 flex size-6 items-center justify-center rounded-full bg-primary text-primary-foreground ring-2 ring-background">
+                      {!isBgPlayerReady ? (
+                        <Loader2 size={12} className="animate-spin" aria-hidden="true" />
+                      ) : isPlayingBg ? (
+                        <Pause size={12} fill="currentColor" aria-hidden="true" />
+                      ) : (
+                        <Play size={12} fill="currentColor" className="translate-x-px" aria-hidden="true" />
+                      )}
+                    </span>
+                  </span>
+                </button>
 
-                {/* Song Info - High Density */}
-                <div className="flex flex-col min-w-[70px] max-w-[110px] overflow-hidden">
-                  <div className="flex whitespace-nowrap animate-marquee group-hover:pause-animation">
-                    <h3 className="text-white text-[11px] font-black tracking-tight leading-none uppercase pr-6">
-                       {currentBgMusic.title}
-                    </h3>
-                    <h3 className="text-white text-[11px] font-black tracking-tight leading-none uppercase pr-6" aria-hidden="true">
-                       {currentBgMusic.title}
-                    </h3>
-                  </div>
-                  <p className="text-white/30 text-[9px] font-bold uppercase tracking-widest leading-none mt-1">
-                    {currentBgMusic.artist || (currentBgMusic.title.includes('-') ? currentBgMusic.title.split('-')[1].trim() : 'Artist')}
-                  </p>
-                </div>
-
-                {/* Minimalist Play Button */}
-                <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center transition-all group-hover:scale-110 shadow-lg flex-shrink-0">
-                   {!isBgPlayerReady ? (
-                     <Loader2 size={12} className="text-white animate-spin" />
-                   ) : isPlayingBg ? (
-                     <Pause size={12} className="fill-white text-white" />
-                   ) : (
-                     <Play size={12} className="fill-white text-white translate-x-[1px]" />
-                   )}
-                </div>
-
-                {/* YouTube Handler */}
-                <div className="absolute opacity-0 w-0 h-0 pointer-events-none">
-                  <YouTube 
-                    videoId={currentBgMusic.videoId} 
-                    opts={{ 
-                      width: '1', 
-                      height: '1', 
-                      playerVars: { 
-                        autoplay: 0, 
-                        start: currentBgMusic.startTime || 0, 
-                        end: currentBgMusic.endTime, 
+                <div className="pointer-events-none absolute size-0 opacity-0" aria-hidden="true">
+                  <YouTube
+                    videoId={currentBgMusic.videoId}
+                    opts={{
+                      width: "1",
+                      height: "1",
+                      playerVars: {
+                        autoplay: 0,
+                        start: currentBgMusic.startTime || 0,
+                        end: currentBgMusic.endTime,
                         controls: 0,
                         origin: window.location.origin
-                      } 
-                    }} 
-                    onReady={e => { setBgPlayer(e.target); setIsBgPlayerReady(true); }} 
-                    onStateChange={e => { 
-                      if (e.data === 0) { setIsPlayingBg(false); e.target.seekTo(currentBgMusic.startTime || 0); } 
-                      if (e.data === 2) setIsPlayingBg(false); 
-                      if (e.data === 1) setIsPlayingBg(true); 
-                    }} 
+                      }
+                    }}
+                    onReady={(e) => {
+                      e.target.getIframe()?.setAttribute("tabindex", "-1");
+                      setBgPlayer(e.target);
+                      setIsBgPlayerReady(true);
+                    }}
+                    onStateChange={(e) => {
+                      if (e.data === 0) {
+                        setIsPlayingBg(false);
+                        e.target.seekTo(currentBgMusic.startTime || 0);
+                      }
+                      if (e.data === 2) setIsPlayingBg(false);
+                      if (e.data === 1) setIsPlayingBg(true);
+                    }}
                   />
                 </div>
-              </div>
+              </>
             )}
           </>
         )}

@@ -349,6 +349,9 @@ const PostCard = ({
     }
   };
 
+  const articleExcerpt = post.content && post.content !== post.articleTitle
+    ? post.content
+    : post.seoDescription !== post.articleTitle ? post.seoDescription : undefined;
   const totalReacts = Object.values(post.reactions || {}).reduce((a, b) => a + b, 0);
 
   const published = new Date(post.createdAt);
@@ -764,43 +767,36 @@ const PostCard = ({
             )}
 
 
-        {/* Article Preview */}
         {post.type === "article" && (
-          <div className="mb-4">
-            <a 
-              href={`/post/${post.id}`} 
-              className="block group/article overflow-hidden rounded-md border border-border bg-card hover:border-primary transition-all cursor-pointer"
-            >
-              {post.articleCover && (
-                <div className="w-full h-48 overflow-hidden bg-[#111]">
-                  <img src={post.articleCover} alt={post.articleTitle} className="w-full h-full object-cover transition-transform duration-700 group-hover/article:scale-105" />
-                </div>
-              )}
-              <div className="p-5 space-y-3">
-                <div className="flex items-center gap-2">
-                   <span className="text-xs font-medium text-red-500">
-                     {post.category || 'ARTICLE'}
-                   </span>
-                   {post.readTime && (
-                     <span className="text-[11px] font-medium text-white/40">
-                       {post.readTime} min read
-                     </span>
-                   )}
-                </div>
-                <h3 className="break-words font-poppins text-2xl font-semibold leading-tight text-foreground sm:text-3xl">{post.articleTitle}</h3>
-                <div className="text-[14px] text-muted-foreground line-clamp-3 leading-relaxed font-normal">
-                  {post.content && post.content !== post.articleTitle 
-                    ? post.content 
-                    : (post.seoDescription && post.seoDescription !== post.articleTitle 
-                        ? post.seoDescription 
-                        : "")}
-                </div>
-                <div className="pt-2 text-[12px] font-bold text-white/60 group-hover/article:text-white transition-colors flex items-center gap-1">
-                  Read article <ChevronRight size={14} className="translate-y-[1px] group-hover/article:translate-x-1 transition-transform" />
-                </div>
+          <a
+            href={`/post/${post.id}`}
+            className="group/article mb-3 flex items-start gap-3 rounded-lg border border-border bg-card p-3.5 transition-colors hover:bg-secondary focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring sm:gap-5 sm:p-4"
+          >
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                <span className="font-medium text-red-500">{post.category || "Article"}</span>
+                {post.readTime && <span>{post.readTime} min read</span>}
               </div>
-            </a>
-          </div>
+              <h2 className="mt-1.5 break-words font-poppins text-lg font-semibold leading-snug text-foreground sm:text-xl">
+                {post.articleTitle || "Untitled article"}
+              </h2>
+              {articleExcerpt && (
+                <p className="mt-1.5 line-clamp-2 text-sm leading-relaxed text-muted-foreground">{articleExcerpt}</p>
+              )}
+              <span className="mt-2.5 inline-flex items-center gap-1 text-xs font-semibold text-foreground">
+                Read article
+                <ChevronRight size={14} aria-hidden="true" className="transition-transform group-hover/article:translate-x-0.5" />
+              </span>
+            </div>
+            {post.articleCover && (
+              <img
+                src={post.articleCover}
+                alt=""
+                loading="lazy"
+                className="aspect-[4/3] w-20 shrink-0 rounded-md bg-background object-contain sm:w-32"
+              />
+            )}
+          </a>
         )}
 
         {/* Poll */}
@@ -964,8 +960,10 @@ const Feed = () => {
         .map((b: any) => ({
           id: b.id || b._id,
           content: (() => {
-            if (!b.content) return b.excerpt || "No content available.";
-            const plain = b.content.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim();
+            const excerpt = b.excerpt?.trim();
+            if (excerpt) return excerpt;
+            if (!b.content) return "";
+            const plain = b.content.replace(/<[^>]+>|&nbsp;/g, " ").replace(/\s+/g, " ").trim();
             const title = b.title || "";
             let snippet = plain;
             if (snippet.toLowerCase().startsWith(title.toLowerCase())) {

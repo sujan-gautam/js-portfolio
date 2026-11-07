@@ -148,30 +148,25 @@ export const FeedPostPage = () => {
         publishedTime={post.createdAt} 
         structuredData={structuredData} 
       />
-    <div className="min-h-screen bg-black text-white font-['Inter'] selection:bg-[#CB2729]/30 selection:text-white">
-      <div className="max-w-3xl mx-auto px-6 py-12 md:py-20">
-        <Link to="/feed/" className="inline-flex items-center gap-2 text-[13px] font-bold text-white/40 hover:text-white mb-12 transition-all group">
+    <div className="min-h-screen bg-black font-inter text-white selection:bg-primary/30 selection:text-white">
+      <div className="mx-auto max-w-3xl px-5 pb-28 pt-8 sm:px-8 sm:pt-12">
+        <Link to="/feed/" className="group mb-6 inline-flex min-h-11 items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
           <ArrowLeft size={16} className="transition-transform group-hover:-translate-x-1" /> Back to Feed
         </Link>
 
-        <article className="animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <article className={isArticle ? undefined : "animate-in fade-in slide-in-from-bottom-4 duration-700"}>
           {isArticle ? (
-            <div className="space-y-10">
-              <div className="flex items-center gap-4 mb-4">
-                <span className="text-[10px] font-bold text-[#CB2729] uppercase tracking-[0.3em] bg-[#CB2729]/10 px-4 py-1.5 rounded-full border border-[#CB2729]/20">
-                  {post.category || 'NARRATIVE'}
-                </span>
-                {post.readTime && (
-                  <span className="text-[11px] font-bold text-white/30 uppercase tracking-[0.2em]">
-                    {post.readTime} MIN READ
-                  </span>
-                )}
-              </div>
-              
-              <h1 className="text-4xl md:text-6xl font-bold text-white leading-[1.1] tracking-tight">
-                {post.articleTitle}
-              </h1>
-              
+            <div className="space-y-6">
+              <header>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+                  <span className="font-medium text-red-500">{post.category || post.categoryName || "Article"}</span>
+                  {post.readTime && <span>{post.readTime} min read</span>}
+                </div>
+                <h1 className="mt-2 break-words font-poppins text-3xl font-semibold leading-tight tracking-tight text-foreground sm:text-5xl">
+                  {post.articleTitle}
+                </h1>
+              </header>
+
               {post.membersOnly && !user ? (
                 <div className="relative overflow-hidden rounded-[32px] bg-white/5 flex flex-col items-center justify-center py-24 px-8 text-center border border-white/10 shadow-2xl">
                   <div className="absolute inset-0 bg-[#CB2729]/5 blur-3xl opacity-20 z-0" />
@@ -195,14 +190,15 @@ export const FeedPostPage = () => {
               ) : (
                 <>
                   {post.articleCover && (
-                    <div className="relative group">
-                      <div className="absolute inset-0 bg-[#CB2729]/10 rounded-[32px] blur-3xl opacity-50" />
-                      <img src={post.articleCover} alt={post.articleTitle} className="relative w-full rounded-[32px] object-cover shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-white/5 max-h-[65vh]" loading="eager" />
-                    </div>
+                    <img
+                      src={post.articleCover}
+                      alt={post.articleTitle}
+                      className="max-h-[55dvh] w-full rounded-lg border border-border bg-card object-contain"
+                    />
                   )}
-                  
-                  <div 
-                    className="prose prose-lg md:prose-xl prose-invert max-w-none prose-headings:text-white prose-p:text-white/70 prose-p:leading-[1.8] prose-p:font-normal prose-a:text-[#CB2729] prose-a:no-underline hover:prose-a:underline prose-strong:text-white prose-blockquote:border-l-4 prose-blockquote:border-[#CB2729] prose-blockquote:bg-white/5 prose-blockquote:py-2 prose-blockquote:px-8 prose-blockquote:rounded-r-2xl prose-img:rounded-[24px]" 
+
+                  <div
+                    className="prose prose-invert max-w-none break-words prose-headings:font-poppins prose-p:leading-relaxed prose-a:text-red-500 prose-img:rounded-lg sm:prose-lg"
                     dangerouslySetInnerHTML={{ __html: post.articleContent || post.content || "" }} 
                   />
                 </>
