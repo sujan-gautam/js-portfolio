@@ -1022,20 +1022,47 @@ const Feed = () => {
 
     let gestureEnd = 0;
     let gestureHandled = false;
+    let drag: { start: number; end: number; position: number } | null = null;
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+
+    const scrollTo = (top: number) => {
+      feed.scrollTo({ top, behavior: reducedMotion.matches ? "auto" : "smooth" });
+    };
+
+    const finishGesture = () => {
+      gestureHandled = false;
+      if (!drag) return;
+
+      const { start, end, position } = drag;
+      drag = null;
+      feed.style.removeProperty("scroll-snap-type");
+      const distance = Math.abs(position - start);
+      scrollTo(distance >= Math.min(18, Math.abs(end - start) / 2) ? end : start);
+    };
+
+    const moveDrag = (delta: number) => {
+      if (!drag) return;
+      const { start, end, position } = drag;
+      drag.position = Math.max(Math.min(start, end), Math.min(Math.max(start, end), position + delta));
+      feed.scrollTop = drag.position;
+    };
 
     const handleWheel = (event: WheelEvent) => {
       if (event.ctrlKey || event.shiftKey || Math.abs(event.deltaX) >= Math.abs(event.deltaY)) return;
       event.preventDefault();
 
       window.clearTimeout(gestureEnd);
-      gestureEnd = window.setTimeout(() => {
-        gestureHandled = false;
-      }, 180);
+      gestureEnd = window.setTimeout(finishGesture, 120);
       if (gestureHandled) return;
 
+      const mode = event.deltaMode;
       let delta = event.deltaY;
-      if (event.deltaMode === WheelEvent.DOM_DELTA_LINE) delta *= 16;
-      if (event.deltaMode === WheelEvent.DOM_DELTA_PAGE) delta *= feed.clientHeight;
+      if (mode === WheelEvent.DOM_DELTA_LINE) delta *= 16;
+      if (mode === WheelEvent.DOM_DELTA_PAGE) delta *= feed.clientHeight;
+      if (drag) {
+        moveDrag(delta);
+        return;
+      }
 
       const articles = Array.from(feed.querySelectorAll<HTMLElement>(":scope > article"));
       const top = feed.scrollTop;
@@ -1054,14 +1081,19 @@ const Feed = () => {
         return;
       }
 
-      gestureHandled = true;
-      const target = articles[index + Math.sign(delta)];
-      if (target) {
-        feed.scrollTo({
-          top: target.offsetTop,
-          behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
-        });
+      const next = articles[index + Math.sign(delta)];
+      if (!next) return;
+
+      if (mode !== WheelEvent.DOM_DELTA_PIXEL || Math.abs(delta) >= 60) {
+        gestureHandled = true;
+        scrollTo(next.offsetTop);
+        return;
       }
+
+      // Keep small wheel deltas attached to the gesture until the user lets go.
+      feed.style.scrollSnapType = "none";
+      drag = { start: top, end: next.offsetTop, position: top };
+      moveDrag(delta);
     };
 
     // Handle vertical wheel input before media controls can consume it.
@@ -1069,6 +1101,7 @@ const Feed = () => {
     return () => {
       surface.removeEventListener("wheel", handleWheel, true);
       window.clearTimeout(gestureEnd);
+      feed.style.removeProperty("scroll-snap-type");
     };
   }, [loading, posts.length]);
 
