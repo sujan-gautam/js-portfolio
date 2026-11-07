@@ -1065,7 +1065,7 @@ const Feed = () => {
         title="Sujan Gautam | Feed"
         description="Notes on software, design, and recent projects by Sujan Gautam."
       />
-    <main className="flex h-dvh flex-col pb-20 font-inter text-foreground">
+    <main className="flex h-dvh flex-col pb-[calc(5rem_+_env(safe-area-inset-bottom,0px))] font-inter text-foreground">
       {/* System Alert Popup */}
       {alertMessage && createPortal(
         <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setAlertMessage(null)}>

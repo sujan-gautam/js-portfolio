@@ -174,9 +174,8 @@
 
 
 
-/* Hide Bottom Nav & Cursor Aura when story is open */
-.story-open nav.fixed.bottom-0,
-.story-open .fixed.pointer-events-none.z-\[99999\] {
+/* Hide navigation when the story viewer is open. */
+.story-open nav.fixed.bottom-0 {
   display: none !important;
 }
 
