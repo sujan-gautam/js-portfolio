@@ -16,6 +16,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { CommentSection } from "@/components/CommentSection";
 import { PollCard } from "@/components/PollCard";
 import SEO from "@/components/SEO";
+import StoriesSection from "@/components/StoriesSection";
 
 const postDateFormat = new Intl.DateTimeFormat("en", {
   month: "short",
@@ -1049,15 +1050,24 @@ const Feed = () => {
     }
   }, [musicData?.videoId, ytPlayer]);
 
-  const heading = (
-    <header className="mx-auto w-full max-w-2xl shrink-0 px-5 pt-5 font-poppins sm:px-8 sm:pt-8">
-      <div className="border-b border-border pb-4">
-        <h1 id="feed-heading" className="text-3xl font-black uppercase tracking-tight text-hero-title sm:text-5xl">
-          Feed
-        </h1>
-        <div className="mt-3 h-[3px] w-10 rounded-full bg-primary" aria-hidden="true" />
+  const [firstPost, ...remainingPosts] = posts;
+  const renderPost = (post: FeedPost) => (
+    <article id={`post-${post.id}`} className="mx-auto w-full min-w-0 max-w-2xl px-5 sm:px-8">
+      <div className="border-b border-border py-5 sm:py-6">
+        <PostCard
+          post={post}
+          showAlert={setAlertMessage}
+          globalMute={globalMute}
+          setGlobalMute={setGlobalMute}
+          setMusicData={setMusicData}
+          playingMusicId={musicData?.id || null}
+          isIOS={isIOS}
+          settings={settings}
+          ytPlayer={ytPlayer}
+          isMusicReady={isMusicReady}
+        />
       </div>
-    </header>
+    </article>
   );
 
   return (
@@ -1089,51 +1099,41 @@ const Feed = () => {
         tabIndex={0}
         className="relative min-h-0 flex-1 [container-type:size] overflow-y-auto overscroll-y-contain [scrollbar-width:none] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring [@media(pointer:coarse)]:snap-y [@media(pointer:coarse)]:snap-mandatory"
       >
-        {(loading || posts.length === 0) && heading}
-        {loading ? (
-          <div className="mx-auto w-full max-w-2xl px-5 sm:px-8">
-            <p className="sr-only" role="status">Loading posts</p>
-            {Array.from({ length: 2 }, (_, index) => (
-              <div key={index} aria-hidden="true" className="space-y-4 border-b border-border py-5">
-                <div className="flex items-center gap-3">
-                  <Skeleton className="size-10 rounded-full" />
-                  <div className="space-y-2">
-                    <Skeleton className="h-3 w-28" />
-                    <Skeleton className="h-2.5 w-20" />
+        <div className="snap-start snap-always [@media(pointer:coarse)]:min-h-full">
+          <header className="mx-auto w-full max-w-2xl px-1 font-poppins sm:px-4">
+            <h1 id="feed-heading" className="sr-only">Feed</h1>
+            <StoriesSection />
+          </header>
+          {loading ? (
+            <div className="mx-auto w-full max-w-2xl px-5 sm:px-8">
+              <p className="sr-only" role="status">Loading posts</p>
+              {Array.from({ length: 2 }, (_, index) => (
+                <div key={index} aria-hidden="true" className="space-y-4 border-b border-border py-5">
+                  <div className="flex items-center gap-3">
+                    <Skeleton className="size-10 rounded-full" />
+                    <div className="space-y-2">
+                      <Skeleton className="h-3 w-28" />
+                      <Skeleton className="h-2.5 w-20" />
+                    </div>
                   </div>
+                  <Skeleton className="h-3 w-4/5" />
+                  <Skeleton className="h-3 w-3/5" />
                 </div>
-                <Skeleton className="h-3 w-4/5" />
-                <Skeleton className="h-3 w-3/5" />
-              </div>
-            ))}
-          </div>
-        ) : posts.length === 0 ? (
-          <p role="status" className="mx-auto w-full max-w-2xl px-5 py-8 text-sm text-muted-foreground sm:px-8">
-            {loadFailed ? "Couldn’t load posts. Refresh to try again." : "No posts yet."}
-          </p>
-        ) : (
-          posts.map((post, index) => (
-            <div key={post.id} className="snap-start snap-always [@media(pointer:coarse)]:min-h-full">
-              {index === 0 && heading}
-              <article id={`post-${post.id}`} className="mx-auto w-full min-w-0 max-w-2xl px-5 sm:px-8">
-                <div className="border-b border-border py-5 sm:py-6">
-                  <PostCard
-                    post={post}
-                    showAlert={setAlertMessage}
-                    globalMute={globalMute}
-                    setGlobalMute={setGlobalMute}
-                    setMusicData={setMusicData}
-                    playingMusicId={musicData?.id || null}
-                    isIOS={isIOS}
-                    settings={settings}
-                    ytPlayer={ytPlayer}
-                    isMusicReady={isMusicReady}
-                  />
-                </div>
-              </article>
+              ))}
             </div>
-          ))
-        )}
+          ) : firstPost ? (
+            renderPost(firstPost)
+          ) : (
+            <p role="status" className="mx-auto w-full max-w-2xl px-5 py-8 text-sm text-muted-foreground sm:px-8">
+              {loadFailed ? "Couldn’t load posts. Refresh to try again." : "No posts yet."}
+            </p>
+          )}
+        </div>
+        {remainingPosts.map((post) => (
+          <div key={post.id} className="snap-start snap-always [@media(pointer:coarse)]:min-h-full">
+            {renderPost(post)}
+          </div>
+        ))}
       </section>
 
       {/* Global Shared YouTube Player (Fast Audio Switching) */}

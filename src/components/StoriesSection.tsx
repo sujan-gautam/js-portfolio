@@ -52,11 +52,9 @@ const StoriesSection = () => {
   };
 
   useEffect(() => {
-    if (storyViewerOpen) {
-      document.documentElement.classList.add("story-open");
-    } else {
-      document.documentElement.classList.remove("story-open");
-    }
+    if (!storyViewerOpen) return;
+    document.documentElement.classList.add("story-open");
+    return () => document.documentElement.classList.remove("story-open");
   }, [storyViewerOpen]);
 
   useEffect(() => {
@@ -86,11 +84,10 @@ const StoriesSection = () => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "ArrowRight") nextStory(e);
       else if (e.key === "ArrowLeft") prevStory(e);
-      else if (e.key === "Escape") closeStories();
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [storyViewerOpen, storyIndex]);
+  }, [storyViewerOpen, storyIndex, searchParams]);
 
   useEffect(() => {
     if (storyViewerOpen && stories[storyIndex]?.id) {
@@ -217,6 +214,13 @@ const StoriesSection = () => {
     }
     const closedStory = stories[storyIndex];
     (window as any).reportActivity?.('modal_close', `Closed Story Viewer`, `Last Story: ${closedStory?.title || 'Untitled'}`);
+    if (searchParams.has("story")) {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("story");
+        return next;
+      }, { replace: true });
+    }
     setStoryViewerOpen(false);
   };
 
@@ -500,7 +504,7 @@ const StoriesSection = () => {
         )}
       </div>
 
-      <Dialog open={storyViewerOpen} onOpenChange={setStoryViewerOpen}>
+      <Dialog open={storyViewerOpen} onOpenChange={(open) => { if (!open) closeStories(); }}>
         <DialogContent className="max-w-[420px] w-full h-[100dvh] md:h-[85vh] p-0 bg-black md:border md:border-white/10 md:rounded-3xl overflow-hidden shadow-2xl flex flex-col [&>button]:hidden font-inter">
           <DialogTitle className="sr-only">Story Viewer</DialogTitle>
           <DialogDescription className="sr-only">Viewing community stories with music and interactions.</DialogDescription>
