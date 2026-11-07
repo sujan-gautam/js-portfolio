@@ -23,6 +23,8 @@ const postDateFormat = new Intl.DateTimeFormat("en", {
   year: "numeric",
 });
 
+// Leave room for the author, caption, and actions in a typical post.
+const inlineMediaHeight = "max-h-[clamp(7rem,calc(100cqh_-_23rem),55dvh)] sm:max-h-[clamp(8rem,calc(100cqh_-_21rem),55dvh)]";
 const postAction = "inline-flex min-h-11 items-center gap-2 rounded-md px-2 text-sm text-muted-foreground transition-colors hover:bg-white/5 hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring";
 
 interface MusicData {
@@ -540,7 +542,7 @@ const PostCard = ({
           <div className="relative mb-4 overflow-hidden rounded-lg border border-border bg-black">
             {post.videoUrl?.includes('youtube.com') || post.videoUrl?.includes('youtu.be') ? (
               <div className="w-full relative cursor-pointer" onClick={openFullscreen}>
-                 <img src={getYTThumbnail(post.videoUrl) || ""} className="w-full object-cover" style={{maxHeight:'55vh'}} />
+                 <img src={getYTThumbnail(post.videoUrl) || ""} className={`w-full object-contain ${inlineMediaHeight}`} />
                  <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
                     <div className="w-14 h-14 rounded-full bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center">
                        <PlayCircle size={24} className="text-white" />
@@ -556,8 +558,7 @@ const PostCard = ({
                 muted 
                 autoPlay 
                 controls 
-                className="w-full object-cover bg-black" 
-                style={{maxHeight:'55vh'}} 
+                className={`w-full bg-black object-contain ${inlineMediaHeight}`}
               />
             )}
           </div>
@@ -651,7 +652,7 @@ const PostCard = ({
           <div className="group relative mb-4 w-full">
             <div className="relative overflow-hidden rounded-md border border-border bg-card">
               <div 
-                className="flex transition-transform duration-700 ease-expo"
+                className={`flex aspect-video transition-transform duration-700 ease-expo ${inlineMediaHeight}`}
                 style={{ transform: `translateX(-${activeIndex * 100}%)` }}
               >
                 {mediaItems.map((item, i) => (
@@ -660,15 +661,14 @@ const PostCard = ({
                       <img 
                         src={item.url} 
                         alt="" 
-                        className="w-full object-cover cursor-zoom-in" 
-                        style={{maxHeight:'55vh', minHeight:'30vh'}} 
+                        className="h-full w-full cursor-zoom-in object-contain"
                         onClick={() => setImgExpandedIndex(imagesList.indexOf(item.url))}
                       />
                     ) : (
                       <div className="w-full relative">
                          {item.url.includes('youtube.com') || item.url.includes('youtu.be') ? (
-                           <div className="w-full relative cursor-pointer" onClick={(e) => { e.stopPropagation(); openFullscreen(e, item.url); }}>
-                             <img src={getYTThumbnail(item.url) || ""} className="w-full object-cover" style={{maxHeight:'55vh', minHeight:'30vh'}} />
+                           <div className="relative h-full w-full cursor-pointer" onClick={(e) => { e.stopPropagation(); openFullscreen(e, item.url); }}>
+                             <img src={getYTThumbnail(item.url) || ""} className="h-full w-full object-contain" />
                              <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
                                 <div className="w-14 h-14 rounded-full bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center">
                                    <PlayCircle size={24} className="text-white" />
@@ -684,8 +684,7 @@ const PostCard = ({
                              muted 
                              autoPlay={i === activeIndex}
                              controls
-                             className="w-full object-cover bg-black" 
-                             style={{maxHeight:'55vh', minHeight:'30vh'}} 
+                             className="h-full w-full bg-black object-contain"
                            />
                          )}
                       </div>
@@ -1059,13 +1058,14 @@ const Feed = () => {
       let delta = event.deltaY;
       if (mode === WheelEvent.DOM_DELTA_LINE) delta *= 16;
       if (mode === WheelEvent.DOM_DELTA_PAGE) delta *= feed.clientHeight;
+      const coarse = mode !== WheelEvent.DOM_DELTA_PIXEL || Math.abs(delta) >= 60;
       if (drag) {
         moveDrag(delta);
         return;
       }
 
       const articles = Array.from(feed.querySelectorAll<HTMLElement>(":scope > article"));
-      const top = feed.scrollTop;
+      let top = feed.scrollTop;
       const nextIndex = articles.findIndex((article) => article.offsetTop > top + 1);
       const index = nextIndex < 0 ? articles.length - 1 : nextIndex - 1;
       const current = articles[index];
@@ -1073,18 +1073,20 @@ const Feed = () => {
 
       const start = current.offsetTop;
       const end = start + Math.max(0, current.offsetHeight - feed.clientHeight);
-      if ((delta > 0 && top < end - 1) || (delta < 0 && top > start + 1)) {
-        const target = Math.max(start, Math.min(end, top + delta));
-        feed.scrollTop = target;
-        // Stop at the edge of a tall post until the next wheel gesture.
-        gestureHandled = target === start || target === end;
-        return;
+      const direction = Math.sign(delta);
+      const remaining = direction > 0 ? end - top : top - start;
+      if (end > start && remaining > 1) {
+        const step = Math.min(Math.abs(delta), remaining) * direction;
+        top += step;
+        feed.scrollTop = top;
+        delta -= step;
+        if (Math.abs(delta) < 1) return;
       }
 
-      const next = articles[index + Math.sign(delta)];
+      const next = articles[index + direction];
       if (!next) return;
 
-      if (mode !== WheelEvent.DOM_DELTA_PIXEL || Math.abs(delta) >= 60) {
+      if (coarse) {
         gestureHandled = true;
         scrollTo(next.offsetTop);
         return;
@@ -1178,7 +1180,7 @@ const Feed = () => {
         aria-labelledby="feed-heading"
         aria-busy={loading}
         tabIndex={0}
-        className="relative min-h-0 flex-1 snap-y snap-mandatory overflow-y-auto overscroll-y-contain [scrollbar-width:none] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+        className="relative min-h-0 flex-1 [container-type:size] snap-y snap-mandatory overflow-y-auto overscroll-y-contain [scrollbar-width:none] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
       >
         {loading ? (
           <div className="mx-auto w-full max-w-2xl px-5 sm:px-8">
