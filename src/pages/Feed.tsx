@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { feedAPI, FeedPost, FeedComment, settingsDB, AdminSettings } from "@/lib/adminData";
+import { feedAPI, FeedPost, settingsDB, AdminSettings } from "@/lib/adminData";
 import { SmartText } from "@/components/ui/SmartText";
 import { 
-  Heart, MessageCircle, Share2, MoreHorizontal, Send, 
+  Heart, MessageCircle, Share2, MoreHorizontal, ArrowUpRight,
   ChevronLeft, ChevronRight, X, Play, Pause, Music, Volume2, VolumeX,
-  PieChart, BarChart2, Eye, MapPin, Pin, Loader2, PlayCircle, Camera, Quote,
+  MapPin, Pin, PlayCircle,
   Link, Flag, User, EyeOff, Lock
 } from "lucide-react";
 import YouTube from "react-youtube";
@@ -14,45 +14,28 @@ import { API_BASE } from "@/config";
 import axios from "axios";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CommentSection } from "@/components/CommentSection";
-import { ReactionBar, REACTIONS } from "@/components/ReactionBar";
 import { PollCard } from "@/components/PollCard";
-import { timeAgo, getVoterId } from "@/lib/feedUtils";
 import SEO from "@/components/SEO";
-const timelineStyles = `
-  @keyframes music-bar { 0% { transform: scaleY(0.3); } 100% { transform: scaleY(1); } }
-`;
+import { Link as RouterLink } from "react-router-dom";
 
-// Load cute handwritten font for polaroids
-const loadHandwrittenFont = () => {
-  if (typeof document !== 'undefined' && !document.getElementById('polaroid-font')) {
-    const style = document.createElement('style');
-    style.textContent = timelineStyles;
-    document.head.appendChild(style);
+const postDateFormat = new Intl.DateTimeFormat("en", {
+  month: "short",
+  day: "numeric",
+  year: "numeric",
+});
 
-    const link = document.createElement('link');
-    link.id = 'polaroid-font';
-    link.rel = 'stylesheet';
-    link.href = 'https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&display=swap';
-    document.head.appendChild(link);
-  }
+const postTypeLabels: Record<FeedPost["type"], string> = {
+  text: "Update",
+  image: "Photo",
+  poll: "Poll",
+  video: "Video",
+  reel: "Reel",
+  article: "Article",
 };
-loadHandwrittenFont();
 
-// ── Helpers ───────────────────────────────────────────
-const VOTER_ID_KEY = "feed_voter_id";
+const postInset = "px-4 sm:px-6";
+const postAction = "inline-flex min-h-11 items-center gap-2 rounded-md px-2 text-sm text-[#b6aca2] transition-colors hover:bg-white/5 hover:text-[#f5eee6] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#ed9685]";
 
-
-
-
-
-
-// ── Comment Section ───────────────────────────────────
-
-
-
-
-
-// ── Shared Music Types ────────────────────────────────
 interface MusicData {
   id: string;
   videoId: string;
@@ -99,7 +82,6 @@ const PostCard = ({
   const [fsPlaying, setFsPlaying] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
   const [isHidden, setIsHidden] = useState(false);
-  const [floatingHearts, setFloatingHearts] = useState<{ id: number; x: number; y: number; rotation: number; scale: number; opacity: number }[]>([]);
   const [fsMuted, setFsMuted] = useState(false);
   const [fsFlash, setFsFlash] = useState<'play' | 'pause' | null>(null);
   const fsFlashTimeout = useRef<any>(null);
@@ -199,8 +181,6 @@ const PostCard = ({
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
             visibleStartRef.current = Date.now();
-            // Dynamically update the browser URL for deep-linking/sharing
-            window.history.replaceState(null, '', `?post=${post.id}`);
 
             const isGated = post.membersOnly && !user;
 
@@ -329,18 +309,6 @@ const PostCard = ({
     if (type === "like") {
        setHasLiked(true);
        if (typeof window !== 'undefined') localStorage.setItem(`feed_liked_${post.id}`, 'true');
-       const hearts = Array.from({ length: 10 }).map((_, i) => ({
-         id: Date.now() + i,
-         x: Math.random() * 60 - 30, // Drift
-         y: Math.random() * -120 - 40, // Float up
-         rotation: Math.random() * 90 - 45,
-         scale: Math.random() * 0.4 + 0.6,
-         opacity: Math.random() * 0.5 + 0.5
-       }));
-       setFloatingHearts(prev => [...prev, ...hearts]);
-       setTimeout(() => {
-         setFloatingHearts(prev => prev.filter(h => !hearts.find(nh => nh.id === h.id)));
-       }, 1500);
     }
 
     try {
@@ -366,15 +334,21 @@ const PostCard = ({
     }
   };
 
+  const getPostUrl = () => {
+    const url = new URL(window.location.pathname, window.location.origin);
+    url.searchParams.set("post", post.id);
+    return url.href;
+  };
+
   const handleShare = async () => {
     if (post.membersOnly && !user) return;
     try {
       await feedAPI.trackShare(post.id);
       setPost(p => ({ ...p, shares: (p.shares || 0) + 1 }));
       if (navigator.share) {
-        navigator.share({ title: "Sujan's Feed", text: post.content || post.pollQuestion || "", url: window.location.href });
+        navigator.share({ title: "Sujan's Feed", text: post.content || post.pollQuestion || "", url: getPostUrl() });
       } else {
-        navigator.clipboard.writeText(window.location.href);
+        navigator.clipboard.writeText(getPostUrl());
       }
       const titleStr = post.articleTitle || post.content?.substring(0, 30) || 'Post';
       (window as any).reportActivity?.('click', `Shared post: ${titleStr}`, `Shared or copied link`);
@@ -387,42 +361,41 @@ const PostCard = ({
 
   if (isHidden) {
     return (
-      <div className="bg-[#0a0a0a] border border-dashed border-white/10 rounded-[20px] p-8 flex flex-col items-center justify-center gap-3 animate-in fade-in duration-500">
-        <EyeOff size={24} className="text-white/20" />
-        <p className="text-[13px] text-white/40 font-medium uppercase tracking-widest">Post Hidden</p>
-        <button onClick={() => setIsHidden(false)} className="text-[11px] text-[#0a84ff] font-bold hover:underline">Undo</button>
+      <div className="flex items-center gap-3 rounded-md border border-dashed border-[#443931] px-5 py-4 text-sm text-[#b6aca2]">
+        <EyeOff size={16} aria-hidden="true" />
+        <p>Post hidden</p>
+        <button onClick={() => setIsHidden(false)} className="ml-auto min-h-11 text-[#ed9685] hover:underline">Undo</button>
       </div>
     );
   }
 
   return (
     <>
-      <div ref={postRef} id={`post-${post.id}`} className="bg-[#0a0a0a] border border-white/5 rounded-[20px] relative overflow-hidden">
+      <div ref={postRef} className="relative rounded-lg border border-[#3a312a] bg-[#1c1815]">
         {/* Post Header */}
-        <div className="flex items-center gap-3 px-4 pt-4 pb-3">
-          <div className="w-8 h-8 rounded-full bg-[#1a1a1a] flex items-center justify-center shrink-0 border border-white/10 overflow-hidden ring-1 ring-white/5">
+        <div className={`flex items-center gap-3 py-4 sm:pt-5 ${postInset}`}>
+          <div className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#e9d8c6] text-[#38241e]">
              {settings?.feedProfileImage ? (
                <img src={settings.feedProfileImage} alt="" className="w-full h-full object-cover" />
              ) : (
-               <span className="text-white/40 font-bold text-[13px]">{(settings?.feedProfileName || "S")[0]}</span>
+               <span className="text-sm font-semibold">{(settings?.feedProfileName || "S")[0]}</span>
              )}
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5">
-              <p className="text-[14px] font-semibold text-white tracking-tight leading-none">
-                {settings?.feedProfileName || "Sujan"}
+              <p className="truncate text-sm font-semibold text-[#f5eee6]">
+                {settings?.feedProfileName || "Sujan Gautam"}
               </p>
               {post.pinned && (
-                <div className="flex items-center gap-1 text-[#8e8e93] bg-white/5 px-1.5 py-0.5 rounded-full border border-white/5 animate-in fade-in zoom-in duration-300">
-                  <Pin size={10} className="fill-[#8e8e93] rotate-45" />
-                  <span className="text-[9px] font-bold uppercase tracking-wider">Pinned</span>
+                <div className="flex shrink-0 items-center gap-1 text-xs text-[#ed9685]">
+                  <Pin size={12} aria-hidden="true" />
+                  <span>Pinned</span>
                 </div>
               )}
-              {/* Optional verified-style dot or just clean space */}
             </div>
             <div className="flex items-center gap-1.5 mt-1">
-               <p className="text-[11px] text-[#8e8e93] font-normal opacity-80">
-                {timeAgo(post.createdAt)}
+               <p className="text-xs text-[#b6aca2]">
+                {postTypeLabels[post.type] || "Update"}
                </p>
                {post.musicVideoId && !(post.membersOnly && !user) && showMusicUI && (
                  <>
@@ -450,7 +423,9 @@ const PostCard = ({
             <div className="relative">
               <button 
                 onClick={() => setMenuOpen(!menuOpen)}
-                className="text-[#8e8e93] hover:text-white transition-colors px-1 h-8 w-8 flex items-center justify-center rounded-full hover:bg-white/5"
+                aria-label="Post options"
+                aria-expanded={menuOpen}
+                className={postAction}
               >
                 <MoreHorizontal size={20} />
               </button>
@@ -459,12 +434,11 @@ const PostCard = ({
             {menuOpen && (
               <>
                 <div className="fixed inset-0 z-[999]" onClick={() => setMenuOpen(false)} />
-                <div className="absolute top-full right-0 mt-2 w-[190px] bg-[#1c1c1e]/95 backdrop-blur-xl border border-white/10 rounded-[18px] shadow-2xl z-[1000] overflow-hidden animate-in fade-in zoom-in-95 duration-200 origin-top-right">
+                <div className="absolute top-full right-0 mt-2 w-[190px] bg-[#27201b] border border-[#443931] rounded-lg shadow-lg z-[1000] overflow-hidden animate-in fade-in zoom-in-95 duration-200 origin-top-right">
                   <div className="p-1.5 space-y-0.5">
                     <button 
                       onClick={() => {
-                        const url = `${window.location.origin}${window.location.pathname}?post=${post.id}`;
-                        navigator.clipboard.writeText(url);
+                        navigator.clipboard.writeText(getPostUrl());
                         showAlert("Link copied! 🔗");
                         setMenuOpen(false);
                       }}
@@ -516,34 +490,31 @@ const PostCard = ({
 
         {/* Members Only Gating */}
         {post.membersOnly && !user ? (
-           <div className="relative overflow-hidden rounded-xl bg-[#121212] flex flex-col items-center justify-center py-20 px-8 text-center border border-white/5 mx-4 mb-4">
-              <div className="absolute inset-0 bg-[#0a0a0a]/40 backdrop-blur-2xl z-0" />
-              <div className="relative z-10 flex flex-col items-center">
-                 <div className="w-14 h-14 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-6 shadow-2xl">
-                    <Lock size={24} className="text-white/40" />
-                 </div>
-                 <h3 className="text-lg font-bold text-white mb-2 tracking-tight">Members Only Content</h3>
-                 <p className="text-white/40 text-[13px] mb-8 max-w-[240px] leading-relaxed">
-                    This post is exclusive to members. Please sign in to view the media and interactions.
-                 </p>
-                 <button 
-                   onClick={handleGoogleLogin}
-                   className="h-11 px-6 bg-white text-black font-bold text-[13px] rounded-full hover:bg-neutral-200 active:scale-95 transition-all shadow-xl flex items-center gap-3"
-                 >
-                    <img src="https://www.google.com/favicon.ico" className="w-4 h-4" alt="google" />
-                    Continue with Google
-                 </button>
-              </div>
-           </div>
+          <div className={`pb-5 ${postInset}`}>
+            <div className="rounded-md border border-[#3a312a] bg-[#171411] p-4 sm:p-5">
+              <h3 className="flex items-center gap-2 font-semibold text-[#f5eee6]">
+                <Lock size={16} aria-hidden="true" />
+                Members only
+              </h3>
+              <p className="mt-2 text-sm text-[#b6aca2]">Sign in to view and interact with this post.</p>
+              <button
+                onClick={handleGoogleLogin}
+                className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-md bg-[#e9d8c6] px-3 text-sm font-semibold text-[#38241e] hover:bg-[#f5eee6]"
+              >
+                <img src="https://www.google.com/favicon.ico" className="size-4" alt="" />
+                Continue with Google
+              </button>
+            </div>
+          </div>
         ) : (
           <>
             {/* Content */}
             {post.content && post.type !== 'article' && (
-              <div className="px-5 pb-5 font-['Inter']">
+              <div className={`pb-5 ${postInset}`}>
                 <div
                   ref={textContentRef}
-                  className={`text-white/90 text-[15px] leading-[1.6] whitespace-pre-line break-words ${
-                    post.textLayout === 'quote' ? 'italic font-medium text-[18px]' : ''
+                  className={`whitespace-pre-line break-words text-base leading-relaxed text-[#efe6dc] ${
+                    post.textLayout === 'quote' ? 'font-[Georgia,serif] text-xl italic' : ''
                   } ${isTextOnly && isTooLong && !isExpanded ? 'line-clamp-4' : ''}`}
                 >
                   <SmartText text={post.content} />
@@ -568,9 +539,10 @@ const PostCard = ({
                         post.content?.substring(0, 40)
                       );
                     }}
-                    className="mt-2 text-[13px] font-semibold text-white/50 hover:text-white transition-colors cursor-pointer select-none inline-flex items-center gap-1 focus:outline-none"
+                    aria-expanded={isExpanded}
+                    className="mt-2 min-h-11 text-sm font-medium text-[#ed9685] hover:underline"
                   >
-                    {isExpanded ? 'see less...' : 'see more...'}
+                    {isExpanded ? "Show less" : "Read more"}
                   </button>
                 )}
               </div>
@@ -578,7 +550,7 @@ const PostCard = ({
 
         {/* Video / Reel - Only show if not in carousel or if standalone */}
         {mediaItems.length === 1 && mediaItems[0].type === "video" && (
-          <div className="relative mx-4 mb-5 overflow-hidden rounded-[16px] bg-black shadow-lg border border-white/5">
+          <div className="relative mx-4 mb-5 overflow-hidden rounded-md border border-[#3a312a] bg-black sm:mx-6">
             {post.videoUrl?.includes('youtube.com') || post.videoUrl?.includes('youtu.be') ? (
               <div className="w-full relative cursor-pointer" onClick={openFullscreen}>
                  <img src={getYTThumbnail(post.videoUrl) || ""} className="w-full object-cover" style={{maxHeight:'55vh'}} />
@@ -689,8 +661,8 @@ const PostCard = ({
 
         {/* Media Carousel (Images & Videos) */}
         {mediaItems.length > 0 && (mediaItems.length > 1 || mediaItems[0].type === "image") && (
-          <div className="w-full relative group px-4 mb-5">
-            <div className="relative overflow-hidden rounded-[16px] border border-white/5 bg-[#0a0a0a]">
+          <div className={`group relative mb-5 w-full ${postInset}`}>
+            <div className="relative overflow-hidden rounded-md border border-[#3a312a] bg-[#171411]">
               <div 
                 className="flex transition-transform duration-700 ease-expo"
                 style={{ transform: `translateX(-${activeIndex * 100}%)` }}
@@ -766,12 +738,12 @@ const PostCard = ({
 
         {/* Link Preview */}
         {post.linkPreview?.url && (
-          <div className="px-4 mb-5">
+          <div className={`mb-5 ${postInset}`}>
             <a 
               href={post.linkPreview.url} 
               target="_blank" 
               rel="noopener noreferrer"
-              className="block group/link overflow-hidden rounded-[16px] border border-white/5 bg-white/[0.02] hover:bg-white/[0.04] transition-colors"
+              className="block group/link overflow-hidden rounded-md border border-[#3a312a] bg-[#171411] hover:border-[#80685a] transition-colors"
             >
               {post.linkPreview.image && (
                 <div className="aspect-[1.91/1] w-full overflow-hidden border-b border-white/5 bg-black">
@@ -780,7 +752,7 @@ const PostCard = ({
               )}
               <div className="p-4 space-y-1">
                 <div className="flex items-center gap-2">
-                   <span className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em]">{post.linkPreview.domain || 'LINK'}</span>
+                   <span className="text-xs font-medium text-[#b6aca2]">{post.linkPreview.domain || 'LINK'}</span>
                 </div>
                 <h4 className="text-[14px] font-bold text-white/90 line-clamp-1 leading-tight">{post.linkPreview.title || post.linkPreview.url}</h4>
                 {post.linkPreview.description && (
@@ -807,10 +779,10 @@ const PostCard = ({
 
         {/* Article Preview */}
         {post.type === "article" && (
-          <div className="px-4 mb-5">
+          <div className={`mb-5 ${postInset}`}>
             <a 
               href={`/post/${post.id}`} 
-              className="block group/article overflow-hidden rounded-[16px] border border-white/5 bg-white/[0.02] hover:bg-white/[0.04] transition-all cursor-pointer"
+              className="block group/article overflow-hidden rounded-md border border-[#3a312a] bg-[#171411] hover:border-[#80685a] transition-all cursor-pointer"
             >
               {post.articleCover && (
                 <div className="w-full h-48 overflow-hidden bg-[#111]">
@@ -819,7 +791,7 @@ const PostCard = ({
               )}
               <div className="p-5 space-y-3">
                 <div className="flex items-center gap-2">
-                   <span className="text-[10px] font-black text-[#0a84ff] uppercase tracking-[0.2em] bg-[#0a84ff]/10 px-2 py-0.5 rounded-full">
+                   <span className="text-xs font-medium text-[#ed9685]">
                      {post.category || 'ARTICLE'}
                    </span>
                    {post.readTime && (
@@ -828,16 +800,16 @@ const PostCard = ({
                      </span>
                    )}
                 </div>
-                <h4 className="text-[18px] font-bold text-white/90 leading-tight group-hover/article:text-[#0a84ff] transition-colors">{post.articleTitle}</h4>
+                <h3 className="break-words font-[Georgia,serif] text-2xl leading-tight text-[#f5eee6] sm:text-3xl">{post.articleTitle}</h3>
                 <div className="text-[14px] text-[#8e8e93] line-clamp-3 leading-relaxed font-normal">
                   {post.content && post.content !== post.articleTitle 
                     ? post.content 
                     : (post.seoDescription && post.seoDescription !== post.articleTitle 
                         ? post.seoDescription 
-                        : "Explore the full narrative and research insights in this dedicated article...")}
+                        : "")}
                 </div>
                 <div className="pt-2 text-[12px] font-bold text-white/60 group-hover/article:text-white transition-colors flex items-center gap-1">
-                  Read Full Article <ChevronRight size={14} className="translate-y-[1px] group-hover/article:translate-x-1 transition-transform" />
+                  Read article <ChevronRight size={14} className="translate-y-[1px] group-hover/article:translate-x-1 transition-transform" />
                 </div>
               </div>
             </a>
@@ -846,78 +818,36 @@ const PostCard = ({
 
         {/* Poll */}
         {post.type === "poll" && (
-          <div className="px-6 pb-4">
+          <div className={`pb-5 ${postInset}`}>
             <PollCard post={post} onUpdate={setPost} showAlert={showAlert} />
           </div>
         )}
 
         {/* Tags */}
         {post.tags?.length ? (
-          <div className="px-6 pb-4 flex gap-2 flex-wrap">
-            {post.tags.map((t, i) => <span key={`${t}-${i}`} className="text-[11px] font-medium bg-white/[0.04] border border-white/[0.08] text-white/50 px-3 py-1.5 rounded-full">#{t}</span>)}
+          <div className={`flex flex-wrap gap-x-3 gap-y-1 pb-4 ${postInset}`}>
+            {post.tags.map((t, i) => <span key={`${t}-${i}`} className="text-sm text-[#b6aca2]">#{t}</span>)}
           </div>
         ) : null}
 
-        {/* Music logic keyframes */}
-        <style>{`
-          @keyframes music-bar { 0% { transform: scaleY(0.3); } 100% { transform: scaleY(1); } }
-        `}</style>
           </>
         )}
 
         {!(post.membersOnly && !user) && (
-          <div className="px-5 py-4 flex items-center justify-between border-t border-white/5 font-['Inter']">
-          <div className="flex items-center gap-7">
-            <div className="relative">
-              <button
-                onClick={() => handleReact("like")}
-                className="flex items-center gap-2.5 text-[#8e8e93] hover:text-[#ff3b30] transition-colors relative"
-              >
-                <Heart size={22} strokeWidth={1.5} className={hasLiked ? "fill-[#ff3b30] text-[#ff3b30] animate-in zoom-in-125 duration-300" : ""} />
-                <span className="text-[13px] font-medium">{formatCount(totalReacts) || ""}</span>
-              </button>
-
-              {/* Premium Floating Hearts */}
-              {floatingHearts.map(heart => (
-                <div
-                  key={heart.id}
-                  className="absolute left-1/2 bottom-full pointer-events-none z-50 text-[#ff3b30]/60"
-                  style={{
-                    '--dx': `${heart.x}px`,
-                    '--dy': `${heart.y}px`,
-                    '--dr': `${heart.rotation}deg`,
-                    animation: `float-heart 1.2s ease-out forwards`
-                  } as any}
-                >
-                  <Heart size={20} fill="currentColor" />
-                </div>
-              ))}
-              {/* Animation keyframes */}
-              <style>{`
-                @keyframes float-heart {
-                  0% { transform: translate(-50%, 0) scale(0.5); opacity: 0; }
-                  15% { opacity: 0.9; transform: translate(-50%, -15px) scale(1.1); }
-                  100% { transform: translate(calc(-50% + var(--dx)), var(--dy)) rotate(var(--dr)) scale(0.8); opacity: 0; }
-                }
-              `}</style>
-            </div>
-
-            <button
-              onClick={() => setCommentsOpen(true)}
-              className="flex items-center gap-2.5 text-[#8e8e93] hover:text-white transition-colors"
-            >
-              <MessageCircle size={22} strokeWidth={1.5} />
-              <span className="text-[13px] font-medium">{formatCount(post.comments?.length || 0) || ""}</span>
+          <div className={`flex flex-wrap items-center gap-x-2 border-t border-[#3a312a] py-1 sm:gap-x-4 ${postInset}`}>
+            <button onClick={() => handleReact("like")} className={postAction} aria-label={`Like post (${totalReacts} reactions)`}>
+              <Heart size={16} aria-hidden="true" className={hasLiked ? "fill-[#ed9685] text-[#ed9685]" : ""} />
+              {formatCount(totalReacts)}
             </button>
-
-            <button
-              onClick={handleShare}
-              className="flex items-center text-[#8e8e93] hover:text-white transition-colors"
-            >
-              <Share2 size={22} strokeWidth={1.5} />
+            <button onClick={() => setCommentsOpen(true)} className={postAction} aria-label={`Open comments (${post.comments?.length ?? 0})`}>
+              <MessageCircle size={16} aria-hidden="true" />
+              {formatCount(post.comments?.length ?? 0)}
+            </button>
+            <button onClick={handleShare} className={`ml-auto ${postAction}`}>
+              <Share2 size={16} aria-hidden="true" />
+              Share
             </button>
           </div>
-        </div>
         )}
 
         {/* Comments Section */}
@@ -965,6 +895,7 @@ const PostCard = ({
 const Feed = () => {
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
   const [globalMute, setGlobalMute] = useState(true);
   const [musicData, setMusicData] = useState<MusicData | null>(null);
@@ -1036,9 +967,9 @@ const Feed = () => {
 
     Promise.all([
       feedAPI.getPosts(),
-      axios.get(`${API_BASE}/collection/blog_posts`)
+      axios.get(`${API_BASE}/collection/blog_posts`).catch(() => null)
     ]).then(([feedData, blogRes]) => {
-      const blogData = blogRes.data || [];
+      const blogData = blogRes?.data || [];
       
       // Map BlogPosts to FeedPost structure
       const mappedBlogs: FeedPost[] = blogData
@@ -1077,7 +1008,8 @@ const Feed = () => {
         return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       });
 
-      setPosts(combined); 
+      setPosts(combined);
+      setLoadFailed(!blogRes && combined.length === 0);
       setLoading(false); 
       
       // Handle deep-linking to specific post
@@ -1086,9 +1018,12 @@ const Feed = () => {
       if (postId) {
         setTimeout(() => {
           const el = document.getElementById(`post-${postId}`);
-          if (el) el.scrollIntoView({ behavior: 'smooth' });
+          if (el) el.scrollIntoView({ block: 'start' });
         }, 300);
       }
+    }).catch(() => {
+      setLoadFailed(true);
+      setLoading(false);
     });
 
     settingsDB.get().then(setSettings);
@@ -1133,12 +1068,10 @@ const Feed = () => {
   return (
     <>
       <SEO 
-        title="Sujan Gautam | Professional Feed & Updates"
-        description="Follow Sujan Gautam's professional journey, latest projects, articles, and stories. A dynamic feed of updates from a Senior Software Developer."
+        title="Sujan Gautam | Feed"
+        description="Notes on software, design, and recent projects by Sujan Gautam."
       />
-    <div 
-      className="h-screen w-full text-white font-['Inter'] overflow-y-auto snap-y snap-mandatory scroll-smooth relative no-scrollbar" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-      
+    <main className="min-h-screen bg-[#151210] font-inter text-[#f5eee6]">
       {/* System Alert Popup */}
       {alertMessage && createPortal(
         <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setAlertMessage(null)}>
@@ -1155,51 +1088,73 @@ const Feed = () => {
         document.body
       )}
 
-      {/* Main Timeline Wrapper */}
-      <div className="max-w-6xl mx-auto w-full pb-36 px-4 pt-4 md:pt-16 relative">
-        <h1 className="sr-only">Sujan Gautam | Personal Feed & Professional Updates</h1>
-        {/* Simple Feed Layout */}
-        <div className="flex flex-col items-center gap-10 w-full">
-          {loading ? (
-            Array(3).fill(0).map((_, i) => (
-              <div key={i} className="w-full md:w-[460px] lg:w-[500px] space-y-4">
-                <div className="flex items-center gap-3">
-                  <Skeleton className="w-10 h-10 rounded-full opacity-20" />
-                  <div className="space-y-1.5">
-                     <Skeleton className="h-3 w-24 opacity-20" />
-                     <Skeleton className="h-2 w-16 opacity-10" />
-                  </div>
-                </div>
-                <Skeleton className="h-72 w-full rounded-2xl opacity-10" />
-              </div>
-            ))
-          ) : posts.length === 0 ? (
-            <div className="py-20 text-white/20 text-xs uppercase tracking-[0.3em] font-medium">No posts here yet</div>
-          ) : (
-            posts.map((post) => (
-              <div 
-                id={`post-${post.id}`} 
-                key={post.id} 
-                className="w-full md:w-[460px] lg:w-[500px] snap-start snap-always py-4"
-              >
-                <PostCard 
-                  post={post} 
-                  showAlert={setAlertMessage} 
-                  globalMute={globalMute} 
-                  setGlobalMute={setGlobalMute} 
-                  setMusicData={setMusicData}
-                  playingMusicId={musicData?.id || null}
-                  isIOS={isIOS}
-                  settings={settings}
-                  ytPlayer={ytPlayer}
-                  isMusicReady={isMusicReady}
-                />
-              </div>
-            ))
-          )}
-        </div>
-      </div>
+      <div className="mx-auto max-w-[62rem] px-5 pb-32 pt-8 sm:px-10 sm:pt-14">
+        <header className="border-t-2 border-[#cb6f5e] pb-8 pt-5 sm:pb-10">
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 text-sm">
+            <RouterLink to="/" className="font-semibold hover:underline">Sujan Gautam</RouterLink>
+            <RouterLink to="/portfolio/" className="inline-flex min-h-11 items-center gap-1.5 text-[#ed9685] hover:underline">
+              Portfolio <ArrowUpRight size={15} aria-hidden="true" />
+            </RouterLink>
+          </div>
+          <div className="mt-4 grid gap-4 sm:mt-6 sm:grid-cols-[1fr_18rem] sm:items-end">
+            <h1 className="font-[Georgia,serif] text-7xl leading-[0.95] tracking-tight sm:text-[7rem]">Feed</h1>
+            <p className="max-w-xs text-base leading-relaxed text-[#b6aca2] sm:pb-1">
+              Notes on software and design, project updates, and things I’m working on.
+            </p>
+          </div>
+        </header>
 
+        <section aria-labelledby="feed-entries" aria-busy={loading} className="border-t border-[#443931] pt-5">
+          <h2 id="feed-entries" className="mb-6 text-sm font-semibold text-[#f5eee6]">Posts</h2>
+          {loading ? (
+            <div className="space-y-6 md:pl-40">
+              <p className="sr-only" role="status">Loading posts</p>
+              {Array.from({ length: 2 }, (_, index) => (
+                <div key={index} aria-hidden="true" className="space-y-4 rounded-lg border border-[#3a312a] bg-[#1c1815] p-5">
+                  <div className="flex items-center gap-3">
+                    <Skeleton className="size-9 rounded-full bg-[#302722]" />
+                    <Skeleton className="h-3 w-28 bg-[#302722]" />
+                  </div>
+                  <Skeleton className="h-16 w-full rounded-md bg-[#302722]" />
+                </div>
+              ))}
+            </div>
+          ) : posts.length === 0 ? (
+            <p role="status" className="rounded-md border border-dashed border-[#443931] px-5 py-9 text-sm text-[#b6aca2] md:ml-40">
+              {loadFailed ? "Couldn’t load posts. Refresh to try again." : "No posts yet."}
+            </p>
+          ) : (
+            <div className="space-y-6 sm:space-y-8">
+              {posts.map((post) => {
+                const date = new Date(post.createdAt);
+                return (
+                  <article id={`post-${post.id}`} key={post.id} className="grid scroll-mt-6 gap-2 md:grid-cols-[8rem_minmax(0,1fr)] md:gap-8">
+                    <div className="text-xs text-[#b6aca2] md:pt-6 md:text-sm">
+                      {Number.isFinite(date.getTime()) && (
+                        <time dateTime={date.toISOString()}>{postDateFormat.format(date)}</time>
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <PostCard
+                        post={post}
+                        showAlert={setAlertMessage}
+                        globalMute={globalMute}
+                        setGlobalMute={setGlobalMute}
+                        setMusicData={setMusicData}
+                        playingMusicId={musicData?.id || null}
+                        isIOS={isIOS}
+                        settings={settings}
+                        ytPlayer={ytPlayer}
+                        isMusicReady={isMusicReady}
+                      />
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      </div>
 
       {/* Global Shared YouTube Player (Fast Audio Switching) */}
       <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 pointer-events-none z-[-1]">
@@ -1227,11 +1182,9 @@ const Feed = () => {
           onError={() => { setMusicData(null); setIsMusicReady(false); }}
         />
       </div>
-    </div>
+    </main>
     </>
   );
 };
 
 export default Feed;
-
-
