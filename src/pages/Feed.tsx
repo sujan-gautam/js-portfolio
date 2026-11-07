@@ -1017,7 +1017,8 @@ const Feed = () => {
 
   useEffect(() => {
     const feed = feedRef.current;
-    if (!feed || loading || posts.length === 0) return;
+    const surface = feed?.closest("main");
+    if (!feed || !surface || loading || posts.length === 0) return;
 
     let gestureEnd: number;
     let gestureDelta = 0;
@@ -1067,9 +1068,9 @@ const Feed = () => {
       }
     };
 
-    feed.addEventListener("wheel", handleWheel, { passive: false });
+    surface.addEventListener("wheel", handleWheel, { passive: false });
     return () => {
-      feed.removeEventListener("wheel", handleWheel);
+      surface.removeEventListener("wheel", handleWheel);
       window.clearTimeout(gestureEnd);
     };
   }, [loading, posts.length]);
@@ -1116,7 +1117,7 @@ const Feed = () => {
         title="Sujan Gautam | Feed"
         description="Notes on software, design, and recent projects by Sujan Gautam."
       />
-    <main className="h-dvh font-inter text-foreground">
+    <main className="flex h-dvh flex-col pb-20 font-inter text-foreground">
       {/* System Alert Popup */}
       {alertMessage && createPortal(
         <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setAlertMessage(null)}>
@@ -1133,62 +1134,66 @@ const Feed = () => {
         document.body
       )}
 
-      <div className="mx-auto flex h-full max-w-2xl flex-col px-5 pb-20 pt-5 sm:px-8 sm:pt-8">
-        <header className="mb-4 shrink-0 font-poppins">
+      <header className="mx-auto w-full max-w-2xl shrink-0 px-5 pt-5 font-poppins sm:px-8 sm:pt-8">
+        <div className="border-b border-border pb-4">
           <h1 id="feed-heading" className="text-3xl font-black uppercase tracking-tight text-hero-title sm:text-5xl">
             Feed
           </h1>
           <div className="mt-3 h-[3px] w-10 rounded-full bg-primary" aria-hidden="true" />
-        </header>
+        </div>
+      </header>
 
-        <section
-          ref={feedRef}
-          aria-labelledby="feed-heading"
-          aria-busy={loading}
-          tabIndex={0}
-          className="relative min-h-0 flex-1 snap-y snap-mandatory overflow-y-auto overscroll-y-contain border-t border-border [scrollbar-width:none] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
-        >
-          {loading ? (
-            <>
-              <p className="sr-only" role="status">Loading posts</p>
-              {Array.from({ length: 2 }, (_, index) => (
-                <div key={index} aria-hidden="true" className="space-y-4 border-b border-border py-5">
-                  <div className="flex items-center gap-3">
-                    <Skeleton className="size-10 rounded-full" />
-                    <div className="space-y-2">
-                      <Skeleton className="h-3 w-28" />
-                      <Skeleton className="h-2.5 w-20" />
-                    </div>
+      <section
+        ref={feedRef}
+        aria-labelledby="feed-heading"
+        aria-busy={loading}
+        tabIndex={0}
+        className="relative min-h-0 flex-1 snap-y snap-mandatory overflow-y-auto overscroll-y-contain [scrollbar-width:none] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+      >
+        {loading ? (
+          <div className="mx-auto w-full max-w-2xl px-5 sm:px-8">
+            <p className="sr-only" role="status">Loading posts</p>
+            {Array.from({ length: 2 }, (_, index) => (
+              <div key={index} aria-hidden="true" className="space-y-4 border-b border-border py-5">
+                <div className="flex items-center gap-3">
+                  <Skeleton className="size-10 rounded-full" />
+                  <div className="space-y-2">
+                    <Skeleton className="h-3 w-28" />
+                    <Skeleton className="h-2.5 w-20" />
                   </div>
-                  <Skeleton className="h-3 w-4/5" />
-                  <Skeleton className="h-3 w-3/5" />
                 </div>
-              ))}
-            </>
-          ) : posts.length === 0 ? (
-            <p role="status" className="py-8 text-sm text-muted-foreground">
-              {loadFailed ? "Couldn’t load posts. Refresh to try again." : "No posts yet."}
-            </p>
-          ) : (
-            posts.map((post) => (
-              <article id={`post-${post.id}`} key={post.id} className="min-h-full min-w-0 snap-start snap-always border-b border-border py-5 sm:py-6">
-                <PostCard
-                  post={post}
-                  showAlert={setAlertMessage}
-                  globalMute={globalMute}
-                  setGlobalMute={setGlobalMute}
-                  setMusicData={setMusicData}
-                  playingMusicId={musicData?.id || null}
-                  isIOS={isIOS}
-                  settings={settings}
-                  ytPlayer={ytPlayer}
-                  isMusicReady={isMusicReady}
-                />
-              </article>
-            ))
-          )}
-        </section>
-      </div>
+                <Skeleton className="h-3 w-4/5" />
+                <Skeleton className="h-3 w-3/5" />
+              </div>
+            ))}
+          </div>
+        ) : posts.length === 0 ? (
+          <p role="status" className="mx-auto w-full max-w-2xl px-5 py-8 text-sm text-muted-foreground sm:px-8">
+            {loadFailed ? "Couldn’t load posts. Refresh to try again." : "No posts yet."}
+          </p>
+        ) : (
+          posts.map((post) => (
+            <article id={`post-${post.id}`} key={post.id} className="min-h-full snap-start snap-always">
+              <div className="mx-auto w-full min-w-0 max-w-2xl px-5 sm:px-8">
+                <div className="border-b border-border py-5 sm:py-6">
+                  <PostCard
+                    post={post}
+                    showAlert={setAlertMessage}
+                    globalMute={globalMute}
+                    setGlobalMute={setGlobalMute}
+                    setMusicData={setMusicData}
+                    playingMusicId={musicData?.id || null}
+                    isIOS={isIOS}
+                    settings={settings}
+                    ytPlayer={ytPlayer}
+                    isMusicReady={isMusicReady}
+                  />
+                </div>
+              </div>
+            </article>
+          ))
+        )}
+      </section>
 
       {/* Global Shared YouTube Player (Fast Audio Switching) */}
       <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 pointer-events-none z-[-1]">
