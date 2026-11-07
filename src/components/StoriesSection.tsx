@@ -25,7 +25,7 @@ const storyAnimations = `
   }
 `;
 
-const StoriesSection = () => {
+const StoriesSection = ({ showLabel = true }: { showLabel?: boolean }) => {
   const { user } = useAuth();
   const [stories, setStories] = useState<StoryItem[]>([]);
   const [music, setMusic] = useState<MusicItem[]>([]);
@@ -391,9 +391,9 @@ const StoriesSection = () => {
           })()}
         />
       )}
-      <p className="text-xs font-bold tracking-[0.2em] text-white mb-4 uppercase">
-        STORIES:
-      </p>
+      {showLabel && (
+        <p className="mb-4 text-xs font-bold uppercase tracking-[0.2em] text-white">Stories:</p>
+      )}
 
       <div className="flex items-end gap-4">
         {isLoading ? (

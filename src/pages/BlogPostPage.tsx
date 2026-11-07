@@ -134,7 +134,7 @@ const BlogPostPage = () => {
             )}
           </div>
           
-          <h1 className="text-4xl md:text-6xl font-extrabold text-slate-900 tracking-tight leading-[1.1]">
+          <h1 className="font-poppins text-[clamp(1.75rem,5vw,2.75rem)] font-semibold leading-tight tracking-tight text-slate-900">
             {post.title}
           </h1>
 
@@ -189,7 +189,7 @@ const BlogPostPage = () => {
             </div>
           </div>
         ) : (
-          <article className="prose prose-indigo prose-lg md:prose-xl max-w-none prose-headings:text-slate-900 prose-p:text-slate-600 prose-p:leading-relaxed prose-strong:text-slate-900 prose-blockquote:border-indigo-500 prose-blockquote:bg-indigo-50/30 prose-blockquote:p-6 prose-blockquote:rounded-r-xl prose-img:rounded-3xl mb-20">
+          <article className="article-copy prose prose-indigo max-w-none prose-headings:text-slate-900 prose-p:text-slate-600 prose-strong:text-slate-900 prose-blockquote:border-indigo-500 prose-blockquote:bg-indigo-50/30 prose-blockquote:p-6 prose-blockquote:rounded-r-xl prose-img:rounded-3xl mb-20">
             <div dangerouslySetInnerHTML={{ __html: post.content.replace(/\n/g, '<br />') }} />
           </article>
         )}

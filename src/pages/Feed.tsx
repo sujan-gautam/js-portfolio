@@ -6,7 +6,7 @@ import {
   Heart, MessageCircle, Share2, MoreHorizontal,
   ChevronLeft, ChevronRight, X, Play, Pause, Music, Volume2, VolumeX,
   MapPin, Pin, PlayCircle,
-  Link, Flag, User, EyeOff, Lock
+  Link, Flag, User, EyeOff
 } from "lucide-react";
 import YouTube from "react-youtube";
 import { useAuth } from "@/context/AuthContext";
@@ -17,6 +17,7 @@ import { CommentSection } from "@/components/CommentSection";
 import { PollCard } from "@/components/PollCard";
 import SEO from "@/components/SEO";
 import StoriesSection from "@/components/StoriesSection";
+import { RestrictedPostPrompt } from "@/components/RestrictedPostPrompt";
 
 const postDateFormat = new Intl.DateTimeFormat("en", {
   month: "short",
@@ -231,11 +232,6 @@ const PostCard = ({
     if (num >= 1000000) return (num / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
     if (num >= 1000) return (num / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
     return num.toString();
-  };
-
-  const handleGoogleLogin = () => {
-    localStorage.setItem("auth_return", window.location.pathname);
-    window.location.href = `${API_BASE}/auth/google`;
   };
 
   const openFullscreen = (e: React.MouseEvent, url?: string) => {
@@ -486,20 +482,7 @@ const PostCard = ({
         {/* Members Only Gating */}
         {post.membersOnly && !user ? (
           <div className="pb-4">
-            <div className="rounded-md border border-border bg-card p-4 sm:p-5">
-              <h3 className="flex items-center gap-2 font-semibold text-foreground">
-                <Lock size={16} aria-hidden="true" />
-                Members only
-              </h3>
-              <p className="mt-2 text-sm text-muted-foreground">Sign in to view and interact with this post.</p>
-              <button
-                onClick={handleGoogleLogin}
-                className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-md bg-foreground px-3 text-sm font-semibold text-background hover:bg-foreground/90"
-              >
-                <img src="https://www.google.com/favicon.ico" className="size-4" alt="" />
-                Continue with Google
-              </button>
-            </div>
+            <RestrictedPostPrompt />
           </div>
         ) : (
           <>
@@ -792,7 +775,7 @@ const PostCard = ({
               )}
               <div className={post.articleCover ? "min-w-0 sm:order-first" : "min-w-0"}>
                 {articleExcerpt && (
-                  <p className="line-clamp-2 max-w-prose text-sm leading-relaxed text-muted-foreground sm:line-clamp-3">
+                  <p className="line-clamp-2 max-w-prose text-base leading-relaxed text-muted-foreground sm:line-clamp-3">
                     {articleExcerpt}
                   </p>
                 )}
@@ -1108,7 +1091,7 @@ const Feed = () => {
         <div className="snap-start snap-always [@media(pointer:coarse)]:min-h-full">
           <header className="mx-auto w-full max-w-2xl px-1 font-poppins sm:px-4">
             <h1 id="feed-heading" className="sr-only">Feed</h1>
-            <StoriesSection />
+            <StoriesSection showLabel={false} />
           </header>
           {loading ? (
             <div className="mx-auto w-full max-w-2xl px-5 sm:px-8">

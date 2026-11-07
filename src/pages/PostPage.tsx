@@ -2,10 +2,11 @@ import { useEffect, useState } from "react";
 import { useParams, Link, Navigate } from "react-router-dom";
 import axios from "axios";
 import { API_BASE } from "@/config";
-import { ArrowLeft, Calendar, Eye, Heart, Share2, Lock, Loader2 } from "lucide-react";
+import { ArrowLeft, Calendar, Eye, Heart, Share2, Loader2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { CommentSection } from "@/components/CommentSection";
 import { ReactionBar } from "@/components/ReactionBar";
+import { RestrictedPostPrompt } from "@/components/RestrictedPostPrompt";
 import { feedAPI } from "@/lib/adminData";
 import { toast } from "sonner";
 
@@ -22,11 +23,6 @@ export const FeedPostPage = () => {
 
   const [settings, setSettings] = useState<any>(null);
   const [sliders, setSliders] = useState<any[]>([]);
-
-  const handleGoogleLogin = () => {
-    localStorage.setItem("auth_return", window.location.pathname);
-    window.location.href = `${API_BASE}/auth/google`;
-  };
 
   const handleReact = async (type: string) => {
     if (!post) return;
@@ -181,7 +177,7 @@ export const FeedPostPage = () => {
             <div className="space-y-6">
               <header className="border-b border-border pb-5">
                 <p className="text-sm font-medium text-red-500">{post.category || post.categoryName || "Article"}</p>
-                <h1 className="mt-2 break-words font-poppins text-3xl font-semibold leading-tight tracking-tight text-foreground sm:text-5xl">
+                <h1 className="mt-2 break-words font-poppins text-[clamp(1.75rem,5vw,2.75rem)] font-semibold leading-tight tracking-tight text-foreground">
                   {post.articleTitle}
                 </h1>
                 <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
@@ -192,19 +188,7 @@ export const FeedPostPage = () => {
               </header>
 
               {post.membersOnly && !user ? (
-                <section className="rounded-lg border border-border bg-card p-5 sm:p-6" aria-labelledby="members-heading">
-                  <h2 id="members-heading" className="flex items-center gap-2 font-semibold">
-                    <Lock size={16} aria-hidden="true" /> Members only
-                  </h2>
-                  <p className="mt-2 text-sm text-muted-foreground">Sign in to read this article.</p>
-                  <button
-                    onClick={handleGoogleLogin}
-                    className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-md bg-foreground px-4 text-sm font-medium text-background hover:bg-foreground/90"
-                  >
-                    <img src="https://www.google.com/favicon.ico" className="size-4" alt="" />
-                    Continue with Google
-                  </button>
-                </section>
+                <RestrictedPostPrompt />
               ) : (
                 <>
                   {post.articleCover && (
@@ -216,7 +200,7 @@ export const FeedPostPage = () => {
                   )}
 
                   <div
-                    className="prose prose-invert max-w-none break-words prose-headings:font-poppins prose-p:leading-relaxed prose-a:text-red-500 prose-img:rounded-md sm:prose-lg"
+                    className="article-copy prose prose-invert max-w-none break-words prose-a:text-red-500 prose-img:rounded-md"
                     dangerouslySetInnerHTML={{ __html: post.articleContent || post.content || "" }} 
                   />
                 </>
@@ -246,12 +230,7 @@ export const FeedPostPage = () => {
                 {post.caption && <h1 className="text-2xl font-bold text-white leading-snug">{post.caption}</h1>}
                 
                 {post.membersOnly && !user ? (
-                  <div className="p-10 bg-white/5 rounded-2xl border border-white/10 text-center">
-                    <Lock className="mx-auto mb-4 text-[#CB2729]" size={32} />
-                    <p className="text-white font-bold mb-2">Members Only</p>
-                    <p className="text-white/40 text-sm mb-6">Login to view this private post</p>
-                    <button onClick={handleGoogleLogin} className="px-6 py-2 bg-white text-black font-bold rounded-full text-xs">Sign In</button>
-                  </div>
+                  <RestrictedPostPrompt />
                 ) : (
                   post.content && <p className="text-white/70 leading-relaxed whitespace-pre-wrap">{post.content}</p>
                 )}
