@@ -515,11 +515,8 @@ const PostCard = ({
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      if (isExpanded && postRef.current) {
-                        const rect = postRef.current.getBoundingClientRect();
-                        if (rect.top < 0) {
-                          postRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                        }
+                      if (isExpanded) {
+                        postRef.current?.closest("article")?.scrollIntoView({ block: "start" });
                       }
                       const next = !isExpanded;
                       setIsExpanded(next);
@@ -883,6 +880,7 @@ const PostCard = ({
 
 // ── Main Feed Page ────────────────────────────────────
 const Feed = () => {
+  const feedRef = useRef<HTMLElement>(null);
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadFailed, setLoadFailed] = useState(false);
@@ -1000,17 +998,7 @@ const Feed = () => {
 
       setPosts(combined);
       setLoadFailed(!blogRes && combined.length === 0);
-      setLoading(false); 
-      
-      // Handle deep-linking to specific post
-      const params = new URLSearchParams(window.location.search);
-      const postId = params.get('post');
-      if (postId) {
-        setTimeout(() => {
-          const el = document.getElementById(`post-${postId}`);
-          if (el) el.scrollIntoView({ block: 'start' });
-        }, 300);
-      }
+      setLoading(false);
     }).catch(() => {
       setLoadFailed(true);
       setLoading(false);
@@ -1018,6 +1006,73 @@ const Feed = () => {
 
     settingsDB.get().then(setSettings);
   }, []);
+
+  useEffect(() => {
+    if (loading) return;
+    const postId = new URLSearchParams(window.location.search).get("post");
+    if (postId) {
+      document.getElementById(`post-${postId}`)?.scrollIntoView({ block: "start" });
+    }
+  }, [loading]);
+
+  useEffect(() => {
+    const feed = feedRef.current;
+    if (!feed || loading || posts.length === 0) return;
+
+    let gestureEnd: number;
+    let gestureDelta = 0;
+    let gestureHandled = false;
+
+    const handleWheel = (event: WheelEvent) => {
+      if (event.ctrlKey || event.shiftKey || Math.abs(event.deltaX) >= Math.abs(event.deltaY)) return;
+      event.preventDefault();
+
+      window.clearTimeout(gestureEnd);
+      gestureEnd = window.setTimeout(() => {
+        gestureDelta = 0;
+        gestureHandled = false;
+      }, 180);
+      if (gestureHandled) return;
+
+      let delta = event.deltaY;
+      if (event.deltaMode === WheelEvent.DOM_DELTA_LINE) delta *= 16;
+      if (event.deltaMode === WheelEvent.DOM_DELTA_PAGE) delta *= feed.clientHeight;
+
+      const articles = Array.from(feed.querySelectorAll<HTMLElement>(":scope > article"));
+      const top = feed.scrollTop;
+      const nextIndex = articles.findIndex((article) => article.offsetTop > top + 1);
+      const index = nextIndex < 0 ? articles.length - 1 : nextIndex - 1;
+      const current = articles[index];
+      if (!current) return;
+
+      const start = current.offsetTop;
+      const end = start + Math.max(0, current.offsetHeight - feed.clientHeight);
+      if ((delta > 0 && top < end - 1) || (delta < 0 && top > start + 1)) {
+        const target = Math.max(start, Math.min(end, top + delta));
+        feed.scrollTop = target;
+        // Stop at the edge of a tall post until the next wheel gesture.
+        gestureHandled = target === start || target === end;
+        return;
+      }
+
+      gestureDelta += delta;
+      if (Math.abs(gestureDelta) < 28) return;
+      gestureHandled = true;
+      const target = articles[index + Math.sign(gestureDelta)];
+      if (target) {
+        feed.scrollTo({
+          top: target.offsetTop,
+          behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+        });
+      }
+    };
+
+    feed.addEventListener("wheel", handleWheel, { passive: false });
+    return () => {
+      feed.removeEventListener("wheel", handleWheel);
+      window.clearTimeout(gestureEnd);
+    };
+  }, [loading, posts.length]);
 
   // Handle global volume sync
   useEffect(() => {
@@ -1061,7 +1116,7 @@ const Feed = () => {
         title="Sujan Gautam | Feed"
         description="Notes on software, design, and recent projects by Sujan Gautam."
       />
-    <main className="min-h-screen font-inter text-foreground">
+    <main className="h-dvh font-inter text-foreground">
       {/* System Alert Popup */}
       {alertMessage && createPortal(
         <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setAlertMessage(null)}>
@@ -1078,15 +1133,21 @@ const Feed = () => {
         document.body
       )}
 
-      <div className="mx-auto max-w-2xl px-5 pb-32 pt-8 sm:px-8 sm:pt-14">
-        <header className="mb-6 font-poppins sm:mb-8">
+      <div className="mx-auto flex h-full max-w-2xl flex-col px-5 pb-20 pt-5 sm:px-8 sm:pt-8">
+        <header className="mb-4 shrink-0 font-poppins">
           <h1 id="feed-heading" className="text-3xl font-black uppercase tracking-tight text-hero-title sm:text-5xl">
             Feed
           </h1>
           <div className="mt-3 h-[3px] w-10 rounded-full bg-primary" aria-hidden="true" />
         </header>
 
-        <section aria-labelledby="feed-heading" aria-busy={loading} className="border-t border-border">
+        <section
+          ref={feedRef}
+          aria-labelledby="feed-heading"
+          aria-busy={loading}
+          tabIndex={0}
+          className="relative min-h-0 flex-1 snap-y snap-mandatory overflow-y-auto overscroll-y-contain border-t border-border [scrollbar-width:none] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+        >
           {loading ? (
             <>
               <p className="sr-only" role="status">Loading posts</p>
@@ -1110,7 +1171,7 @@ const Feed = () => {
             </p>
           ) : (
             posts.map((post) => (
-              <article id={`post-${post.id}`} key={post.id} className="min-w-0 scroll-mt-4 border-b border-border py-5 sm:py-6">
+              <article id={`post-${post.id}`} key={post.id} className="min-h-full min-w-0 snap-start snap-always border-b border-border py-5 sm:py-6">
                 <PostCard
                   post={post}
                   showAlert={setAlertMessage}

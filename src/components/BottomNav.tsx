@@ -23,7 +23,7 @@ const BottomNav = () => {
       setMousePos({ x: e.clientX, y: e.clientY });
     };
     
-    // Capture scroll events from both window and internal scroll containers (like Feed's snapping container)
+    // Capture scroll events from both window and internal scroll containers
     const handleScroll = (e: Event) => {
       const target = e.target as HTMLElement;
       let currentScrollY = 0;
@@ -39,8 +39,8 @@ const BottomNav = () => {
       }
 
       // 5px threshold to avoid jitter
-      // Enable scroll-hide on Feed and Individual Post pages for better immersion
-      const isScrollHidePage = location.pathname === "/feed/" || location.pathname.startsWith("/post/") || location.pathname.includes("/post/");
+      // Keep navigation visible while paging through the feed.
+      const isScrollHidePage = location.pathname.includes("/post/");
       
       if (isScrollHidePage) {
         if (currentScrollY > lastScrollY.current + 5) {
@@ -66,7 +66,7 @@ const BottomNav = () => {
 
   // Ensure it resets to visible when path changes
   useEffect(() => {
-    if (location.pathname !== "/feed/") setIsVisible(true);
+    setIsVisible(true);
   }, [location.pathname]);
 
   return (
