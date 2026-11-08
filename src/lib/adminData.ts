@@ -33,6 +33,7 @@ export interface FeedPost {
   pinned?: boolean;
   published?: boolean;
   membersOnly?: boolean;
+  locked?: boolean;
   musicVideoId?: string;
   musicTitle?: string;
   musicArtist?: string;
@@ -199,6 +200,7 @@ export interface BlogPost {
   comments: any[];
   versionHistory?: { content: string; updatedAt: string }[];
   membersOnly?: boolean;
+  locked?: boolean;
   createdAt: string;
   updatedAt: string;
 }

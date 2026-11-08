@@ -37,11 +37,11 @@ const BottomNav = () => {
   return (
     <nav
       aria-label="Main navigation"
-      className={`pointer-events-none fixed inset-x-0 bottom-0 z-[8888] pl-[max(0.625rem,env(safe-area-inset-left,0px))] pr-[max(0.625rem,env(safe-area-inset-right,0px))] pb-[calc(0.5rem_+_env(safe-area-inset-bottom,0px))] font-poppins motion-safe:transition-[transform,opacity] motion-safe:duration-200 ${
+      className={`fixed inset-x-0 bottom-0 z-[8888] border-t border-border bg-nav/95 pl-[env(safe-area-inset-left,0px)] pr-[env(safe-area-inset-right,0px)] pb-[env(safe-area-inset-bottom,0px)] font-inter backdrop-blur-md motion-safe:transition-[transform,opacity] motion-safe:duration-200 ${
         hidden ? "translate-y-full opacity-0 focus-within:translate-y-0 focus-within:opacity-100" : ""
       }`}
     >
-      <div className="pointer-events-auto mx-auto grid w-full max-w-sm grid-cols-5 gap-0.5 rounded-[22px] border border-white/10 bg-nav/95 p-1 shadow-[0_8px_28px_rgba(0,0,0,0.45)] backdrop-blur-lg sm:flex sm:w-fit sm:max-w-none sm:gap-1 sm:rounded-full sm:p-1.5">
+      <div className="mx-auto grid w-full max-w-md grid-cols-5 px-2 sm:max-w-xl">
         {navItems.map(({ icon: Icon, label, path }) => {
           const active = activePath === path;
 
@@ -50,12 +50,13 @@ const BottomNav = () => {
               key={path}
               to={path}
               aria-current={active ? "page" : undefined}
-              className={`flex min-h-14 min-w-0 flex-col items-center justify-center gap-1.5 rounded-[17px] px-0.5 text-center text-[clamp(0.625rem,3.1vw,0.6875rem)] font-medium leading-none transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring sm:min-h-11 sm:flex-row sm:gap-2 sm:rounded-full sm:px-3.5 sm:text-xs ${
-                active ? "bg-primary/[0.14] text-foreground ring-1 ring-inset ring-primary/20" : "text-nav-foreground hover:bg-white/5 hover:text-foreground"
+              className={`relative flex h-[55px] min-w-0 flex-col items-center justify-center gap-1 px-0.5 text-center text-[11px] leading-none transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring sm:h-[51px] sm:flex-row sm:gap-2 sm:text-xs ${
+                active ? "text-foreground" : "text-nav-foreground hover:text-foreground"
               }`}
             >
-              <Icon size={21} strokeWidth={active ? 2 : 1.75} aria-hidden="true" className={`shrink-0 sm:size-[18px] ${active ? "text-red-500" : ""}`} />
+              <Icon size={19} strokeWidth={1.65} aria-hidden="true" className={`shrink-0 sm:size-[18px] ${active ? "text-red-500" : ""}`} />
               <span className="whitespace-nowrap">{label}</span>
+              {active && <span aria-hidden="true" className="absolute top-0 h-0.5 w-4 rounded-b-full bg-primary" />}
             </Link>
           );
         })}

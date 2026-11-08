@@ -62,6 +62,7 @@ const PostCard = ({
   const showMusicUI = !isIOS || (playingMusicId === initialPost.id && isMusicReady);
   const { user } = useAuth();
   const [post, setPost] = useState(initialPost);
+  const isLocked = post.locked || (post.membersOnly && !user);
   const [hasLiked, setHasLiked] = useState(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem(`feed_liked_${initialPost.id}`) === 'true';
@@ -174,12 +175,10 @@ const PostCard = ({
           if (entry.isIntersecting) {
             visibleStartRef.current = Date.now();
 
-            const isGated = post.membersOnly && !user;
-
-            if (videoRef.current && !isGated) {
+            if (videoRef.current && !isLocked) {
               videoRef.current.play().catch(() => {});
             }
-            if (post.musicVideoId && !isGated) {
+            if (post.musicVideoId && !isLocked) {
               setMusicData({
                 id: post.id,
                 videoId: post.musicVideoId,
@@ -219,14 +218,14 @@ const PostCard = ({
         }
       }
     };
-  }, [post.type, post.musicVideoId, post.id, playingMusicId, activeIndex]);
+  }, [post.type, post.musicVideoId, post.id, playingMusicId, activeIndex, isLocked]);
 
   // Handle auto-play when carousel index changes
   useEffect(() => {
-    if (videoRef.current && !(post.membersOnly && !user)) {
+    if (videoRef.current && !isLocked) {
       videoRef.current.play().catch(() => {});
     }
-  }, [activeIndex, post.membersOnly, user]);
+  }, [activeIndex, isLocked]);
 
   const formatCount = (num: number) => {
     if (num >= 1000000) return (num / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
@@ -236,7 +235,7 @@ const PostCard = ({
 
   const openFullscreen = (e: React.MouseEvent, url?: string) => {
     e.stopPropagation();
-    if (post.membersOnly && !user) return;
+    if (isLocked) return;
     
     if (url) setActiveVideoUrl(url);
     else setActiveVideoUrl(post.videoUrl || "");
@@ -292,7 +291,7 @@ const PostCard = ({
   };
 
   const handleReact = async (type: string) => {
-    if (post.membersOnly && !user) return;
+    if (isLocked) return;
     if (type === "like") {
        setHasLiked(true);
        if (typeof window !== 'undefined') localStorage.setItem(`feed_liked_${post.id}`, 'true');
@@ -328,7 +327,7 @@ const PostCard = ({
   };
 
   const handleShare = async () => {
-    if (post.membersOnly && !user) return;
+    if (isLocked) return;
     try {
       await feedAPI.trackShare(post.id);
       setPost(p => ({ ...p, shares: (p.shares || 0) + 1 }));
@@ -389,7 +388,7 @@ const PostCard = ({
                {Number.isFinite(published.getTime()) && (
                  <time dateTime={published.toISOString()}>{postDateFormat.format(published)}</time>
                )}
-               {post.musicVideoId && !(post.membersOnly && !user) && showMusicUI && (
+               {post.musicVideoId && !isLocked && showMusicUI && (
                  <>
                    <div className="flex items-center gap-1">
                       <Music size={10} className={isMusicActive ? "text-red-500" : "text-muted-foreground"} />
@@ -402,7 +401,7 @@ const PostCard = ({
             </div>
           </div>
           <div className="flex items-center gap-1">
-            {post.musicVideoId && !(post.membersOnly && !user) && showMusicUI && (
+            {post.musicVideoId && !isLocked && showMusicUI && (
               <button 
                 onClick={handleMuteToggle}
                 className="text-muted-foreground hover:text-white transition-colors px-1 h-8 w-8 flex items-center justify-center rounded-full hover:bg-white/5"
@@ -480,7 +479,7 @@ const PostCard = ({
         </div>
 
         {/* Members Only Gating */}
-        {post.membersOnly && !user ? (
+        {isLocked ? (
           <div className="pb-4">
             <RestrictedPostPrompt />
           </div>
@@ -805,7 +804,7 @@ const PostCard = ({
           </>
         )}
 
-        {!(post.membersOnly && !user) && (
+        {!isLocked && (
           <div className="-mx-2 flex flex-wrap items-center gap-x-2 sm:gap-x-4">
             <button onClick={() => handleReact("like")} className={postAction} aria-label={`Like post (${totalReacts} reactions)`}>
               <Heart size={16} aria-hidden="true" className={hasLiked ? "fill-current text-red-500" : ""} />
@@ -867,6 +866,7 @@ const PostCard = ({
 
 // ── Main Feed Page ────────────────────────────────────
 const Feed = () => {
+  const { user, loading: authLoading } = useAuth();
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadFailed, setLoadFailed] = useState(false);
@@ -938,11 +938,21 @@ const Feed = () => {
                         (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     setIsIOS(isIOSDevice);
     setGlobalMute(isIOSDevice);
+    settingsDB.get().then(setSettings);
+  }, []);
+
+  useEffect(() => {
+    if (authLoading) return;
+    let active = true;
+    setLoading(true);
+    setPosts([]);
+    setMusicData(null);
 
     Promise.all([
       feedAPI.getPosts(),
       axios.get(`${API_BASE}/collection/blog_posts`).catch(() => null)
     ]).then(([feedData, blogRes]) => {
+      if (!active) return;
       const blogData = blogRes?.data || [];
       
       // Map BlogPosts to FeedPost structure
@@ -974,6 +984,7 @@ const Feed = () => {
           comments: b.comments || [],
           category: b.categoryName || "Article",
           membersOnly: b.membersOnly,
+          locked: b.locked,
           readTime: b.readTime
         }));
 
@@ -988,12 +999,12 @@ const Feed = () => {
       setLoadFailed(!blogRes && combined.length === 0);
       setLoading(false);
     }).catch(() => {
+      if (!active) return;
       setLoadFailed(true);
       setLoading(false);
     });
-
-    settingsDB.get().then(setSettings);
-  }, []);
+    return () => { active = false; };
+  }, [authLoading, user?.id]);
 
   useEffect(() => {
     if (loading) return;
@@ -1065,7 +1076,7 @@ const Feed = () => {
         title="Sujan Gautam | Feed"
         description="Notes on software, design, and recent projects by Sujan Gautam."
       />
-    <main className="flex h-dvh flex-col pb-[calc(5rem_+_env(safe-area-inset-bottom,0px))] font-inter text-foreground sm:pb-[calc(4.25rem_+_env(safe-area-inset-bottom,0px))]">
+    <main className="flex h-dvh flex-col pb-[calc(3.5rem_+_env(safe-area-inset-bottom,0px))] font-inter text-foreground sm:pb-[calc(3.25rem_+_env(safe-area-inset-bottom,0px))]">
       {/* System Alert Popup */}
       {alertMessage && createPortal(
         <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setAlertMessage(null)}>

@@ -3,6 +3,7 @@ import * as Models from "../models/index.js";
 import { parser } from "../config/cloudinary.js";
 import { v2 as cloudinary } from "cloudinary";
 import jwt from "jsonwebtoken";
+import { visiblePost } from "../utils/postVisibility.js";
 
 const router = express.Router();
 
@@ -48,21 +49,52 @@ function checkBan(req, res, next) {
   next();
 }
 
+async function postAccess(req, res, next) {
+  res.set("Cache-Control", "private, no-store");
+  const token = req.headers.authorization?.match(/^Bearer (\S+)$/i)?.[1];
+  if (token && process.env.JWT_SECRET) {
+    try {
+      const claims = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ["HS256"] });
+      if (claims.id && ["member", "admin"].includes(claims.role)) {
+        const user = await Models.User.findById(claims.id).select("role status");
+        if (user?.role === claims.role && user.status !== "inactive") req.postRole = user.role;
+      }
+    } catch {
+      // Invalid or expired tokens get the same response as signed-out visitors.
+    }
+  }
+  next();
+}
+
+const requirePostAdmin = (req, res, next) => {
+  if (req.postRole !== "admin") return res.status(403).json({ error: "Admin access required" });
+  next();
+};
+
+const mayReadPost = (post, req) => !post.membersOnly || Boolean(req.postRole);
+const postUpdateFilter = (id, req, Model) => ({
+  _id: id,
+  ...(req.postRole !== "admin" ? publishedPosts(Model) : {}),
+  ...(req.postRole ? {} : { membersOnly: { $ne: true } }),
+});
+
+const publishedPosts = (Model) => Model === Models.BlogPost ? { status: "Published" } : { published: true };
+
 // ═══════════════════════════════════════════════════
 // FEED — Dedicated interaction routes
 // ═══════════════════════════════════════════════════
 
 // GET published posts
-router.get("/feed/posts", async (req, res) => {
+router.get("/feed/posts", postAccess, async (req, res) => {
   try {
     const posts = await Models.Feed.find({ published: true })
       .sort({ pinned: -1, createdAt: -1 });
-    res.json(posts);
+    res.json(posts.map((post) => visiblePost(post, Boolean(req.postRole))));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // POST vote on a poll option
-router.post("/feed/posts/:id/poll/vote", async (req, res) => {
+router.post("/feed/posts/:id/poll/vote", postAccess, async (req, res) => {
   try {
     console.log(`POLL_VOTE_PROCESS: ID=${req.params.id}`);
     const post = await Models.Feed.findById(req.params.id);
@@ -70,8 +102,10 @@ router.post("/feed/posts/:id/poll/vote", async (req, res) => {
       return res.status(404).json({ error: "Poll post not found" });
     }
     
+    if (!mayReadPost(post, req)) return res.status(403).json({ error: "Log in to vote" });
     const ip = req.ip || req.connection.remoteAddress || "unknown";
     const { optionId, voterId } = req.body;
+    if (typeof voterId !== "string" || !voterId) return res.status(400).json({ error: "Missing voter ID" });
 
     const alreadyVotedByIP = post.pollOptions.some(o => o.voters.includes(ip));
     const alreadyVotedBySession = post.pollOptions.some(o => o.voters.includes(voterId));
@@ -83,12 +117,18 @@ router.post("/feed/posts/:id/poll/vote", async (req, res) => {
     const option = post.pollOptions.id(optionId);
     if (!option) return res.status(404).json({ error: "Option not found" });
     
-    option.votes += 1;
-    option.voters.push(voterId);
-    if (ip !== "unknown") option.voters.push(ip);
-    
-    await post.save();
-    res.json(post);
+    const voters = ip === "unknown" ? [voterId] : [voterId, ip];
+    const updated = await Models.Feed.findOneAndUpdate(
+      {
+        ...postUpdateFilter(post.id, req, Models.Feed),
+        pollOptions: { $elemMatch: { _id: option.id } },
+        $nor: [{ "pollOptions.voters": { $in: voters } }],
+      },
+      { $inc: { "pollOptions.$.votes": 1 }, $push: { "pollOptions.$.voters": { $each: voters } } },
+      { new: true }
+    );
+    if (!updated) return res.status(403).json({ error: "Vote unavailable" });
+    res.json(visiblePost(updated, Boolean(req.postRole)));
   } catch (err) { 
     console.error(`POLL_VOTE_CRASH:`, err);
     res.status(500).json({ error: err.message }); 
@@ -96,7 +136,7 @@ router.post("/feed/posts/:id/poll/vote", async (req, res) => {
 });
 
 // POST react to a post
-router.post("/feed/posts/:id/react", checkBan, async (req, res) => {
+router.post("/feed/posts/:id/react", postAccess, checkBan, async (req, res) => {
   try {
     const ip = req.ip || req.connection.remoteAddress || "unknown";
     const { id } = req.params;
@@ -117,22 +157,24 @@ router.post("/feed/posts/:id/react", checkBan, async (req, res) => {
     }
 
     if (!postObj) return res.status(404).json({ error: "Post not found" });
+    if (!mayReadPost(postObj, req)) return res.status(403).json({ error: "Log in to react" });
     if (postObj.reactedIPs?.includes(ip)) return res.status(403).json({ error: "Already reacted! ✨" });
 
     const inc = {};
     inc[`reactions.${type}`] = 1;
     
-    const updated = await Model.findByIdAndUpdate(id, { 
+    const updated = await Model.findOneAndUpdate(postUpdateFilter(id, req, Model), {
       $inc: inc,
       $push: { reactedIPs: ip } 
     }, { new: true });
     
-    res.json(updated);
+    if (!updated) return res.status(403).json({ error: "Log in to react" });
+    res.json(visiblePost(updated, Boolean(req.postRole)));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // Other feed routes (comment, view, share) follow...
-router.post("/feed/posts/:id/comment", checkBan, async (req, res) => {
+router.post("/feed/posts/:id/comment", postAccess, checkBan, async (req, res) => {
   try {
     const ip = req.ip || req.connection.remoteAddress || "unknown";
     const { id } = req.params;
@@ -150,13 +192,15 @@ router.post("/feed/posts/:id/comment", checkBan, async (req, res) => {
     }
 
     if (!postObj) return res.status(404).json({ error: "Post not found" });
+    if (!mayReadPost(postObj, req)) return res.status(403).json({ error: "Log in to comment" });
     
     const updated = await Model.findByIdAndUpdate(
       id,
       { $push: { comments: { text, author: author || "Visitor", avatar, ip, votersId: votersId || "unknown", createdAt: new Date() } } },
       { new: true }
     );
-    res.json(updated);
+    if (!updated) return res.status(403).json({ error: "Log in to comment" });
+    res.json(visiblePost(updated, Boolean(req.postRole)));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -320,13 +364,22 @@ const collectionMap = {
   blog_ideas: Models.BlogIdea
 };
 
+const protectedCollections = new Set(["feed", "blog_posts", "users"]);
+router.use("/collection/:name", (req, res, next) => {
+  if (!protectedCollections.has(req.params.name)) return next();
+  const adminOnly = (req.method !== "GET" && req.method !== "HEAD") || req.params.name === "users";
+  postAccess(req, res, () => adminOnly ? requirePostAdmin(req, res, next) : next());
+});
+
 // Generic CRUD endpoints
 router.get("/collection/:name", async (req, res) => {
   const Model = collectionMap[req.params.name];
   if (!Model) return res.status(404).json({ error: "Collection not found" });
   try {
-    const data = await Model.find({});
-    res.json(data);
+    const isPostCollection = Model === Models.Feed || Model === Models.BlogPost;
+    const query = isPostCollection && req.postRole !== "admin" ? publishedPosts(Model) : {};
+    const data = await Model.find(query);
+    res.json(isPostCollection ? data.map((post) => visiblePost(post, Boolean(req.postRole))) : data);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -336,9 +389,11 @@ router.get("/collection/:name/:id", async (req, res) => {
   const Model = collectionMap[req.params.name];
   if (!Model) return res.status(404).json({ error: "Collection not found" });
   try {
-    const data = await Model.findById(req.params.id);
+    const isPostCollection = Model === Models.Feed || Model === Models.BlogPost;
+    const query = isPostCollection && req.postRole !== "admin" ? publishedPosts(Model) : {};
+    const data = await Model.findOne({ _id: req.params.id, ...query });
     if (!data) return res.status(404).json({ error: "Not found" });
-    res.json(data);
+    res.json(isPostCollection ? visiblePost(data, Boolean(req.postRole)) : data);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

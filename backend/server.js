@@ -142,7 +142,7 @@ app.get("/api/sitemap.xml", async (req, res) => {
   let feedUrls = [], storyUrls = [], blogUrls = [];
   try {
     // Fetching more fields: videoUrl, images, image, content
-    const posts = await Models.Feed.find({ published: true }, "_id createdAt caption content images image videoUrl").lean();
+    const posts = await Models.Feed.find({ published: true, membersOnly: { $ne: true } }, "_id createdAt caption content images image videoUrl").lean();
     feedUrls = posts.map(p => {
       const title = p.caption ? `${p.caption.slice(0, 70)} | Sujan Gautam` : "Professional Post | Sujan1919 Software Developer";
       return {
@@ -177,7 +177,7 @@ app.get("/api/sitemap.xml", async (req, res) => {
   } catch (e) { console.error("Sitemap story error:", e.message); }
 
   try {
-    const blogs = await Models.BlogPost.find({ status: "Published" }, "_id title excerpt featuredImage updatedAt createdAt").lean();
+    const blogs = await Models.BlogPost.find({ status: "Published", membersOnly: { $ne: true } }, "_id title excerpt featuredImage updatedAt createdAt").lean();
     blogUrls = blogs.map(b => ({
       url: `${SITE}/post/${b._id}`,
       lastmod: (b.updatedAt || b.createdAt) ? new Date(b.updatedAt || b.createdAt).toISOString().split("T")[0] : today,
@@ -1181,16 +1181,16 @@ app.get("*", async (req, res, next) => {
       const postId = req.query.post;
       if (postId) {
         try {
-          const post = await Models.Feed.findById(postId).lean();
-          if (post) {
+          const post = await Models.Feed.findOne({ _id: postId, published: true }).lean();
+          if (post?.membersOnly) {
+            title = "Log in to view — Sujan Gautam";
+            desc = "Sign in to view this post.";
+            robots = "noindex, nofollow";
+          } else if (post) {
             title = post.seoTitle || (post.caption ? `${post.caption.slice(0, 60)} — Sujan Gautam` : "Feed Post — Sujan Gautam");
             desc = post.seoDescription || (post.caption ? post.caption.slice(0, 155) : "Sujan Gautam feed update");
             ogImage = post.images?.[0] || post.image || "https://res.cloudinary.com/dspj4fc14/image/upload/v1782236706/exact-echo/og/og_feed.jpg";
             canonicalUrl = `https://sujan1919.com.np/feed/?post=${postId}`;
-
-            if (post.membersOnly) {
-              robots = "noindex, nofollow";
-            }
 
             schemaData = {
               "@context": "https://schema.org",
@@ -1260,16 +1260,16 @@ app.get("*", async (req, res, next) => {
       const parts = pathClean.split("/");
       const postId = parts[parts.length - 1];
       try {
-        const post = await Models.Feed.findById(postId).lean();
-        if (post) {
+        const post = await Models.Feed.findOne({ _id: postId, published: true }).lean();
+        if (post?.membersOnly) {
+          title = "Log in to view — Sujan Gautam";
+          desc = "Sign in to view this post.";
+          robots = "noindex, nofollow";
+        } else if (post) {
           title = post.seoTitle || (post.caption ? `${post.caption.slice(0, 60)} — Sujan Gautam` : "Feed Post — Sujan Gautam");
           desc = post.seoDescription || (post.caption ? post.caption.slice(0, 155) : "Sujan Gautam feed update");
           ogImage = post.images?.[0] || post.image || "https://res.cloudinary.com/dspj4fc14/image/upload/v1782236706/exact-echo/og/og_feed.jpg";
           canonicalUrl = `https://sujan1919.com.np/feed/?post=${postId}`;
-
-          if (post.membersOnly) {
-            robots = "noindex, nofollow";
-          }
 
           schemaData = {
             "@context": "https://schema.org",
@@ -1319,8 +1319,12 @@ app.get("*", async (req, res, next) => {
       const parts = pathClean.split("/");
       const slug = parts[parts.length - 1];
       try {
-        const blog = await Models.BlogPost.findOne({ slug }).lean();
-        if (blog) {
+        const blog = await Models.BlogPost.findOne({ slug, status: "Published" }).lean();
+        if (blog?.membersOnly) {
+          title = "Log in to view — Sujan Gautam";
+          desc = "Sign in to read this article.";
+          robots = "noindex, nofollow";
+        } else if (blog) {
           title = blog.seoTitle || `${blog.title} — Sujan Gautam`;
           desc = blog.seoDescription || blog.excerpt || blog.title;
           ogImage = blog.featuredImage || "https://res.cloudinary.com/dspj4fc14/image/upload/v1782236706/exact-echo/og/og_feed.jpg";

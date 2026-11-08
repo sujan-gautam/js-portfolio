@@ -16,7 +16,7 @@ import SEO from "@/components/SEO";
 
 /* ─── Feed Post Page ─────────────────────────────── */
 export const FeedPostPage = () => {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { id } = useParams<{ id: string }>();
   const [post, setPost] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -26,13 +26,13 @@ export const FeedPostPage = () => {
 
   const handleReact = async (type: string) => {
     if (!post) return;
-    if (post.membersOnly && !user) {
+    if (post.locked || (post.membersOnly && !user)) {
       toast.error("Sign in to react to this post");
       return;
     }
     try {
       const updated = await feedAPI.react(post.id || post._id, type);
-      if (updated) setPost(updated);
+      if (updated) setPost((current: any) => ({ ...current, reactions: updated.reactions }));
     } catch (err: any) {
       const msg = err.response?.data?.error || "Failed to react";
       toast.error(msg);
@@ -48,39 +48,47 @@ export const FeedPostPage = () => {
   }, []);
 
   useEffect(() => {
-    setLoading(true);
-    // Try fetching from Feed collection first
-    axios.get(`${API_BASE}/collection/feed/${id}`).then(r => {
-      setPost(r.data);
-      setLoading(false);
-    }).catch(() => {
-      // If not found in Feed, try BlogPosts collection
-      axios.get(`${API_BASE}/collection/blog_posts/${id}`).then(r => {
-        // Map BlogPost fields to FeedPost format for rendering
-        const b = r.data;
-        if (b) {
-          setPost({
-            ...b,
-            type: "article",
-            articleTitle: b.title,
-            articleCover: b.featuredImage,
-            articleContent: b.content
-          });
-        }
-        setLoading(false);
-      }).catch((err) => {
-        console.error("Failed to fetch post from any collection:", err);
-        setLoading(false);
-      });
-    });
-  }, [id]);
+    if (authLoading) return;
+    const controller = new AbortController();
+    const config = { signal: controller.signal };
 
+    const loadPost = async () => {
+      setLoading(true);
+      setPost(null);
+      try {
+        const { data } = await axios.get(`${API_BASE}/collection/feed/${id}`, config);
+        if (!controller.signal.aborted) setPost(data);
+      } catch {
+        if (controller.signal.aborted) return;
+        try {
+          const { data } = await axios.get(`${API_BASE}/collection/blog_posts/${id}`, config);
+          if (!controller.signal.aborted && data) {
+            setPost({
+              ...data,
+              type: "article",
+              articleTitle: data.title,
+              articleCover: data.featuredImage,
+              articleContent: data.content,
+            });
+          }
+        } catch {
+          // Show the not-found state when neither collection contains the post.
+        }
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
+    };
+
+    loadPost();
+    return () => controller.abort();
+  }, [authLoading, id, user?.id]);
 
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-black"><div className="w-8 h-8 border-2 border-[#CB2729] border-t-transparent rounded-full animate-spin" /></div>;
   if (!post) return <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-black text-white"><p className="text-white/40">Post not found</p><Link to="/feed/" className="text-[#CB2729] underline">Back to Feed</Link></div>;
 
   const images = post.images?.length ? post.images : (post.image ? [post.image] : []);
   const isArticle = post.type === "article";
+  const locked = post.locked || (post.membersOnly && !user);
 
   const siteName = settings?.siteName || "Sujan Gautam | Sujan1919";
   const profession = settings?.authorTitle || "Software Developer & UI Architect";
@@ -157,14 +165,14 @@ export const FeedPostPage = () => {
   return (
     <>
       <SEO 
-        title={title} 
-        description={desc} 
+        title={locked ? "Log in to view" : title}
+        description={locked ? "Sign in to view this post." : desc}
         type="article" 
-        image={image} 
-        video={post.videoUrl} 
+        image={locked ? undefined : image}
+        video={locked ? undefined : post.videoUrl}
         url={url} 
         publishedTime={post.createdAt} 
-        structuredData={structuredData} 
+        structuredData={locked ? undefined : structuredData}
       />
     <div className="min-h-screen bg-black font-inter text-white selection:bg-primary/30 selection:text-white">
       <div className={`mx-auto px-5 pb-28 pt-8 sm:px-8 sm:pt-12 ${isArticle ? "max-w-2xl" : "max-w-3xl"}`}>
@@ -178,7 +186,7 @@ export const FeedPostPage = () => {
               <header className="border-b border-border pb-5">
                 <p className="text-sm font-medium text-red-500">{post.category || post.categoryName || "Article"}</p>
                 <h1 className="mt-2 break-words font-poppins text-[clamp(1.75rem,5vw,2.75rem)] font-semibold leading-tight tracking-tight text-foreground">
-                  {post.articleTitle}
+                  {locked ? "Log in to view" : post.articleTitle}
                 </h1>
                 <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
                   <Link to="/about/" rel="author" className="font-medium text-foreground hover:underline">{authorName}</Link>
@@ -187,7 +195,7 @@ export const FeedPostPage = () => {
                 </div>
               </header>
 
-              {post.membersOnly && !user ? (
+              {locked ? (
                 <RestrictedPostPrompt />
               ) : (
                 <>
@@ -209,8 +217,8 @@ export const FeedPostPage = () => {
           ) : (
             <>
               {/* Media */}
-              {images[0] && <img src={images[0]} alt={post.caption || "Post image"} className="w-full rounded-2xl object-cover mb-6 max-h-[60vh] border border-white/5" loading="eager" />}
-              {!images[0] && post.videoUrl && (
+              {!locked && images[0] && <img src={images[0]} alt={post.caption || "Post image"} className="w-full rounded-2xl object-cover mb-6 max-h-[60vh] border border-white/5" loading="eager" />}
+              {!locked && !images[0] && post.videoUrl && (
                 post.videoUrl.includes("youtube.com") || post.videoUrl.includes("youtu.be") ? (
                   <div className="aspect-video w-full rounded-2xl overflow-hidden mb-6 bg-black border border-white/5">
                     <iframe 
@@ -227,9 +235,9 @@ export const FeedPostPage = () => {
 
               {/* Content */}
               <div className="space-y-4">
-                {post.caption && <h1 className="text-2xl font-bold text-white leading-snug">{post.caption}</h1>}
+                {!locked && post.caption && <h1 className="text-2xl font-bold text-white leading-snug">{post.caption}</h1>}
                 
-                {post.membersOnly && !user ? (
+                {locked ? (
                   <RestrictedPostPrompt />
                 ) : (
                   post.content && <p className="text-white/70 leading-relaxed whitespace-pre-wrap">{post.content}</p>
@@ -261,7 +269,7 @@ export const FeedPostPage = () => {
             <ReactionBar post={post} onReact={handleReact} />
           </div>
 
-          {(!post.membersOnly || user) && (
+          {!locked && (
             <CommentSection
               post={{ ...post, id: post.id || post._id || id }}
               onCommentsChange={(comments) => setPost((current: any) => ({ ...current, comments }))}
