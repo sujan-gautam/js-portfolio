@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
-import { ArrowRight, ArrowUpRight, LayoutGrid, List, MessageCircle, X } from "lucide-react";
+import { ArrowRight, ArrowUp, ArrowUpRight, LayoutGrid, List, MessageCircle, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import axios from "axios";
 import { portfolioDB, type PortfolioItem, aboutDB, type AboutData } from "@/lib/adminData";
@@ -234,14 +234,14 @@ Question: ${text}`;
       <section
         aria-label="Projects"
         aria-busy={loading}
-        className={grid ? "grid gap-5 pt-6 sm:grid-cols-2 sm:gap-6" : "divide-y divide-border"}
+        className={grid ? "grid items-start gap-x-3 gap-y-6 pt-5 min-[375px]:grid-cols-2 sm:gap-x-7 sm:gap-y-8" : "divide-y divide-border"}
       >
         {loading ? (
           <>
             <p className="sr-only" role="status">Loading projects</p>
             {Array.from({ length: 3 }, (_, index) => (
-              <div key={index} aria-hidden="true" className={grid ? "space-y-4 rounded-lg border border-border p-4" : "grid items-center gap-5 py-6 md:grid-cols-2 md:gap-9"}>
-                <Skeleton className="aspect-[16/10] w-full" />
+              <div key={index} aria-hidden="true" className={grid ? "space-y-3 border-b border-border pb-4" : "grid items-center gap-5 py-6 md:grid-cols-2 md:gap-9"}>
+                <Skeleton className={grid ? "aspect-video w-full" : "aspect-[16/10] w-full"} />
                 <div className="space-y-3">
                   <Skeleton className="h-6 w-1/2" />
                   <Skeleton className="h-4 w-full" />
@@ -265,7 +265,7 @@ Question: ${text}`;
             />
           ))
         ) : (
-          <p role="status" className="py-8 text-sm text-muted-foreground sm:col-span-2">No projects to show.</p>
+          <p role="status" className="py-8 text-sm text-muted-foreground min-[375px]:col-span-2">No projects to show.</p>
         )}
       </section>
 
@@ -275,42 +275,57 @@ Question: ${text}`;
           <Dialog.Content
             aria-describedby={undefined}
             onCloseAutoFocus={restoreDialogFocus}
-            className="fixed inset-x-4 top-1/2 z-[10001] mx-auto flex max-h-[85dvh] max-w-lg -translate-y-1/2 flex-col rounded-xl border border-border bg-background font-inter text-foreground"
+            className="fixed inset-x-0 bottom-0 z-[10001] mx-auto flex max-h-[85dvh] max-w-md flex-col rounded-t-xl border border-border bg-background font-inter text-foreground sm:inset-x-4 sm:bottom-auto sm:top-1/2 sm:-translate-y-1/2 sm:rounded-xl"
           >
-            <header className="flex shrink-0 items-center justify-between gap-4 border-b border-border px-4 py-2 sm:px-5">
-              <Dialog.Title className="min-w-0 break-words font-semibold">{chatProject?.title}</Dialog.Title>
-              <Dialog.Close aria-label="Close project questions" className={closeClass}><X size={19} aria-hidden="true" /></Dialog.Close>
+            <header className="flex shrink-0 items-center justify-between gap-4 px-4 pt-2 sm:px-5">
+              <Dialog.Title className="min-w-0 break-words font-poppins text-base font-semibold">{chatProject?.title}</Dialog.Title>
+              <Dialog.Close aria-label="Close project questions" className={closeClass}><X size={18} aria-hidden="true" /></Dialog.Close>
             </header>
-            <div aria-live="polite" className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4 sm:px-5">
+            {(messages.length > 0 || asking) && (
+              <div aria-live="polite" className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-3 sm:px-5">
+                {messages.map(({ question: sentQuestion, answer }, index) => (
+                  <div key={index} className="space-y-2 text-sm leading-relaxed">
+                    <p className="ml-auto w-fit max-w-[85%] break-words rounded-lg bg-secondary px-3 py-2">{sentQuestion}</p>
+                    <p className="whitespace-pre-wrap break-words text-muted-foreground">{answer}</p>
+                  </div>
+                ))}
+                {asking && <p role="status" className="text-sm text-muted-foreground">Loading answer…</p>}
+                <div ref={chatEnd} />
+              </div>
+            )}
+            <form onSubmit={submitQuestion} className="shrink-0 px-4 pb-[max(1rem,env(safe-area-inset-bottom,0px))] pt-1 sm:px-5">
+              <label htmlFor="project-question" className="sr-only">Ask about this project</label>
+              <div className="flex items-center gap-1 rounded-lg border border-border bg-card p-1 focus-within:border-white/35">
+                <input
+                  id="project-question"
+                  value={question}
+                  onChange={(event) => setQuestion(event.target.value)}
+                  placeholder="Ask a question…"
+                  className="min-h-11 min-w-0 flex-1 bg-transparent px-2.5 text-base text-foreground outline-none placeholder:text-muted-foreground"
+                />
+                <button
+                  type="submit"
+                  aria-label="Send question"
+                  disabled={!question.trim() || asking}
+                  className="grid size-11 shrink-0 place-items-center rounded-md bg-foreground text-background focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:bg-secondary disabled:text-muted-foreground"
+                >
+                  <ArrowUp size={18} aria-hidden="true" />
+                </button>
+              </div>
               {messages.length === 0 && !asking && (
-                <div className="flex flex-wrap gap-2">
+                <div className="mt-1.5 flex flex-wrap gap-x-4">
                   {["What does it do?", "How was it built?"].map((suggestion) => (
-                    <button key={suggestion} type="button" onClick={() => void ask(suggestion)} className={`${actionClass} border border-border text-muted-foreground hover:bg-secondary hover:text-foreground`}>
+                    <button
+                      key={suggestion}
+                      type="button"
+                      onClick={() => void ask(suggestion)}
+                      className="min-h-9 text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+                    >
                       {suggestion}
                     </button>
                   ))}
                 </div>
               )}
-              {messages.map(({ question: sentQuestion, answer }, index) => (
-                <div key={index} className="space-y-2 border-b border-border pb-4 text-sm leading-relaxed">
-                  <p className="break-words font-medium">{sentQuestion}</p>
-                  <p className="whitespace-pre-wrap break-words text-muted-foreground">{answer}</p>
-                </div>
-              ))}
-              {asking && <p role="status" className="text-sm text-muted-foreground">Loading answer…</p>}
-              <div ref={chatEnd} />
-            </div>
-            <form onSubmit={submitQuestion} className="shrink-0 border-t border-border p-4 sm:px-5">
-              <label htmlFor="project-question" className="mb-2 block text-sm font-medium">Ask about this project</label>
-              <div className="flex gap-2">
-                <input
-                  id="project-question"
-                  value={question}
-                  onChange={(event) => setQuestion(event.target.value)}
-                  className="min-w-0 flex-1 rounded-md border border-border bg-card px-3 text-base focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
-                />
-                <button type="submit" disabled={!question.trim() || asking} className={`${actionClass} bg-foreground text-background disabled:opacity-40`}>Ask</button>
-              </div>
               {chatError && <p role="alert" className="mt-2 text-sm text-red-400">{chatError}</p>}
             </form>
           </Dialog.Content>
@@ -354,48 +369,64 @@ function ProjectRow({ project, grid, onAsk, onPreview }: {
   onPreview: (url: string, trigger: HTMLButtonElement) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [gridOverflow, setGridOverflow] = useState(false);
+  const excerptRef = useRef<HTMLParagraphElement>(null);
   const url = projectUrl(project.link) || projectUrl(project.demoUrl);
   const description = project.description?.trim() || "";
-  const canExpand = description.length > 170;
-  const descriptionText = canExpand && !expanded ? `${description.slice(0, 170).trimEnd()}…` : description;
+  const canExpand = grid ? expanded || gridOverflow : description.length > 170;
+  const descriptionText = !grid && canExpand && !expanded ? `${description.slice(0, 170).trimEnd()}…` : description;
+  const action = grid ? `${projectAction} max-sm:gap-1 max-sm:px-1.5 max-sm:text-xs` : projectAction;
+
+  useEffect(() => {
+    const excerpt = excerptRef.current;
+    if (!grid || expanded || !excerpt) return;
+    const measure = () => setGridOverflow(excerpt.scrollHeight > excerpt.clientHeight + 1);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(excerpt);
+    return () => observer.disconnect();
+  }, [grid, expanded, description]);
 
   return (
     <article className={grid
-      ? "flex min-w-0 flex-col overflow-hidden rounded-lg border border-border bg-card"
+      ? "min-w-0 border-b border-border pb-3"
       : `grid items-center gap-5 py-6 md:gap-9 md:py-8 ${project.image ? "md:grid-cols-2" : ""}`}>
       {project.image && (
         <img
           src={project.image}
           alt=""
           loading="lazy"
-          className={`aspect-[16/10] w-full bg-card object-cover ${grid ? "border-b border-border" : "rounded-lg border border-border"}`}
+          className={`w-full rounded-lg border border-border bg-card ${grid ? "aspect-video object-contain" : "aspect-[16/10] object-cover"}`}
         />
       )}
-      <div className={grid ? "flex min-w-0 flex-1 flex-col p-4 sm:p-5" : "min-w-0"}>
+      <div className={grid ? "min-w-0 pt-3" : "min-w-0"}>
         {project.category && <p className="mb-1.5 text-xs font-medium text-red-500">{project.category}</p>}
-        <h2 className="break-words font-poppins text-xl font-semibold leading-snug tracking-tight sm:text-2xl">{project.title}</h2>
+        <h2 className={`break-words font-poppins font-semibold leading-snug tracking-tight ${grid ? "text-base sm:text-xl" : "text-xl sm:text-2xl"}`}>{project.title}</h2>
         {descriptionText && (
-          <div className="mt-3 max-w-prose break-words text-sm leading-relaxed text-muted-foreground sm:text-base">
-            <p className="whitespace-pre-line"><SmartText text={descriptionText} /></p>
+          <div className={`max-w-prose break-words leading-relaxed text-muted-foreground ${grid ? "mt-2 text-xs sm:text-sm" : "mt-3 text-sm sm:text-base"}`}>
+            <p ref={excerptRef} className={grid && !expanded ? "line-clamp-2" : "whitespace-pre-line"}>
+              {grid && !expanded ? descriptionText : <SmartText text={descriptionText} />}
+            </p>
             {canExpand && (
-              <button type="button" aria-expanded={expanded} onClick={() => setExpanded(!expanded)} className="mt-2 text-sm text-foreground underline-offset-4 hover:underline">
+              <button type="button" aria-expanded={expanded} onClick={() => setExpanded(!expanded)} className={`mt-2 text-foreground underline-offset-4 hover:underline ${grid ? "min-h-8 text-xs sm:text-sm" : "text-sm"}`}>
                 {expanded ? "Show less" : "Read more"}
               </button>
             )}
           </div>
         )}
-        <div className={`-mx-2 flex flex-wrap items-center gap-x-2 gap-y-1 ${grid ? "mt-auto pt-4" : "mt-4"}`}>
+        <div className={`-mx-2 flex flex-wrap items-center gap-y-1 ${grid ? "mt-1 gap-x-1 sm:gap-x-2" : "mt-4 gap-x-2"}`}>
           {url?.startsWith("/") ? (
-            <Link to={url} className={`${projectAction} text-foreground hover:bg-secondary`}>
+            <Link to={url} className={`${action} text-foreground hover:bg-secondary`}>
               View project <ArrowRight size={16} aria-hidden="true" />
             </Link>
           ) : url ? (
-            <button type="button" onClick={(event) => onPreview(url, event.currentTarget)} className={`${projectAction} text-foreground hover:bg-secondary`}>
+            <button type="button" onClick={(event) => onPreview(url, event.currentTarget)} className={`${action} text-foreground hover:bg-secondary`}>
               View project <ArrowUpRight size={16} aria-hidden="true" />
             </button>
           ) : null}
-          <button type="button" onClick={(event) => onAsk(event.currentTarget)} className={`${projectAction} text-muted-foreground hover:bg-secondary hover:text-foreground`}>
-            <MessageCircle size={16} aria-hidden="true" /> Ask about project
+          <button type="button" onClick={(event) => onAsk(event.currentTarget)} aria-label="Ask about project" className={`${action} text-muted-foreground hover:bg-secondary hover:text-foreground`}>
+            <MessageCircle size={16} aria-hidden="true" />
+            {grid ? <><span className="sm:hidden">Ask</span><span className="hidden sm:inline">Ask about project</span></> : "Ask about project"}
           </button>
         </div>
       </div>
