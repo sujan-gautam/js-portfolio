@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
-import { ArrowRight, ArrowUpRight, MessageCircle, X } from "lucide-react";
+import { ArrowRight, ArrowUpRight, LayoutGrid, List, MessageCircle, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import axios from "axios";
 import { portfolioDB, type PortfolioItem, aboutDB, type AboutData } from "@/lib/adminData";
@@ -10,6 +10,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 const actionClass = "inline-flex min-h-11 items-center gap-2 rounded-md px-3 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring";
 const projectAction = "inline-flex min-h-11 items-center gap-1.5 rounded-md px-2 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring";
+const layoutOptions = [
+  { value: "list", label: "List", icon: List },
+  { value: "grid", label: "Grid", icon: LayoutGrid },
+] as const;
 const overlayClass = "fixed inset-0 z-[10000] bg-black/70";
 const closeClass = "grid size-11 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground";
 
@@ -33,6 +37,8 @@ const Portfolio = () => {
   const [about, setAbout] = useState<AboutData | null>(null);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string | null>(null);
+  const [layout, setLayout] = useState<"list" | "grid">("list");
+  const grid = layout === "grid";
   const [preview, setPreview] = useState<{ title: string; url: string } | null>(null);
   const [iframeLoading, setIframeLoading] = useState(false);
   const [chatProject, setChatProject] = useState<PortfolioItem | null>(null);
@@ -189,30 +195,52 @@ Question: ${text}`;
         )}
       </header>
 
-      {showFilters && (
-        <div role="group" aria-label="Filter projects by category" className="flex flex-wrap gap-x-5 border-b border-border">
-          {[null, ...categories].map((category) => (
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-border py-1">
+        {showFilters && (
+          <div role="group" aria-label="Filter projects by category" className="flex flex-wrap gap-x-5">
+            {[null, ...categories].map((category) => (
+              <button
+                key={category ?? "__all"}
+                type="button"
+                onClick={() => setFilter(category)}
+                aria-pressed={filter === category}
+                className={`min-h-11 border-b-2 px-0.5 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring ${
+                  filter === category ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {category ?? "All"}
+              </button>
+            ))}
+          </div>
+        )}
+        <div role="group" aria-label="Project layout" className="ml-auto inline-flex rounded-md border border-border p-0.5">
+          {layoutOptions.map(({ value, label, icon: Icon }) => (
             <button
-              key={category ?? "__all"}
+              key={value}
               type="button"
-              onClick={() => setFilter(category)}
-              aria-pressed={filter === category}
-              className={`min-h-11 border-b-2 px-0.5 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring ${
-                filter === category ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"
+              onClick={() => setLayout(value)}
+              aria-pressed={layout === value}
+              className={`inline-flex min-h-10 items-center gap-1.5 rounded px-2 text-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring ${
+                layout === value ? "bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              {category ?? "All"}
+              <Icon size={16} aria-hidden="true" />
+              {label}
             </button>
           ))}
         </div>
-      )}
+      </div>
 
-      <section aria-label="Projects" aria-busy={loading} className="divide-y divide-border">
+      <section
+        aria-label="Projects"
+        aria-busy={loading}
+        className={grid ? "grid gap-5 pt-6 sm:grid-cols-2 sm:gap-6" : "divide-y divide-border"}
+      >
         {loading ? (
           <>
             <p className="sr-only" role="status">Loading projects</p>
             {Array.from({ length: 3 }, (_, index) => (
-              <div key={index} aria-hidden="true" className="grid items-center gap-5 py-6 md:grid-cols-2 md:gap-9">
+              <div key={index} aria-hidden="true" className={grid ? "space-y-4 rounded-lg border border-border p-4" : "grid items-center gap-5 py-6 md:grid-cols-2 md:gap-9"}>
                 <Skeleton className="aspect-[16/10] w-full" />
                 <div className="space-y-3">
                   <Skeleton className="h-6 w-1/2" />
@@ -227,6 +255,7 @@ Question: ${text}`;
             <ProjectRow
               key={project.id}
               project={project}
+              grid={grid}
               onAsk={(trigger) => openChat(project, trigger)}
               onPreview={(url, trigger) => {
                 dialogTrigger.current = trigger;
@@ -236,7 +265,7 @@ Question: ${text}`;
             />
           ))
         ) : (
-          <p role="status" className="py-8 text-sm text-muted-foreground">No projects to show.</p>
+          <p role="status" className="py-8 text-sm text-muted-foreground sm:col-span-2">No projects to show.</p>
         )}
       </section>
 
@@ -318,8 +347,9 @@ Question: ${text}`;
   );
 };
 
-function ProjectRow({ project, onAsk, onPreview }: {
+function ProjectRow({ project, grid, onAsk, onPreview }: {
   project: PortfolioItem;
+  grid: boolean;
   onAsk: (trigger: HTMLButtonElement) => void;
   onPreview: (url: string, trigger: HTMLButtonElement) => void;
 }) {
@@ -330,16 +360,18 @@ function ProjectRow({ project, onAsk, onPreview }: {
   const descriptionText = canExpand && !expanded ? `${description.slice(0, 170).trimEnd()}…` : description;
 
   return (
-    <article className={`grid items-center gap-5 py-6 md:gap-9 md:py-8 ${project.image ? "md:grid-cols-2" : ""}`}>
+    <article className={grid
+      ? "flex min-w-0 flex-col overflow-hidden rounded-lg border border-border bg-card"
+      : `grid items-center gap-5 py-6 md:gap-9 md:py-8 ${project.image ? "md:grid-cols-2" : ""}`}>
       {project.image && (
         <img
           src={project.image}
           alt=""
           loading="lazy"
-          className="aspect-[16/10] w-full rounded-lg border border-border bg-card object-cover"
+          className={`aspect-[16/10] w-full bg-card object-cover ${grid ? "border-b border-border" : "rounded-lg border border-border"}`}
         />
       )}
-      <div className="min-w-0">
+      <div className={grid ? "flex min-w-0 flex-1 flex-col p-4 sm:p-5" : "min-w-0"}>
         {project.category && <p className="mb-1.5 text-xs font-medium text-red-500">{project.category}</p>}
         <h2 className="break-words font-poppins text-xl font-semibold leading-snug tracking-tight sm:text-2xl">{project.title}</h2>
         {descriptionText && (
@@ -352,7 +384,7 @@ function ProjectRow({ project, onAsk, onPreview }: {
             )}
           </div>
         )}
-        <div className="-mx-2 mt-4 flex flex-wrap items-center gap-x-2 gap-y-1">
+        <div className={`-mx-2 flex flex-wrap items-center gap-x-2 gap-y-1 ${grid ? "mt-auto pt-4" : "mt-4"}`}>
           {url?.startsWith("/") ? (
             <Link to={url} className={`${projectAction} text-foreground hover:bg-secondary`}>
               View project <ArrowRight size={16} aria-hidden="true" />
