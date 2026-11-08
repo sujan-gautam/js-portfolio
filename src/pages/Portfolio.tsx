@@ -1,45 +1,62 @@
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import * as Dialog from "@radix-ui/react-dialog";
+import { ArrowRight, ArrowUpRight, MessageCircle, X } from "lucide-react";
+import { Link } from "react-router-dom";
 import axios from "axios";
-import { portfolioDB, PortfolioItem, aboutDB, AboutData } from "@/lib/adminData";
+import { portfolioDB, type PortfolioItem, aboutDB, type AboutData } from "@/lib/adminData";
 import { API_BASE } from "@/config";
-import { ExternalLink, Globe, X, ShieldCheck, Terminal, Pin, Maximize2, Sparkles, Send, Bot } from "lucide-react";
 import { SmartText } from "@/components/ui/SmartText";
 import { Skeleton } from "@/components/ui/skeleton";
+
+const actionClass = "inline-flex min-h-11 items-center gap-2 rounded-md px-3 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring";
+const projectAction = "inline-flex min-h-11 items-center gap-1.5 rounded-md px-2 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring";
+const overlayClass = "fixed inset-0 z-[10000] bg-black/70";
+const closeClass = "grid size-11 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground";
+
+function projectUrl(value: string) {
+  const url = value?.trim();
+  if (!url) return null;
+  if (url.startsWith("/") && !url.startsWith("//") && !url.includes("\\")) return url;
+
+  const isHttpUrl = /^https?:\/\//i.test(url);
+  if (!isHttpUrl && (url.startsWith("/") || url.includes("://"))) return null;
+  try {
+    const external = new URL(isHttpUrl ? url : `https://${url}`);
+    return external.username || external.password ? null : external.href;
+  } catch {
+    return null;
+  }
+}
 
 const Portfolio = () => {
   const [projects, setProjects] = useState<PortfolioItem[]>([]);
   const [about, setAbout] = useState<AboutData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState("All");
-
-  // AI States
-  const [bubble, setBubble] = useState<{ text: string; options: string[] } | null>(null);
-  const [aiAnswer, setAiAnswer] = useState<{ text: string; typing: boolean } | null>(null);
-  const [followUpQ, setFollowUpQ] = useState("");
-  const [chatHistory, setChatHistory] = useState<{ q: string; a: string }[]>([]);
-  const chatEndRef = useRef<any>(null);
-  const activeProjectRef = useRef<PortfolioItem | null>(null);
-  const hoverTimer = useRef<any>(null);
-
-  // Preview
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [iframeLoading, setIframeLoading] = useState(true);
-
-  const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+  const [filter, setFilter] = useState<string | null>(null);
+  const [preview, setPreview] = useState<{ title: string; url: string } | null>(null);
+  const [iframeLoading, setIframeLoading] = useState(false);
+  const [chatProject, setChatProject] = useState<PortfolioItem | null>(null);
+  const [question, setQuestion] = useState("");
+  const [messages, setMessages] = useState<{ question: string; answer: string }[]>([]);
+  const [asking, setAsking] = useState(false);
+  const [chatError, setChatError] = useState("");
+  const questionRequest = useRef<AbortController | null>(null);
+  const chatEnd = useRef<HTMLDivElement>(null);
+  const dialogTrigger = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
-    Promise.all([portfolioDB.getAll(), aboutDB.get()]).then(([pData, aData]) => {
-      setProjects(pData.filter(item => item.status !== false));
-      setAbout(aData);
+    portfolioDB.getAll().then((data) => {
+      setProjects(data.filter((project) => project.status !== false));
       setLoading(false);
     });
+    aboutDB.get().then(setAbout);
+    return () => questionRequest.current?.abort();
   }, []);
 
   useEffect(() => {
     const siteName = "Sujan Gautam | Sujan1919";
-    const profession = "Software Developer & UI Architect";
-    const title = `Portfolio | ${siteName} | ${profession}`;
-    const desc = "Explore the professional portfolio of Sujan Gautam (sujan1919). High-fidelity Full-Stack projects, UI/UX designs, and scalable web architectures built with React, Node.js, and more.";
+    const title = `Portfolio | ${siteName}`;
+    const desc = "Web apps, websites, and developer tools built by Sujan Gautam.";
     const keywords = "Sujan Gautam Portfolio, Sujan1919 Projects, Full Stack Developer Portfolio, Software Developer Nepal, React Projects, Web Development Portfolio";
     const url = "https://sujan1919.com.np/portfolio/";
 
@@ -96,456 +113,262 @@ const Portfolio = () => {
     el.setAttribute("content", value);
   }
 
-  // Handle global dismissal (scroll or click outside)
   useEffect(() => {
-    const dismiss = (e: any) => {
-      if (!bubble) return;
-      if (e.type === 'click' && e.target.closest('.group\\/bubble')) return;
-      setBubble(null);
-    };
+    chatEnd.current?.scrollIntoView({ block: "nearest" });
+  }, [messages, asking]);
 
-    if (bubble) {
-      window.addEventListener("scroll", dismiss, true);
-      window.addEventListener("click", dismiss, true);
-    }
-    return () => {
-      window.removeEventListener("scroll", dismiss, true);
-      window.removeEventListener("click", dismiss, true);
-    };
-  }, [bubble]);
+  const categories = [...new Set(projects.map((project) => project.category).filter(Boolean))];
+  const showFilters = categories.length > 1 || (categories.length === 1 && projects.some((project) => !project.category));
+  const visibleProjects = filter ? projects.filter((project) => project.category === filter) : projects;
 
-
-  const categories = ["All", ...new Set(projects.map(p => p.category))].filter(Boolean);
-  const filteredProjects = filter === "All" ? projects : projects.filter(p => p.category === filter);
-
-  const openAIPanel = (project: PortfolioItem) => {
-    activeProjectRef.current = project;
-    setChatHistory([]);
-    setAiAnswer(null);
-    setBubble({
-      text: project.title,
-      options: [
-        `What tech does ${project.title} use?`,
-        `What problem does ${project.title} solve?`,
-        `Tell me about ${project.title}.`
-      ]
-    });
+  const openChat = (project: PortfolioItem, trigger: HTMLButtonElement) => {
+    dialogTrigger.current = trigger;
+    setChatProject(project);
+    setMessages([]);
+    setQuestion("");
+    setChatError("");
   };
 
-  const askAI = async (question: string) => {
-    const project = activeProjectRef.current;
-    if (!project) return;
-    setChatHistory(prev => [...prev, { q: question, a: "..." }]);
-    setAiAnswer({ text: "", typing: true });
-    setBubble(null);
+  const closeChat = () => {
+    questionRequest.current?.abort();
+    questionRequest.current = null;
+    setAsking(false);
+    setChatProject(null);
+  };
 
-    const prompt = `You are Sujan Gautam, talking to a visitor about your portfolio project.
-PROJECT DETAILS:
-- Title: ${project.title}
-- Description: ${project.description}
-- Category: ${project.category}
-- Demo Link: ${project.link || project.demoUrl || "Not available"}
-- My Background: ${about?.bio || "Full-stack developer."}
+  const ask = async (value: string) => {
+    const text = value.trim();
+    if (!text || !chatProject || questionRequest.current) return;
+    const controller = new AbortController();
+    questionRequest.current = controller;
+    setAsking(true);
+    setChatError("");
 
-QUESTION: "${question}"
+    const prompt = `Answer this question about Sujan Gautam’s project using the details provided. Keep the answer concise and say when a detail is unavailable.
+Project: ${chatProject.title}
+Description: ${chatProject.description}
+Category: ${chatProject.category || "Unspecified"}
+Link: ${chatProject.link || chatProject.demoUrl || "Unavailable"}
+Author background: ${about?.bio || ""}
+Question: ${text}`;
 
-INSTRUCTIONS: 
-1. If the question is NOT about this specific project, politely redirect by saying "I can only chat about ${project.title} right now!"
-2. Speak exactly like a friendly, humble human being. Do NOT sound like an AI robot.
-3. Keep it extremely simple, clear, and easy to understand. Avoid technical jargon unless asked.
-4. Use a casual, conversational tone (e.g., "I built this to...", "It was a fun challenge").
-5. Keep the response very short (1 to 2 sentences maximum).`;
-
-    let txt = "No info available.";
     try {
-      const res = await axios.post(`${API_BASE}/ai/ask`, { prompt });
-      txt = res.data.answer || txt;
-    } catch (err: any) {
-      console.error("Internal AI Proxy Error:", err);
-      txt = "My mind is a bit foggy... but I loved building this project!";
+      const { data } = await axios.post(`${API_BASE}/ai/ask`, { prompt }, { signal: controller.signal });
+      if (controller.signal.aborted) return;
+      if (typeof data.answer !== "string" || !data.answer.trim()) throw new Error("Empty answer");
+      setMessages((current) => [...current, { question: text, answer: data.answer }]);
+      setQuestion("");
+    } catch {
+      if (!controller.signal.aborted) setChatError("Couldn’t load an answer. Try again.");
+    } finally {
+      if (questionRequest.current === controller) {
+        questionRequest.current = null;
+        setAsking(false);
+      }
     }
-
-    setChatHistory(prev => { const u = [...prev]; u[u.length - 1] = { q: question, a: txt }; return u; });
-    setAiAnswer({ text: txt, typing: false });
-    setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
   };
 
-  const resolveProjectUrl = (url: string): string => {
-    const u = (url || "").trim();
-    if (!u) return "#";
-    // Internal route (starts with /): resolve against main domain
-    if (u.startsWith("/")) return `https://sujan1919.com.np${u}`;
-    // Already a full URL
-    if (u.startsWith("http://") || u.startsWith("https://")) return u;
-    // Bare domain — add https
-    return `https://${u}`;
+  const restoreDialogFocus = (event: Event) => {
+    event.preventDefault();
+    dialogTrigger.current?.focus();
   };
 
-  const openPreview = (url: string) => {
-    const resolved = resolveProjectUrl(url);
-    if (!resolved || resolved === "#") return;
-    const isInternal = (url || "").trim().startsWith("/");
-    if (isInternal) {
-      // Internal route — open directly in a new tab on the main domain
-      window.open(resolved, "_blank", "noopener,noreferrer");
-    } else {
-      // External URL — show in the iframe preview
-      setPreviewUrl(resolved);
-      setIframeLoading(true);
-    }
+  const submitQuestion = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    void ask(question);
   };
 
   return (
-    <div className="min-h-screen text-white pb-40 selection:bg-red-500/30 overflow-x-hidden">
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Gochi+Hand&family=Fira+Code&display=swap');
-        .font-hand { font-family: 'Gochi Hand', cursive; }
-      `}</style>
+    <main className="mx-auto min-h-screen max-w-5xl px-5 pb-28 pt-8 font-inter text-foreground sm:px-8 sm:pt-14">
+      <header className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2 border-b border-border pb-5">
+        <h1 className="font-poppins text-3xl font-semibold tracking-tight sm:text-5xl">Portfolio</h1>
+        {!loading && projects.length > 0 && (
+          <p className="text-sm tabular-nums text-muted-foreground">
+            {visibleProjects.length} {visibleProjects.length === 1 ? "project" : "projects"}
+          </p>
+        )}
+      </header>
 
-      {/* ── Header ─────────────────────────────────── */}
-      <div className="pt-20 pb-8 text-center relative">
-        <div className="relative h-24 mb-6">
-          <span className="absolute inset-0 flex items-center justify-center text-[14vw] font-black opacity-[0.03] uppercase tracking-tighter select-none pointer-events-none">
-            PORTFOLIO
-          </span>
-          <h1 className="absolute inset-0 flex items-center justify-center text-4xl md:text-6xl font-black uppercase tracking-[0.15em]">
-            <span className="sr-only">Sujan Gautam | </span>MY <span className="text-[#CB2729] ml-4">WORK</span>
-          </h1>
-        </div>
-        <div className="w-12 h-[3px] bg-[#CB2729] mx-auto rounded-full mb-10 shadow-[0_0_20px_#CB2729]" />
-
-        {/* Filter pills — only shown when there are multiple categories */}
-        {categories.length > 2 && (
-        <div className="inline-flex bg-white/[0.03] border border-white/[0.06] p-1.5 rounded-full gap-1">
-          {categories.map((cat, i) => (
+      {showFilters && (
+        <div role="group" aria-label="Filter projects by category" className="flex flex-wrap gap-x-5 border-b border-border">
+          {[null, ...categories].map((category) => (
             <button
-              key={i}
-              onClick={() => setFilter(cat)}
-              className={`px-5 py-2 rounded-full text-[11px] font-bold uppercase tracking-[0.15em] transition-all ${
-                filter === cat ? "bg-[#CB2729] text-white shadow-[0_0_12px_rgba(203,39,41,0.4)]" : "text-white/40 hover:text-white"
+              key={category ?? "__all"}
+              type="button"
+              onClick={() => setFilter(category)}
+              aria-pressed={filter === category}
+              className={`min-h-11 border-b-2 px-0.5 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring ${
+                filter === category ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"
               }`}
             >
-              {cat}
+              {category ?? "All"}
             </button>
           ))}
         </div>
-        )}
-      </div>
+      )}
 
-      {/* ── Bento Grid ─────────────────────────────── */}
-      <div className="max-w-6xl mx-auto px-5">
+      <section aria-label="Projects" aria-busy={loading} className="divide-y divide-border">
         {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {Array(6).fill(0).map((_, i) => (
-              <div key={i} className="flex flex-col gap-4">
-                <Skeleton className="h-64 w-full rounded-2xl opacity-10" />
-                <div className="space-y-2 px-2">
-                  <Skeleton className="h-4 w-2/3 opacity-20" />
-                  <Skeleton className="h-3 w-full opacity-10" />
+          <>
+            <p className="sr-only" role="status">Loading projects</p>
+            {Array.from({ length: 3 }, (_, index) => (
+              <div key={index} aria-hidden="true" className="grid items-center gap-5 py-6 md:grid-cols-2 md:gap-9">
+                <Skeleton className="aspect-[16/10] w-full" />
+                <div className="space-y-3">
+                  <Skeleton className="h-6 w-1/2" />
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-3/4" />
                 </div>
               </div>
             ))}
-          </div>
-        ) : filteredProjects.length === 0 ? (
-          <div className="py-40 text-center">
-            <Globe size={48} className="mx-auto text-white/10 mb-4" />
-            <p className="text-white/30 uppercase tracking-[0.3em] text-sm">No projects found</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {filteredProjects.map((project, idx) => (
-              <Reveal key={project.id} delay={idx * 50}>
-                <Card
-                  project={project}
-                  index={idx}
-                  onView={openPreview}
-                  onAsk={() => openAIPanel(project)}
-                />
-              </Reveal>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* ── Whisper Bar ────────────────────────────── */}
-      <div className="hidden md:flex fixed bottom-20 left-1/2 -translate-x-1/2 z-[1000] px-6 py-2.5 bg-[#111]/90 backdrop-blur-xl border border-white/[0.06] rounded-full items-center gap-3 shadow-xl">
-        <div className="w-1.5 h-1.5 bg-[#CB2729] rounded-full animate-pulse" />
-        <span className="text-[11px] text-white/30 uppercase tracking-[0.2em] whitespace-nowrap">
-          Hover 3s or double-click to probe AI
-        </span>
-      </div>
-
-      {/* ── AI Suggestion Bubble ────────────────────── */}
-      {bubble && (
-        <div className="fixed inset-0 z-[10001] flex items-end md:items-center justify-center p-0 md:p-4">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setBubble(null)} />
-          <div className="relative w-auto max-w-[85vw] md:max-w-sm bg-[#050505] border border-white/10 rounded-2xl md:rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 group/bubble">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.05]">
-              <div className="flex items-center gap-2.5">
-                <div className="w-6 h-6 rounded-lg bg-[#CB2729]/20 flex items-center justify-center">
-                  <Bot size={12} className="text-[#CB2729]" />
-                </div>
-                <div>
-                  <p className="text-[12px] font-bold text-white mb-0.5">{bubble.text}</p>
-                  <p className="text-[9px] text-white/20 uppercase tracking-widest">AI Insight</p>
-                </div>
-              </div>
-              <button onClick={() => setBubble(null)} className="text-white/20 hover:text-white transition-colors">
-                <X size={14} />
-              </button>
-            </div>
-            <div className="p-2 space-y-1">
-              {bubble.options.map((opt, i) => (
-                <button
-                  key={i}
-                  onClick={() => askAI(opt)}
-                  className="w-full text-left px-4 py-2.5 rounded-xl bg-transparent hover:bg-white/[0.03] text-[12px] text-white/40 hover:text-white transition-all flex items-center justify-between group"
-                >
-                  <span>{opt}</span>
-                  <Send size={10} className="text-white/10 group-hover:text-[#CB2729] transition-colors ml-2 shrink-0" />
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── AI Chat Drawer ──────────────────────────── */}
-      {(aiAnswer !== null || chatHistory.length > 0) && (
-        <div className="fixed inset-0 z-[10002] flex justify-end items-end md:items-stretch">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => { setAiAnswer(null); setChatHistory([]); }} />
-          <div className="relative w-full md:max-w-sm bg-[#0f0f0f] md:border-l border-t md:border-t-0 border-white/[0.07] flex flex-col h-[85vh] md:h-full md:rounded-none rounded-t-3xl shadow-2xl animate-in slide-in-from-bottom md:slide-in-from-right duration-500">
-            {/* Header */}
-            <div className="shrink-0">
-              {activeProjectRef.current?.image && (
-                <div className="h-24 overflow-hidden relative">
-                  <img src={activeProjectRef.current.image} className="w-full h-full object-cover opacity-30" />
-                  <div className="absolute inset-0 bg-gradient-to-b from-transparent to-[#0f0f0f]" />
-                </div>
-              )}
-              <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.06]">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-7 h-7 rounded-xl bg-[#CB2729]/20 flex items-center justify-center">
-                    <Bot size={14} className="text-[#CB2729]" />
-                  </div>
-                  <div>
-                    <p className="text-[13px] font-semibold text-white">{activeProjectRef.current?.title}</p>
-                    <p className="text-[9px] text-[#CB2729]/60 uppercase tracking-widest">Shree ai</p>
-                  </div>
-                </div>
-                <button onClick={() => { setAiAnswer(null); setChatHistory([]); }} className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center hover:bg-[#CB2729] transition-all group">
-                  <X size={14} className="text-white/40 group-hover:text-white" />
-                </button>
-              </div>
-            </div>
-
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto px-5 py-5 space-y-4">
-              {chatHistory.length === 0 && (
-                <div className="flex gap-2.5 items-start">
-                  <div className="w-6 h-6 rounded-full bg-[#CB2729]/20 flex items-center justify-center shrink-0 mt-0.5">
-                    <Bot size={12} className="text-[#CB2729] animate-pulse" />
-                  </div>
-                  <div className="bg-white/[0.04] rounded-2xl rounded-tl-none px-4 py-3">
-                    <div className="flex gap-1.5">{[0,1,2].map(i => <div key={i} className="w-1.5 h-1.5 bg-white/30 rounded-full animate-bounce" style={{ animationDelay: `${i*120}ms` }} />)}</div>
-                  </div>
-                </div>
-              )}
-              {chatHistory.map((item, i) => (
-                <div key={i} className="space-y-2">
-                  <div className="flex justify-end">
-                    <div className="bg-[#CB2729]/15 border border-[#CB2729]/20 rounded-2xl rounded-br-none px-4 py-2.5 max-w-[82%]">
-                      <p className="text-[12px] text-white/90 leading-relaxed">{item.q}</p>
-                    </div>
-                  </div>
-                  <div className="flex gap-2.5 items-start">
-                    <div className="w-6 h-6 rounded-full bg-[#CB2729]/20 flex items-center justify-center shrink-0 mt-0.5">
-                      <Bot size={12} className="text-[#CB2729]" />
-                    </div>
-                    <div className="bg-white/[0.04] border border-white/[0.06] rounded-2xl rounded-tl-none px-4 py-2.5 max-w-[82%]">
-                      {item.a === "..." ? (
-                        <div className="flex gap-1.5">{[0,1,2].map(j => <div key={j} className="w-1.5 h-1.5 bg-white/30 rounded-full animate-bounce" style={{ animationDelay: `${j*120}ms` }} />)}</div>
-                      ) : (
-                        <p className="text-[12px] text-white/70 leading-relaxed">{item.a}</p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
-              <div ref={chatEndRef} />
-            </div>
-
-            {/* Input */}
-            <div className="shrink-0 px-4 py-4 border-t border-white/[0.06]">
-              <form
-                onSubmit={e => { e.preventDefault(); if (followUpQ.trim()) { askAI(followUpQ.trim()); setFollowUpQ(""); } }}
-                className="flex items-center gap-2 bg-white/[0.04] border border-white/[0.07] focus-within:border-[#CB2729]/40 rounded-2xl px-4 py-2.5 transition-all"
-              >
-                <input
-                  autoFocus
-                  type="text"
-                  value={followUpQ}
-                  onChange={e => setFollowUpQ(e.target.value)}
-                  placeholder={`Ask about ${activeProjectRef.current?.title}...`}
-                  className="flex-1 bg-transparent text-[12px] text-white placeholder-white/20 outline-none"
-                />
-                <button
-                  type="submit"
-                  disabled={!followUpQ.trim()}
-                  className="w-7 h-7 rounded-xl bg-[#CB2729] disabled:bg-white/5 disabled:cursor-not-allowed flex items-center justify-center transition-all shrink-0"
-                >
-                  <Send size={11} className="text-white" />
-                </button>
-              </form>
-              <p className="text-[9px] text-white/15 text-center mt-2 uppercase tracking-[0.2em]">Only answers about this project</p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Project Preview Browser ─────────────────── */}
-      {previewUrl && (
-        <div className="fixed inset-0 z-[10003] bg-black flex flex-col">
-          <div className="h-12 bg-[#111] border-b border-white/[0.06] flex items-center px-4 gap-3 shrink-0">
-            {/* Traffic lights */}
-            <div className="flex gap-1.5 shrink-0 group/dots">
-              <button onClick={() => setPreviewUrl(null)} title="Close" className="w-3 h-3 bg-red-500 rounded-full hover:bg-red-400 transition-colors flex items-center justify-center">
-                <X size={6} className="text-red-900 opacity-0 group-hover/dots:opacity-100 transition-opacity" />
-              </button>
-              <a href={previewUrl} target="_blank" rel="noopener noreferrer" title="Open in New Tab" className="w-3 h-3 bg-yellow-400 rounded-full hover:bg-yellow-300 transition-colors flex items-center justify-center">
-                <ExternalLink size={6} className="text-yellow-900 opacity-0 group-hover/dots:opacity-100 transition-opacity" />
-              </a>
-              <a href={previewUrl} target="_blank" rel="noopener noreferrer" title="Full Screen" className="w-3 h-3 bg-green-500 rounded-full hover:bg-green-400 transition-colors flex items-center justify-center">
-                <Maximize2 size={6} className="text-green-900 opacity-0 group-hover/dots:opacity-100 transition-opacity" />
-              </a>
-            </div>
-            {/* Address bar */}
-            <div className="flex-1 bg-black/60 h-8 rounded-lg border border-white/[0.06] flex items-center px-3 gap-2 min-w-0">
-              <ShieldCheck size={11} className="text-green-500/50 shrink-0" />
-              <span className="text-[11px] text-white/30 truncate">{previewUrl}</span>
-            </div>
-            {/* Close button */}
-            <button
-              onClick={() => setPreviewUrl(null)}
-              className="shrink-0 flex items-center gap-1.5 bg-[#CB2729] hover:bg-red-500 active:scale-95 transition-all px-3 py-1.5 rounded-lg"
-            >
-              <X size={13} className="text-white" />
-              <span className="text-[11px] font-bold text-white uppercase tracking-wider">Close</span>
-            </button>
-          </div>
-          <div className="flex-1 bg-white relative overflow-hidden">
-            <iframe
-              src={previewUrl}
-              className={`w-full h-full border-none transition-opacity duration-500 ${iframeLoading ? "opacity-0" : "opacity-100"}`}
-              onLoad={() => setIframeLoading(false)}
+          </>
+        ) : visibleProjects.length > 0 ? (
+          visibleProjects.map((project) => (
+            <ProjectRow
+              key={project.id}
+              project={project}
+              onAsk={(trigger) => openChat(project, trigger)}
+              onPreview={(url, trigger) => {
+                dialogTrigger.current = trigger;
+                setIframeLoading(true);
+                setPreview({ title: project.title, url });
+              }}
             />
-            {iframeLoading && (
-              <div className="absolute inset-0 bg-[#0a0a0a] flex flex-col items-center justify-center gap-4">
-                <div className="w-8 h-8 border-2 border-[#CB2729]/30 border-t-[#CB2729] rounded-full animate-spin" />
-                <p className="text-[10px] uppercase tracking-[0.3em] text-white/20">Loading preview...</p>
+          ))
+        ) : (
+          <p role="status" className="py-8 text-sm text-muted-foreground">No projects to show.</p>
+        )}
+      </section>
+
+      <Dialog.Root open={Boolean(chatProject)} onOpenChange={(open) => { if (!open) closeChat(); }}>
+        <Dialog.Portal>
+          <Dialog.Overlay className={overlayClass} />
+          <Dialog.Content
+            aria-describedby={undefined}
+            onCloseAutoFocus={restoreDialogFocus}
+            className="fixed inset-x-4 top-1/2 z-[10001] mx-auto flex max-h-[85dvh] max-w-lg -translate-y-1/2 flex-col rounded-xl border border-border bg-background font-inter text-foreground"
+          >
+            <header className="flex shrink-0 items-center justify-between gap-4 border-b border-border px-4 py-2 sm:px-5">
+              <Dialog.Title className="min-w-0 break-words font-semibold">{chatProject?.title}</Dialog.Title>
+              <Dialog.Close aria-label="Close project questions" className={closeClass}><X size={19} aria-hidden="true" /></Dialog.Close>
+            </header>
+            <div aria-live="polite" className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4 sm:px-5">
+              {messages.length === 0 && !asking && (
+                <div className="flex flex-wrap gap-2">
+                  {["What does it do?", "How was it built?"].map((suggestion) => (
+                    <button key={suggestion} type="button" onClick={() => void ask(suggestion)} className={`${actionClass} border border-border text-muted-foreground hover:bg-secondary hover:text-foreground`}>
+                      {suggestion}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {messages.map(({ question: sentQuestion, answer }, index) => (
+                <div key={index} className="space-y-2 border-b border-border pb-4 text-sm leading-relaxed">
+                  <p className="break-words font-medium">{sentQuestion}</p>
+                  <p className="whitespace-pre-wrap break-words text-muted-foreground">{answer}</p>
+                </div>
+              ))}
+              {asking && <p role="status" className="text-sm text-muted-foreground">Loading answer…</p>}
+              <div ref={chatEnd} />
+            </div>
+            <form onSubmit={submitQuestion} className="shrink-0 border-t border-border p-4 sm:px-5">
+              <label htmlFor="project-question" className="mb-2 block text-sm font-medium">Ask about this project</label>
+              <div className="flex gap-2">
+                <input
+                  id="project-question"
+                  value={question}
+                  onChange={(event) => setQuestion(event.target.value)}
+                  className="min-w-0 flex-1 rounded-md border border-border bg-card px-3 text-base focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+                />
+                <button type="submit" disabled={!question.trim() || asking} className={`${actionClass} bg-foreground text-background disabled:opacity-40`}>Ask</button>
+              </div>
+              {chatError && <p role="alert" className="mt-2 text-sm text-red-400">{chatError}</p>}
+            </form>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
+
+      <Dialog.Root open={Boolean(preview)} onOpenChange={(open) => { if (!open) setPreview(null); }}>
+        <Dialog.Portal>
+          <Dialog.Overlay className={overlayClass} />
+          <Dialog.Content
+            aria-describedby={undefined}
+            onCloseAutoFocus={restoreDialogFocus}
+            className="fixed inset-0 z-[10001] flex flex-col overflow-hidden border border-border bg-background font-inter text-foreground sm:inset-x-4 sm:inset-y-[6vh] sm:mx-auto sm:max-w-5xl sm:rounded-xl"
+          >
+            <header className="flex shrink-0 flex-wrap items-center justify-between gap-x-4 border-b border-border px-4 py-2">
+              <Dialog.Title className="min-w-0 break-words text-sm font-semibold">{preview?.title}</Dialog.Title>
+              <div className="ml-auto flex items-center">
+                <a href={preview?.url} target="_blank" rel="noopener noreferrer" className={`${actionClass} text-muted-foreground hover:text-foreground`}>
+                  Open in new tab <ArrowUpRight size={16} aria-hidden="true" />
+                </a>
+                <Dialog.Close aria-label="Close project preview" className={closeClass}><X size={19} aria-hidden="true" /></Dialog.Close>
+              </div>
+            </header>
+            {preview && (
+              <div className="relative min-h-0 flex-1 bg-background">
+                <iframe title={`Preview of ${preview.title}`} src={preview.url} className="size-full border-0 bg-white" onLoad={() => setIframeLoading(false)} />
+                {iframeLoading && <p role="status" className="absolute inset-0 grid place-items-center bg-background text-sm text-muted-foreground">Loading preview…</p>}
               </div>
             )}
-          </div>
-        </div>
-      )}
-    </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
+    </main>
   );
 };
 
-// ── Card Component ────────────────────────────────────────
-const Card = ({ project, index, onView, onAsk }: {
+function ProjectRow({ project, onAsk, onPreview }: {
   project: PortfolioItem;
-  index: number;
-  onView: (url: string) => void;
-  onAsk: () => void;
-}) => {
-  const hoverTimer = useRef<any>(null);
+  onAsk: (trigger: HTMLButtonElement) => void;
+  onPreview: (url: string, trigger: HTMLButtonElement) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const url = projectUrl(project.link) || projectUrl(project.demoUrl);
+  const description = project.description?.trim() || "";
+  const canExpand = description.length > 170;
+  const descriptionText = canExpand && !expanded ? `${description.slice(0, 170).trimEnd()}…` : description;
 
-  const startHover = () => { 
-    const delay = window.innerWidth < 768 ? 1200 : 3000;
-    hoverTimer.current = setTimeout(onAsk, delay); 
-  }; 
-  const endHover = () => clearTimeout(hoverTimer.current);
-
-  const shared = {
-    onMouseEnter: startHover,
-    onMouseLeave: endHover,
-    onDoubleClick: onAsk,
-  };
-
-  // Clean minimal card for all projects
   return (
-    <div {...shared} className="group bg-[#111] border border-white/[0.06] rounded-3xl overflow-hidden cursor-pointer transition-colors duration-300 hover:border-[#CB2729]/40 hover:bg-[#141414]">
-      <div className="relative h-52 overflow-hidden">
-        <img src={project.image} alt={`${project.title} - Sujan Gautam Portfolio`} className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity duration-300" />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#111] via-[#111]/40 to-transparent" />
-        <div className="absolute top-4 left-4">
-          <span className="bg-white/10 backdrop-blur-md border border-white/10 text-white/80 text-[10px] font-bold uppercase tracking-[0.15em] px-3 py-1.5 rounded-full shadow-lg">
-            {project.category || "Project"}
-          </span>
+    <article className={`grid items-center gap-5 py-6 md:gap-9 md:py-8 ${project.image ? "md:grid-cols-2" : ""}`}>
+      {project.image && (
+        <img
+          src={project.image}
+          alt=""
+          loading="lazy"
+          className="aspect-[16/10] w-full rounded-lg border border-border bg-card object-cover"
+        />
+      )}
+      <div className="min-w-0">
+        {project.category && <p className="mb-1.5 text-xs font-medium text-red-500">{project.category}</p>}
+        <h2 className="break-words font-poppins text-xl font-semibold leading-snug tracking-tight sm:text-2xl">{project.title}</h2>
+        {descriptionText && (
+          <div className="mt-3 max-w-prose break-words text-sm leading-relaxed text-muted-foreground sm:text-base">
+            <p className="whitespace-pre-line"><SmartText text={descriptionText} /></p>
+            {canExpand && (
+              <button type="button" aria-expanded={expanded} onClick={() => setExpanded(!expanded)} className="mt-2 text-sm text-foreground underline-offset-4 hover:underline">
+                {expanded ? "Show less" : "Read more"}
+              </button>
+            )}
+          </div>
+        )}
+        <div className="-mx-2 mt-4 flex flex-wrap items-center gap-x-2 gap-y-1">
+          {url?.startsWith("/") ? (
+            <Link to={url} className={`${projectAction} text-foreground hover:bg-secondary`}>
+              View project <ArrowRight size={16} aria-hidden="true" />
+            </Link>
+          ) : url ? (
+            <button type="button" onClick={(event) => onPreview(url, event.currentTarget)} className={`${projectAction} text-foreground hover:bg-secondary`}>
+              View project <ArrowUpRight size={16} aria-hidden="true" />
+            </button>
+          ) : null}
+          <button type="button" onClick={(event) => onAsk(event.currentTarget)} className={`${projectAction} text-muted-foreground hover:bg-secondary hover:text-foreground`}>
+            <MessageCircle size={16} aria-hidden="true" /> Ask about project
+          </button>
         </div>
       </div>
-      <div className="p-6">
-        <h3 className="text-[18px] font-bold text-white mb-2 tracking-tight line-clamp-1" title={project.title}>{project.title}</h3>
-        <p className="text-white/40 text-[13px] leading-relaxed mb-6 min-h-[60px]">
-          <ReadMore text={project.description} limit={90} dark />
-        </p>
-        <div className="flex items-center justify-between pt-2 border-t border-white/[0.04]">
-          <button onClick={() => onView(project.link || project.demoUrl)} className="text-[#CB2729] text-[11px] font-bold uppercase tracking-[0.2em] flex items-center gap-1.5 hover:text-white transition-colors">
-            View Live <ExternalLink size={13} />
-          </button>
-          <button onClick={onAsk} className="text-white/20 hover:text-[#CB2729] transition-colors" title="Ask AI about this project">
-            <Sparkles size={14} />
-          </button>
-        </div>
-      </div>
-    </div>
+    </article>
   );
-};
-
-// ── ReadMore Component ───────────────────────────────────
-const ReadMore = ({
-  text, limit = 90, className = "", dark = false
-}: { text: string; limit?: number; className?: string; dark?: boolean }) => {
-  const [open, setOpen] = useState(false);
-  if (!text) return null;
-  const isLong = text.length > limit;
-  return (
-    <span className={className}>
-      {isLong && !open ? (
-        text.slice(0, limit).trimEnd() + "…"
-      ) : (
-        <SmartText text={text} />
-      )}
-      {isLong && (
-        <button
-          onClick={e => { e.stopPropagation(); setOpen(p => !p); }}
-          className={`ml-1.5 text-[10px] font-bold uppercase tracking-wider underline underline-offset-2 transition-opacity hover:opacity-100 opacity-60 ${
-            dark ? "text-white" : "text-black"
-          }`}
-        >
-          {open ? "less" : "more"}
-        </button>
-      )}
-    </span>
-  );
-};
-
-// ── Reveal Wrapper ────────────────────────────────────────
-const Reveal = ({ children, delay = 0 }: { children: React.ReactNode; delay?: number }) => {
-  const [vis, setVis] = useState(false);
-  const ref = useRef<any>(null);
-  useEffect(() => {
-    const ob = new IntersectionObserver(([e]) => { if (e.isIntersecting) setTimeout(() => setVis(true), delay); }, { threshold: 0.05 });
-    if (ref.current) ob.observe(ref.current);
-    return () => ob.disconnect();
-  }, [delay]);
-  return (
-    <div ref={ref} className={`transition-all duration-700 ease-out ${vis ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}>
-      {children}
-    </div>
-  );
-};
+}
 
 export default Portfolio;
-
