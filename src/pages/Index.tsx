@@ -77,22 +77,25 @@ const Index = () => {
           )}
           {featured && <FeaturedProject key={featured.id} project={featured} />}
           {otherProjects.length > 0 && (
-            <ul aria-label="More projects" className="mt-3 divide-y divide-border border-b border-border">
-              {otherProjects.map((project) => (
-                <li key={project.id}>
-                  <ProjectLink project={project} className={`${workLink} group grid min-h-14 grid-cols-[3.5rem_minmax(0,1fr)_auto] items-center gap-3 py-2 text-sm sm:grid-cols-[4rem_minmax(0,1fr)_auto]`}>
-                    <span aria-hidden="true" className="aspect-video overflow-hidden rounded border border-border bg-card">
-                      {project.image && <img src={project.image} alt="" loading="lazy" className="size-full object-cover object-top" onError={(event) => { event.currentTarget.hidden = true; }} />}
-                    </span>
-                    <span className="break-words font-medium group-hover:underline group-hover:underline-offset-4">{project.title}</span>
-                    <span className="flex items-center gap-4 text-muted-foreground">
-                      {project.category && <span className="hidden text-xs sm:inline">{project.category}</span>}
-                      <ArrowRight size={16} aria-hidden="true" className="group-hover:text-foreground" />
-                    </span>
-                  </ProjectLink>
-                </li>
-              ))}
-            </ul>
+            <div className="mt-5">
+              <h3 id="more-projects" className="mb-2 text-xs font-medium text-muted-foreground">More projects</h3>
+              <ul aria-labelledby="more-projects" className="divide-y divide-border rounded-lg border border-border">
+                {otherProjects.map((project) => (
+                  <li key={project.id}>
+                    <ProjectLink project={project} className={`${workLink} group grid min-h-14 grid-cols-[3.5rem_minmax(0,1fr)_auto] items-center gap-3 px-3 py-2 text-sm transition-colors hover:bg-card sm:grid-cols-[4rem_minmax(0,1fr)_auto]`}>
+                      <span aria-hidden="true" className="aspect-video overflow-hidden rounded border border-border bg-card">
+                        {project.image && <img src={project.image} alt="" loading="lazy" className="size-full object-cover object-top" onError={(event) => { event.currentTarget.hidden = true; }} />}
+                      </span>
+                      <span className="break-words font-medium">{project.title}</span>
+                      <span className="flex items-center gap-4 text-muted-foreground">
+                        {project.category && <span className="hidden text-xs sm:inline">{project.category}</span>}
+                        <ArrowRight size={16} aria-hidden="true" className="group-hover:text-foreground" />
+                      </span>
+                    </ProjectLink>
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
         </section>
         <section aria-labelledby="home-feed" className="min-w-0 lg:col-start-1 lg:row-start-2">
@@ -102,9 +105,7 @@ const Index = () => {
               Open feed <ArrowRight size={14} aria-hidden="true" />
             </Link>
           </div>
-          <div className="-mx-4 -mt-2">
-            <StoriesSection showLabel={false} />
-          </div>
+          <StoriesSection showLabel={false} compact />
         </section>
       </main>
     </>
@@ -119,7 +120,7 @@ function FeaturedProject({ project }: { project: PortfolioItem }) {
     : project.description?.trim().split("\n")[0];
 
   return (
-    <article aria-labelledby="home-feature" className="overflow-hidden rounded-lg border border-border bg-card">
+    <article aria-labelledby="home-feature" className="group relative overflow-hidden rounded-lg border border-border bg-card transition-colors hover:border-muted-foreground/50">
       {showImage && (
         <img
           src={project.image}
@@ -129,14 +130,15 @@ function FeaturedProject({ project }: { project: PortfolioItem }) {
           fetchPriority="high"
         />
       )}
-      <div className="gap-4 px-4 pb-2 pt-4 sm:flex sm:items-center sm:justify-between sm:px-5 sm:py-4">
+      <div className="flex items-center justify-between gap-3 px-4 py-4 sm:gap-5 sm:px-5">
         <div className="min-w-0">
           <p className="mb-1 text-xs font-medium text-red-400">Featured project</p>
           <h3 id="home-feature" className="break-words font-poppins text-lg font-semibold leading-tight tracking-tight sm:text-xl">{project.title}</h3>
           {description && <p className="mt-1.5 line-clamp-3 max-w-prose break-words text-sm leading-relaxed text-muted-foreground">{description}</p>}
         </div>
-        <ProjectLink project={project} className={`${workLink} inline-flex min-h-11 shrink-0 items-center gap-2 text-sm font-medium hover:underline hover:underline-offset-4`}>
-          View project <ArrowRight size={16} aria-hidden="true" />
+        <ProjectLink project={project} className="grid size-10 shrink-0 place-items-center rounded-full border border-border text-muted-foreground transition-colors after:absolute after:inset-0 after:rounded-lg after:content-[''] focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-inset focus-visible:after:ring-ring group-hover:border-muted-foreground/50 group-hover:text-foreground">
+          <span className="sr-only">View project</span>
+          <ArrowRight size={18} aria-hidden="true" />
         </ProjectLink>
       </div>
     </article>

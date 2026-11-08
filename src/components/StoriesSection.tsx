@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import YouTube from "react-youtube";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import SEO from "@/components/SEO";
-import { ChevronLeft, ChevronRight, Play, Pause, Loader2, Send, MessageSquare, X, UserCheck, Music, Star, Volume2, VolumeX, Lock, ExternalLink, BarChart2, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Play, Pause, Loader2, Send, MessageSquare, X, UserCheck, Music, Star, Volume2, VolumeX, Lock, ExternalLink, BarChart2, Plus, Images } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import axios from "axios";
@@ -25,7 +25,10 @@ const storyAnimations = `
   }
 `;
 
-const StoriesSection = ({ showLabel = true }: { showLabel?: boolean }) => {
+const compactRow = "group flex min-h-14 w-full items-center gap-2.5 rounded-md px-2 py-2 text-left transition-colors hover:bg-secondary focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring disabled:cursor-wait";
+const compactArtwork = "relative grid size-9 shrink-0 place-items-center overflow-hidden rounded border border-border bg-background text-muted-foreground";
+
+const StoriesSection = ({ showLabel = true, compact = false }: { showLabel?: boolean; compact?: boolean }) => {
   const { user } = useAuth();
   const [stories, setStories] = useState<StoryItem[]>([]);
   const [music, setMusic] = useState<MusicItem[]>([]);
@@ -158,6 +161,11 @@ const StoriesSection = ({ showLabel = true }: { showLabel?: boolean }) => {
   const isFirstStoryRestricted = hasStories && stories[0].isMembersOnly && !user;
   const storyImage = hasStories ? getMediaUrl(stories[0].image, stories[0].isMembersOnly || false) : "";
   const currentViewerStory = hasStories ? stories[storyIndex] : null;
+  const playbackIcon = !isBgPlayerReady
+    ? <Loader2 size={12} className="animate-spin" aria-hidden="true" />
+    : isPlayingBg
+      ? <Pause size={12} fill="currentColor" aria-hidden="true" />
+      : <Play size={12} fill="currentColor" className="translate-x-px" aria-hidden="true" />;
 
   const togglePlayBg = () => {
     if (!bgPlayer) return;
@@ -340,7 +348,7 @@ const StoriesSection = ({ showLabel = true }: { showLabel?: boolean }) => {
   if (!isLoading && !hasStories && !hasMusic) return null;
 
   return (
-    <div className="px-4 py-4 relative">
+    <div className={compact ? "relative" : "relative px-4 py-4"}>
       <style>{storyAnimations}</style>
       {storyViewerOpen && currentViewerStory && (
         <SEO 
@@ -395,15 +403,29 @@ const StoriesSection = ({ showLabel = true }: { showLabel?: boolean }) => {
         <p className="mb-4 text-xs font-bold uppercase tracking-[0.2em] text-white">Stories:</p>
       )}
 
-      <div className="flex items-end gap-4">
+      <div className={compact ? "divide-y divide-border rounded-lg border border-border bg-card p-1" : "flex items-end gap-4"}>
         {isLoading ? (
-          <div className="flex gap-4">
-            <Skeleton className="w-16 h-16 rounded-full opacity-20 border border-white/5" />
-            <Skeleton className="h-10 w-28 rounded-xl opacity-10" />
-          </div>
+          compact ? <Skeleton className="h-14 w-full" /> : (
+            <div className="flex gap-4">
+              <Skeleton className="w-16 h-16 rounded-full opacity-20 border border-white/5" />
+              <Skeleton className="h-10 w-28 rounded-xl opacity-10" />
+            </div>
+          )
         ) : (
           <>
-            {hasStories && (
+            {hasStories && (compact ? (
+              <button type="button" onClick={openStories} className={compactRow}>
+                <span aria-hidden="true" className={compactArtwork}>
+                  {isFirstStoryRestricted ? <Lock size={15} /> : <Images size={15} />}
+                  {storyImage && <img src={storyImage} alt="" className="absolute inset-0 size-full object-cover" onError={(event) => { event.currentTarget.hidden = true; }} />}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-xs font-medium">{(!isFirstStoryRestricted && stories[0].title?.trim()) || "Latest story"}</span>
+                  <span className="mt-0.5 block text-[11px] text-muted-foreground">{isFirstStoryRestricted ? "Members only" : "View story"}</span>
+                </span>
+                <ChevronRight size={15} className="shrink-0 text-muted-foreground group-hover:text-foreground" aria-hidden="true" />
+              </button>
+            ) : (
               <button onClick={openStories} className="relative w-16 h-16 rounded-full p-[3px] flex-shrink-0 cursor-pointer group focus:outline-none">
                 <div className="absolute inset-0 rounded-full border-2 border-dashed border-[#CB2729] animate-[spin_8s_linear_infinite] group-hover:border-solid transition-all" />
                 <div className="w-full h-full rounded-full overflow-hidden border-4 border-background bg-secondary relative z-10 shadow-md flex items-center justify-center">
@@ -423,7 +445,7 @@ const StoriesSection = ({ showLabel = true }: { showLabel?: boolean }) => {
                   {isFirstStoryRestricted ? 'Member' : 'Live'}
                 </div>
               </button>
-            )}
+            ))}
 
             {currentBgMusic && (
               <>
@@ -433,32 +455,42 @@ const StoriesSection = ({ showLabel = true }: { showLabel?: boolean }) => {
                   disabled={!isBgPlayerReady}
                   aria-label={`${isPlayingBg ? "Pause" : "Play"} ${musicTitle}`}
                   title={musicArtist ? `${musicTitle} — ${musicArtist}` : musicTitle}
-                  className="group/note flex w-32 flex-col items-center gap-2 rounded-xl font-inter focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring disabled:cursor-wait"
+                  className={compact ? compactRow : "group/note flex w-32 flex-col items-center gap-2 rounded-xl font-inter focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring disabled:cursor-wait"}
                 >
-                  <span className="relative z-10 block w-full rounded-xl border border-border bg-secondary px-2.5 py-1.5 text-center transition-colors group-hover/note:bg-muted">
-                    <span className="line-clamp-2 break-words text-xs font-semibold leading-tight text-foreground">{musicTitle}</span>
-                    {musicArtist && <span className="mt-0.5 block truncate text-[11px] leading-tight text-muted-foreground">{musicArtist}</span>}
-                    <span aria-hidden="true" className="absolute -bottom-1 left-8 size-2 rounded-full bg-secondary transition-colors group-hover/note:bg-muted" />
-                    <span aria-hidden="true" className="absolute -bottom-2.5 left-10 size-1 rounded-full bg-secondary transition-colors group-hover/note:bg-muted" />
-                  </span>
-                  <span className="relative flex size-14 items-center justify-center rounded-full border border-border bg-card">
-                    <Music size={20} className="text-muted-foreground" aria-hidden="true" />
-                    <img
-                      src={`https://i.ytimg.com/vi/${currentBgMusic.videoId}/mqdefault.jpg`}
-                      alt=""
-                      className="absolute inset-0 size-full rounded-full object-cover"
-                      onError={(event) => { event.currentTarget.hidden = true; }}
-                    />
-                    <span className="absolute -bottom-0.5 -right-0.5 flex size-6 items-center justify-center rounded-full bg-primary text-primary-foreground ring-2 ring-background">
-                      {!isBgPlayerReady ? (
-                        <Loader2 size={12} className="animate-spin" aria-hidden="true" />
-                      ) : isPlayingBg ? (
-                        <Pause size={12} fill="currentColor" aria-hidden="true" />
-                      ) : (
-                        <Play size={12} fill="currentColor" className="translate-x-px" aria-hidden="true" />
-                      )}
-                    </span>
-                  </span>
+                  {compact ? (
+                    <>
+                      <span aria-hidden="true" className={compactArtwork}>
+                        <Music size={15} />
+                        <img src={`https://i.ytimg.com/vi/${currentBgMusic.videoId}/mqdefault.jpg`} alt="" className="absolute inset-0 size-full object-cover" onError={(event) => { event.currentTarget.hidden = true; }} />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-[11px] text-muted-foreground">Music note</span>
+                        <span className="mt-0.5 line-clamp-2 text-xs font-medium leading-snug">{musicTitle}</span>
+                      </span>
+                      <span className="shrink-0 text-muted-foreground group-hover:text-foreground">{playbackIcon}</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="relative z-10 block w-full rounded-xl border border-border bg-secondary px-2.5 py-1.5 text-center transition-colors group-hover/note:bg-muted">
+                        <span className="line-clamp-2 break-words text-xs font-semibold leading-tight text-foreground">{musicTitle}</span>
+                        {musicArtist && <span className="mt-0.5 block truncate text-[11px] leading-tight text-muted-foreground">{musicArtist}</span>}
+                        <span aria-hidden="true" className="absolute -bottom-1 left-8 size-2 rounded-full bg-secondary transition-colors group-hover/note:bg-muted" />
+                        <span aria-hidden="true" className="absolute -bottom-2.5 left-10 size-1 rounded-full bg-secondary transition-colors group-hover/note:bg-muted" />
+                      </span>
+                      <span className="relative flex size-14 items-center justify-center rounded-full border border-border bg-card">
+                        <Music size={20} className="text-muted-foreground" aria-hidden="true" />
+                        <img
+                          src={`https://i.ytimg.com/vi/${currentBgMusic.videoId}/mqdefault.jpg`}
+                          alt=""
+                          className="absolute inset-0 size-full rounded-full object-cover"
+                          onError={(event) => { event.currentTarget.hidden = true; }}
+                        />
+                        <span className="absolute -bottom-0.5 -right-0.5 flex size-6 items-center justify-center rounded-full bg-primary text-primary-foreground ring-2 ring-background">
+                          {playbackIcon}
+                        </span>
+                      </span>
+                    </>
+                  )}
                 </button>
 
                 <div className="pointer-events-none absolute size-0 opacity-0" aria-hidden="true">
