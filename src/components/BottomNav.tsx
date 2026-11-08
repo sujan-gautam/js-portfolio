@@ -1,4 +1,4 @@
-import { BriefcaseBusiness, House, Mail, Rows3, UserRound } from "lucide-react";
+import { BriefcaseBusiness, House, LayoutGrid, Mail, UserRound } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 
@@ -6,7 +6,7 @@ const navItems = [
   { icon: House, label: "Home", path: "/" },
   { icon: UserRound, label: "About", path: "/about/" },
   { icon: BriefcaseBusiness, label: "Portfolio", path: "/portfolio/" },
-  { icon: Rows3, label: "Feed", path: "/feed/" },
+  { icon: LayoutGrid, label: "Feed", path: "/feed/" },
   { icon: Mail, label: "Contact", path: "/contact/" },
 ];
 
