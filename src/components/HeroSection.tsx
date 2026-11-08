@@ -1,14 +1,14 @@
 import { useEffect, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
-import { ArrowRight, ChevronLeft, ChevronRight, Images, X } from "lucide-react";
+import { ArrowRight, ChevronLeft, ChevronRight, Images, MapPin, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import { aboutDB, slidersDB, type AboutData, type SliderItem } from "@/lib/adminData";
 import { Skeleton } from "@/components/ui/skeleton";
 import profileFallback from "@/assets/profile-3.jpg";
 
-const masthead = "flex flex-wrap items-center justify-between gap-x-6 gap-y-3 pb-6 pt-7 sm:pb-8 sm:pt-10";
-const avatar = "size-14 shrink-0 rounded-xl border border-border bg-card object-cover object-[50%_40%] sm:size-[72px]";
-const action = "inline-flex min-h-11 items-center gap-1.5 rounded-md px-3 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring";
+const masthead = "min-w-0 border-b border-border pb-4 lg:col-start-1 lg:row-start-1 lg:pb-5";
+const avatar = "size-14 shrink-0 rounded-lg border border-border bg-card object-cover object-[50%_40%] sm:size-16 lg:size-[88px]";
+const action = "inline-flex min-h-11 items-center gap-1.5 rounded-md px-2.5 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring";
 const galleryButton = "grid size-11 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring";
 
 export default function HeroSection() {
@@ -46,10 +46,10 @@ export default function HeroSection() {
     return (
       <header className={masthead} aria-busy="true">
         <p role="status" className="sr-only">Loading profile</p>
-        <div aria-hidden="true" className="flex items-center gap-3 sm:gap-4">
+        <div aria-hidden="true" className="flex items-center gap-3 lg:flex-col lg:items-start lg:gap-4">
           <Skeleton className={avatar} />
           <div className="space-y-2">
-            <Skeleton className="h-7 w-36 sm:w-48" />
+            <Skeleton className="h-7 w-36" />
             <Skeleton className="h-4 w-32" />
           </div>
         </div>
@@ -71,7 +71,7 @@ export default function HeroSection() {
 
   return (
     <header className={masthead}>
-      <div className="flex min-w-0 items-center gap-3 sm:gap-4">
+      <div className="flex min-w-0 items-center gap-3 sm:gap-4 lg:flex-col lg:items-start">
         {slides.length > 1 ? (
           <Dialog.Root onOpenChange={(open) => { if (open) setCurrentSlide(0); }}>
             <Dialog.Trigger aria-label="Open photo gallery" className="group relative shrink-0 rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
@@ -117,14 +117,19 @@ export default function HeroSection() {
           </Dialog.Root>
         ) : portrait}
         <div className="min-w-0">
-          <h1 className="break-words font-poppins text-[clamp(1.5rem,5vw,2.5rem)] font-semibold leading-tight tracking-tight">{name}</h1>
-          {about.title && <p className="mt-0.5 break-words text-sm text-muted-foreground sm:mt-1">{about.title}</p>}
+          <h1 className="break-words font-poppins text-2xl font-semibold leading-tight tracking-tight sm:text-[1.75rem]">{name}</h1>
+          {about.title && <p className="mt-0.5 break-words text-sm text-muted-foreground lg:mt-1">{about.title}</p>}
+          {about.address && (
+            <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground lg:mt-3">
+              <MapPin size={13} className="shrink-0" aria-hidden="true" /> {about.address}
+            </p>
+          )}
         </div>
       </div>
-      <div className="-ml-3 flex flex-wrap items-center gap-1 sm:ml-0">
-        <Link to="/about/" className={`${action} text-muted-foreground hover:bg-secondary hover:text-foreground`}>About me</Link>
-        <Link to="/contact/" className={`${action} text-muted-foreground hover:bg-secondary hover:text-foreground`}>
-          Get in touch <ArrowRight size={14} aria-hidden="true" />
+      <div className="-ml-2.5 mt-2 flex flex-wrap items-center gap-x-1 lg:mt-3">
+        <Link to="/about/" className={`${action} text-muted-foreground hover:bg-secondary hover:text-foreground`}>About</Link>
+        <Link to="/contact/" className={`${action} text-foreground hover:bg-secondary`}>
+          Contact <ArrowRight size={14} aria-hidden="true" />
         </Link>
       </div>
     </header>
