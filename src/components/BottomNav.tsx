@@ -37,11 +37,11 @@ const BottomNav = () => {
   return (
     <nav
       aria-label="Main navigation"
-      className={`pointer-events-none fixed inset-x-0 bottom-0 z-[8888] px-3 pb-[calc(0.5rem_+_env(safe-area-inset-bottom,0px))] font-poppins motion-safe:transition-[transform,opacity] motion-safe:duration-200 ${
+      className={`pointer-events-none fixed inset-x-0 bottom-0 z-[8888] pl-[max(0.625rem,env(safe-area-inset-left,0px))] pr-[max(0.625rem,env(safe-area-inset-right,0px))] pb-[calc(0.5rem_+_env(safe-area-inset-bottom,0px))] font-poppins motion-safe:transition-[transform,opacity] motion-safe:duration-200 ${
         hidden ? "translate-y-full opacity-0 focus-within:translate-y-0 focus-within:opacity-100" : ""
       }`}
     >
-      <div className="pointer-events-auto mx-auto grid w-full max-w-[31rem] grid-cols-5 gap-1 rounded-[20px] border border-white/10 bg-nav/95 p-1 shadow-[0_8px_28px_rgba(0,0,0,0.45)] backdrop-blur-lg">
+      <div className="pointer-events-auto mx-auto grid w-full max-w-sm grid-cols-5 gap-0.5 rounded-[22px] border border-white/10 bg-nav/95 p-1 shadow-[0_8px_28px_rgba(0,0,0,0.45)] backdrop-blur-lg sm:flex sm:w-fit sm:max-w-none sm:gap-1 sm:rounded-full sm:p-1.5">
         {navItems.map(({ icon: Icon, label, path }) => {
           const active = activePath === path;
 
@@ -50,12 +50,12 @@ const BottomNav = () => {
               key={path}
               to={path}
               aria-current={active ? "page" : undefined}
-              className={`flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-[15px] px-1 text-center text-[11px] font-medium leading-none transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring ${
-                active ? "bg-primary/[0.12] text-foreground" : "text-nav-foreground hover:bg-white/5 hover:text-foreground"
+              className={`flex min-h-14 min-w-0 flex-col items-center justify-center gap-1.5 rounded-[17px] px-0.5 text-center text-[clamp(0.625rem,3.1vw,0.6875rem)] font-medium leading-none transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring sm:min-h-11 sm:flex-row sm:gap-2 sm:rounded-full sm:px-3.5 sm:text-xs ${
+                active ? "bg-primary/[0.14] text-foreground ring-1 ring-inset ring-primary/20" : "text-nav-foreground hover:bg-white/5 hover:text-foreground"
               }`}
             >
-              <Icon size={21} strokeWidth={active ? 2 : 1.75} aria-hidden="true" className={active ? "text-red-500" : undefined} />
-              <span>{label}</span>
+              <Icon size={21} strokeWidth={active ? 2 : 1.75} aria-hidden="true" className={`shrink-0 sm:size-[18px] ${active ? "text-red-500" : ""}`} />
+              <span className="whitespace-nowrap">{label}</span>
             </Link>
           );
         })}
