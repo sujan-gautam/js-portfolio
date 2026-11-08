@@ -5,6 +5,7 @@ import { Link } from "react-router-dom";
 import axios from "axios";
 import { portfolioDB, type PortfolioItem, aboutDB, type AboutData } from "@/lib/adminData";
 import { API_BASE } from "@/config";
+import { projectUrl } from "@/lib/projectUrl";
 import { SmartText } from "@/components/ui/SmartText";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -16,21 +17,6 @@ const layoutOptions = [
 ] as const;
 const overlayClass = "fixed inset-0 z-[10000] bg-black/70";
 const closeClass = "grid size-11 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground";
-
-function projectUrl(value: string) {
-  const url = value?.trim();
-  if (!url) return null;
-  if (url.startsWith("/") && !url.startsWith("//") && !url.includes("\\")) return url;
-
-  const isHttpUrl = /^https?:\/\//i.test(url);
-  if (!isHttpUrl && (url.startsWith("/") || url.includes("://"))) return null;
-  try {
-    const external = new URL(isHttpUrl ? url : `https://${url}`);
-    return external.username || external.password ? null : external.href;
-  } catch {
-    return null;
-  }
-}
 
 const Portfolio = () => {
   const [projects, setProjects] = useState<PortfolioItem[]>([]);

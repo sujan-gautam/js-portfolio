@@ -1,161 +1,110 @@
-import { useState, useEffect } from "react";
-import { Phone, ChevronLeft, ChevronRight } from "lucide-react";
-import { aboutDB, slidersDB, SliderItem, AboutData } from "@/lib/adminData";
-import axios from "axios";
-import { API_BASE } from "@/config";
+import { useEffect, useState } from "react";
+import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
+import { Link } from "react-router-dom";
+import { aboutDB, slidersDB, type AboutData, type SliderItem } from "@/lib/adminData";
 import { SmartText } from "@/components/ui/SmartText";
 import { Skeleton } from "@/components/ui/skeleton";
+import profileFallback from "@/assets/profile-3.jpg";
 
-const HeroSection = () => {
+type HomeProfile = Partial<AboutData> & { description?: string };
+
+const heroLayout = "grid items-center gap-7 pb-8 pt-8 md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] md:gap-10 md:pb-12 md:pt-14";
+const portraitClass = "aspect-[16/10] w-full rounded-lg border border-border bg-card object-cover object-[50%_40%] md:aspect-[4/3]";
+const actionClass = "inline-flex min-h-11 items-center gap-2 rounded-md px-3.5 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring";
+const photoButtonClass = "grid size-11 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring";
+
+export default function HeroSection() {
+  const [about, setAbout] = useState<HomeProfile>({});
+  const [slides, setSlides] = useState<SliderItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [about, setAbout] = useState<AboutData | null>(null);
-  const [sliders, setSliders] = useState<SliderItem[]>([]);
-  const [visitorCount, setVisitorCount] = useState(56170);
-
-  const [isLoading, setIsLoading] = useState(true);
+  const [failedImage, setFailedImage] = useState<string>();
 
   useEffect(() => {
-    async function loadData() {
-      setIsLoading(true);
-      // Fetch About & Sliders simultaneously
-      const [aboutData, slidersData] = await Promise.all([
-        aboutDB.get(),
-        slidersDB.getAll()
-      ]);
-      setAbout(aboutData);
-      setSliders(slidersData.filter(s => s.active));
-
-      // Fetch real visitor count without corrupting tracking
-      try {
-        const res = await axios.get(`${API_BASE}/analytics/insights?period=all`);
-        if (res.data?.summary?.totalVisits) {
-          setVisitorCount(res.data.summary.totalVisits);
-        }
-      } catch (err) {
-        console.error("Failed to fetch visitor count", err);
+    let active = true;
+    Promise.all([aboutDB.get(), slidersDB.getAll()]).then(([profile, images]) => {
+      if (!active) return;
+      setAbout(profile ?? {});
+      if (Array.isArray(images)) {
+        setSlides(images.filter((image) => image.active && image.image).sort((a, b) => a.order - b.order));
       }
-      setIsLoading(false);
-    }
-    loadData();
+      setLoading(false);
+    });
+    return () => { active = false; };
   }, []);
 
-  const sortedSliders = sliders.sort((a,b) => a.order - b.order);
-  const visuals = sortedSliders.map(s => s.image);
-  const totalSlides = visuals.length;
+  const name = about.name?.trim() || "Sujan Gautam";
+  const description = about.description?.trim() || about.bio?.trim();
+  const slide = slides[currentSlide];
+  const useSlideImage = slide && slide.image !== failedImage;
+  const changePhoto = (direction: number) => {
+    setCurrentSlide((index) => (index + direction + slides.length) % slides.length);
+  };
 
-  const prev = () => setCurrentSlide((c) => (c === 0 ? totalSlides - 1 : c - 1));
-  const next = () => setCurrentSlide((c) => (c === totalSlides - 1 ? 0 : c + 1));
-
-  // Determine roles based on comma separated string or fallback
-  const roleText = about?.title || "Web Designer / Developer";
-  const roles = roleText.split(/[/&,]/).map(r => r.trim()).filter(Boolean);
-
-  if (isLoading) {
+  if (loading) {
     return (
-      <section className="flex flex-col lg:flex-row items-center gap-8 lg:gap-16 px-6 py-10 max-w-6xl mx-auto">
-        <Skeleton className="w-72 h-72 md:w-96 md:h-96 rounded-full border-2 border-white/5 opacity-20" />
-        <div className="flex-1 space-y-6 w-full">
-          <Skeleton className="h-14 w-3/4 mx-auto lg:mx-0 opacity-20" />
-          <Skeleton className="h-8 w-1/2 mx-auto lg:mx-0 opacity-10" />
-          <div className="space-y-4 pt-4">
-            <Skeleton className="h-4 w-full opacity-10" />
-            <Skeleton className="h-4 w-full opacity-10" />
-            <Skeleton className="h-4 w-5/6 opacity-10" />
-          </div>
-          <div className="flex gap-4 pt-8 justify-center lg:justify-start">
-            <Skeleton className="h-12 w-40 rounded-full opacity-20" />
-          </div>
+      <header className={heroLayout} aria-busy="true">
+        <p role="status" className="sr-only">Loading profile</p>
+        <div className="space-y-4" aria-hidden="true">
+          <Skeleton className="h-12 w-3/4" />
+          <Skeleton className="h-5 w-1/2" />
+          <Skeleton className="h-20 w-full" />
         </div>
-      </section>
+        <Skeleton className={portraitClass} />
+      </header>
     );
   }
 
   return (
-    <section className="flex flex-col lg:flex-row items-center gap-12 lg:gap-20 px-6 py-20 max-w-5xl mx-auto min-h-[70vh]">
-      {/* Circular Image Carousel */}
-      {totalSlides > 0 && (
-        <div className="relative flex-shrink-0">
-          <div className="w-72 h-72 md:w-96 md:h-96 rounded-full overflow-hidden border-2 border-border relative">
-            <div className="absolute inset-0 bg-background/20 z-10 pointer-events-none" />
-            <img
-              src={sortedSliders[currentSlide]?.image}
-              alt={about?.name || "Sujan"}
-              className="w-full h-full object-cover transition-all duration-700"
-              style={{ filter: sortedSliders[currentSlide]?.filter || 'none' }}
-              width={800}
-              height={800}
-            />
-          </div>
-
-          {/* Nav arrows only if there are multiple slides */}
-          {totalSlides > 1 && (
-            <>
-              <button
-                onClick={prev}
-                className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <ChevronLeft size={28} />
-              </button>
-              <button
-                onClick={next}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <ChevronRight size={28} />
-              </button>
-
-              {/* Dots */}
-              <div className="flex justify-center gap-2 mt-3">
-                {visuals.map((_, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setCurrentSlide(i)}
-                    className={`w-2 h-2 rounded-full transition-colors ${
-                      i === currentSlide ? "bg-foreground" : "bg-muted-foreground/40"
-                    }`}
-                  />
-                ))}
-              </div>
-            </>
-          )}
-        </div>
-      )}
-
-      {/* Text Content */}
-      <div className="flex-1 text-center lg:text-left">
-        <h1 className="text-4xl md:text-5xl font-bold text-hero-title mb-2">
-          Hi, I Am <span className="sr-only">Sujan Gautam | </span>{about?.name?.split(" ")[0] || "Sujan"}
+    <header className={heroLayout}>
+      <div className="min-w-0">
+        <div aria-hidden="true" className="mb-4 h-0.5 w-9 rounded-full bg-primary" />
+        <h1 className="break-words font-poppins text-[clamp(2.25rem,5vw,4rem)] font-semibold leading-[1.08] tracking-tight">
+          {name}
         </h1>
-        <h2 className="text-2xl md:text-3xl font-semibold mb-6">
-          {roles.map((role, idx) => (
-            <span key={idx}>
-              <span className="text-hero-role">{role}</span>
-              {idx < roles.length - 1 && <span className="text-hero-role"> / </span>}
-            </span>
-          ))}
-        </h2>
-        <div className="text-hero-desc leading-relaxed text-sm md:text-base mb-8 max-w-lg whitespace-pre-wrap">
-          <SmartText text={(about as any)?.description || about?.bio || "Hey! I Am A Part Time Web Designer & Developer (Frontend/Backend), Currently Learning Flutter. I Can Perfectly Design/Develop A Website For Any Orgs, Institutes, Offices Or For A Particular Person. Check Out My Portfolios From The Sections Below And Do Check Our Social Media Handles @Webwithfreelancer🙌!"} />
-        </div>
-
-        {/* Hire Me Button */}
-        <a 
-          href={`tel:${about?.phone || ""}`} 
-          className="inline-flex items-center gap-3 bg-hire text-white px-6 py-3 rounded-full font-semibold text-lg hover:brightness-110 active:scale-95 transition-all cursor-pointer shadow-lg shadow-primary/20"
-        >
-          Hire Me
-          <span className="w-9 h-9 rounded-full bg-white flex items-center justify-center shadow-sm">
-            <Phone size={18} className="text-primary fill-primary" />
-          </span>
-        </a>
-
-        {/* Visitor Count */}
-        <div className="mt-6">
-          <p className="text-muted-foreground text-sm">Total Visitors:</p>
-          <p className="text-foreground font-medium">{visitorCount.toLocaleString()}</p>
+        {about.title && <p className="mt-2 text-base font-medium text-muted-foreground sm:text-lg">{about.title}</p>}
+        {description && (
+          <p className="mt-5 max-w-[54ch] whitespace-pre-line break-words text-sm leading-relaxed text-foreground/80 sm:text-base [&_a]:text-red-400 [&_a]:underline [&_a]:underline-offset-2">
+            <SmartText text={description} />
+          </p>
+        )}
+        <div className="mt-5 flex flex-wrap items-center gap-2">
+          <Link to="/portfolio/" className={`${actionClass} border border-border bg-card hover:bg-secondary`}>
+            View portfolio <ArrowRight size={16} aria-hidden="true" />
+          </Link>
+          <Link to="/contact/" className={`${actionClass} text-muted-foreground hover:bg-secondary hover:text-foreground`}>
+            Get in touch
+          </Link>
         </div>
       </div>
-    </section>
-  );
-};
 
-export default HeroSection;
+      <figure className="min-w-0">
+        <img
+          src={useSlideImage ? slide.image : profileFallback}
+          alt={(useSlideImage && slide.title?.trim()) || name}
+          className={portraitClass}
+          style={useSlideImage && slide.filter ? { filter: slide.filter } : undefined}
+          onError={() => { if (useSlideImage) setFailedImage(slide.image); }}
+          fetchPriority="high"
+          width={800}
+          height={600}
+        />
+        {slides.length > 1 && (
+          <figcaption className="mt-1 flex items-center justify-between">
+            <span className="pl-1 text-xs tabular-nums text-muted-foreground" aria-live="polite">
+              <span className="sr-only">Photo </span>{currentSlide + 1} of {slides.length}
+            </span>
+            <div className="flex">
+              <button type="button" aria-label="Previous photo" onClick={() => changePhoto(-1)} className={photoButtonClass}>
+                <ChevronLeft size={18} aria-hidden="true" />
+              </button>
+              <button type="button" aria-label="Next photo" onClick={() => changePhoto(1)} className={photoButtonClass}>
+                <ChevronRight size={18} aria-hidden="true" />
+              </button>
+            </div>
+          </figcaption>
+        )}
+      </figure>
+    </header>
+  );
+}
