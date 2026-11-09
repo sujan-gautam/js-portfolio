@@ -121,6 +121,7 @@ export default function About() {
 
   const name = profile.name || "Sujan Gautam";
   const bio = profile.bio || profile.description;
+  const bioParts = bio?.split(/(?<![\w@])(@?WebWithFreelancer)\b/gi);
   const details = [
     { label: "Location", value: profile.address },
     { label: "Languages", value: profile.languages || profile.language },
@@ -206,7 +207,19 @@ Question: ${text}`;
           onError={() => { if (portrait !== profileFallback) setPortrait(profileFallback); }}
         />
         <div className="col-span-2 min-w-0 sm:col-span-1">
-          {bio && <p className="max-w-prose whitespace-pre-line break-words text-base leading-relaxed text-foreground/85 sm:text-lg">{bio}</p>}
+          {bioParts && (
+            <p className="max-w-prose whitespace-pre-line break-words text-base leading-relaxed text-foreground/85 sm:text-lg">
+              {bioParts.map((part, index) => index % 2 === 0 ? part : (
+                <a
+                  key={index}
+                  href="https://www.instagram.com/webwithfreelancer/"
+                  className="text-red-400 underline underline-offset-4 hover:text-red-300"
+                >
+                  @webwithfreelancer
+                </a>
+              ))}
+            </p>
+          )}
           {(profile.cvUrl || bio) && (
             <div className="mt-4 flex flex-wrap gap-2">
               {profile.cvUrl && (
