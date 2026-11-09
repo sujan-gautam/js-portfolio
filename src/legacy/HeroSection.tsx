@@ -1,0 +1,155 @@
+import { useState, useEffect } from "react";
+import { Phone, ChevronLeft, ChevronRight } from "lucide-react";
+import { aboutDB, slidersDB, SliderItem, AboutData } from "@/lib/adminData";
+import axios from "axios";
+import { API_BASE } from "@/config";
+import { SmartText } from "@/components/ui/SmartText";
+import { Skeleton } from "@/components/ui/skeleton";
+
+const HeroSection = () => {
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [about, setAbout] = useState<AboutData | null>(null);
+  const [sliders, setSliders] = useState<SliderItem[]>([]);
+  const [visitorCount, setVisitorCount] = useState<number | null>(null);
+
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    axios.get(`${API_BASE}/analytics/visitor-count`).then(({ data }) => {
+      if (Number.isSafeInteger(data?.visitorCount) && data.visitorCount >= 0) setVisitorCount(data.visitorCount);
+    }).catch(() => {});
+    async function loadData() {
+      setIsLoading(true);
+      // Fetch About & Sliders simultaneously
+      const [aboutData, slidersData] = await Promise.all([
+        aboutDB.get(),
+        slidersDB.getAll()
+      ]);
+      setAbout(aboutData);
+      setSliders(slidersData.filter(s => s.active));
+
+      setIsLoading(false);
+    }
+    loadData();
+  }, []);
+
+  const sortedSliders = sliders.sort((a,b) => a.order - b.order);
+  const visuals = sortedSliders.map(s => s.image);
+  const totalSlides = visuals.length;
+
+  const prev = () => setCurrentSlide((c) => (c === 0 ? totalSlides - 1 : c - 1));
+  const next = () => setCurrentSlide((c) => (c === totalSlides - 1 ? 0 : c + 1));
+
+  // Determine roles based on comma separated string or fallback
+  const roleText = about?.title || "Web Designer / Developer";
+  const roles = roleText.split(/[/&,]/).map(r => r.trim()).filter(Boolean);
+
+  if (isLoading) {
+    return (
+      <section className="flex flex-col lg:flex-row items-center gap-8 lg:gap-16 px-6 py-10 max-w-6xl mx-auto">
+        <Skeleton className="w-72 h-72 md:w-96 md:h-96 rounded-full border-2 border-white/5 opacity-20" />
+        <div className="flex-1 space-y-6 w-full">
+          <Skeleton className="h-14 w-3/4 mx-auto lg:mx-0 opacity-20" />
+          <Skeleton className="h-8 w-1/2 mx-auto lg:mx-0 opacity-10" />
+          <div className="space-y-4 pt-4">
+            <Skeleton className="h-4 w-full opacity-10" />
+            <Skeleton className="h-4 w-full opacity-10" />
+            <Skeleton className="h-4 w-5/6 opacity-10" />
+          </div>
+          <div className="flex gap-4 pt-8 justify-center lg:justify-start">
+            <Skeleton className="h-12 w-40 rounded-full opacity-20" />
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section className="flex flex-col lg:flex-row items-center gap-12 lg:gap-20 px-6 py-20 max-w-5xl mx-auto min-h-[70vh]">
+      {/* Circular Image Carousel */}
+      {totalSlides > 0 && (
+        <div className="relative flex-shrink-0">
+          <div className="w-72 h-72 md:w-96 md:h-96 rounded-full overflow-hidden border-2 border-border relative">
+            <div className="absolute inset-0 bg-background/20 z-10 pointer-events-none" />
+            <img
+              src={sortedSliders[currentSlide]?.image}
+              alt={about?.name || "Sujan"}
+              className="w-full h-full object-cover transition-all duration-700"
+              style={{ filter: sortedSliders[currentSlide]?.filter || 'none' }}
+              width={800}
+              height={800}
+            />
+          </div>
+
+          {/* Nav arrows only if there are multiple slides */}
+          {totalSlides > 1 && (
+            <>
+              <button
+                onClick={prev}
+                className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <ChevronLeft size={28} />
+              </button>
+              <button
+                onClick={next}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <ChevronRight size={28} />
+              </button>
+
+              {/* Dots */}
+              <div className="flex justify-center gap-2 mt-3">
+                {visuals.map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setCurrentSlide(i)}
+                    className={`w-2 h-2 rounded-full transition-colors ${
+                      i === currentSlide ? "bg-foreground" : "bg-muted-foreground/40"
+                    }`}
+                  />
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Text Content */}
+      <div className="flex-1 text-center lg:text-left">
+        <h1 className="text-4xl md:text-5xl font-bold text-hero-title mb-2">
+          Hi, I Am <span className="sr-only">Sujan Gautam | </span>{about?.name?.split(" ")[0] || "Sujan"}
+        </h1>
+        <h2 className="text-2xl md:text-3xl font-semibold mb-6">
+          {roles.map((role, idx) => (
+            <span key={idx}>
+              <span className="text-hero-role">{role}</span>
+              {idx < roles.length - 1 && <span className="text-hero-role"> / </span>}
+            </span>
+          ))}
+        </h2>
+        <div className="text-hero-desc leading-relaxed text-sm md:text-base mb-8 max-w-lg whitespace-pre-wrap">
+          <SmartText text={(about as any)?.description || about?.bio || "Hey! I Am A Part Time Web Designer & Developer (Frontend/Backend), Currently Learning Flutter. I Can Perfectly Design/Develop A Website For Any Orgs, Institutes, Offices Or For A Particular Person. Check Out My Portfolios From The Sections Below And Do Check Our Social Media Handles @Webwithfreelancer🙌!"} />
+        </div>
+
+        {/* Hire Me Button */}
+        <a
+          href={`tel:${about?.phone || ""}`}
+          className="inline-flex items-center gap-3 bg-hire text-white px-6 py-3 rounded-full font-semibold text-lg hover:brightness-110 active:scale-95 transition-all cursor-pointer shadow-lg shadow-primary/20"
+        >
+          Hire Me
+          <span className="w-9 h-9 rounded-full bg-white flex items-center justify-center shadow-sm">
+            <Phone size={18} className="text-primary fill-primary" />
+          </span>
+        </a>
+
+        {/* Visitor Count */}
+        {visitorCount !== null && <div className="mt-6">
+          <p className="text-muted-foreground text-sm">Visitor sessions</p>
+          <p className="text-foreground font-medium">{visitorCount.toLocaleString()}</p>
+        </div>}
+      </div>
+    </section>
+  );
+};
+
+export default HeroSection;

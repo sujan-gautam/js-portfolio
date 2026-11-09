@@ -184,8 +184,10 @@ router.get("/me", async (req, res) => {
 // Helper for first-time password setup (Seed Admin)
 router.post("/setup-admin", async (req, res) => {
     const { email, password, secret } = req.body;
-    // Simple secret check to prevent abuse
-    if (secret !== "exact-echo-setup-2026") return res.status(403).json({ error: "Forbidden" });
+    const setupSecret = process.env.ADMIN_SETUP_SECRET;
+    if (!setupSecret || secret !== setupSecret || !email || email !== process.env.ADMIN_EMAIL) {
+      return res.status(403).json({ error: "Forbidden" });
+    }
 
     try {
         const hashedPassword = await bcrypt.hash(password, 12);

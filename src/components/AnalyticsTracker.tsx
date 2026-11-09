@@ -1,6 +1,5 @@
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import axios from 'axios';
 import { API_BASE } from '@/config';
 
 const RETURNING_KEY = 'v_returning';
@@ -46,336 +45,264 @@ const getConnectionType = () => {
   return nav.connection?.effectiveType || nav.connection?.type || "";
 };
 
-const AnalyticsTracker = () => {
-  const location = useLocation();
-  const pageStartRef    = useRef<number>(Date.now());
-  const maxScrollRef    = useRef<number>(0);
-  const clickCountRef   = useRef<number>(0);
-  const sessionPageViews = useRef<number>(0);
 
-  /* ── Scroll depth tracker ── */
-  useEffect(() => {
-    const onScroll = () => {
-      const scrollPct = Math.round(
-        ((window.scrollY + window.innerHeight) / document.documentElement.scrollHeight) * 100
-      );
-      if (scrollPct > maxScrollRef.current) maxScrollRef.current = scrollPct;
-    };
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
-
-  /* ── Per-page-view tracking & Activity Engine ── */
-  useEffect(() => {
-    if (location.pathname.startsWith('/admin')) return;
-
-    // Reset per-page metrics
-    pageStartRef.current  = Date.now();
-    maxScrollRef.current  = 0;
-    clickCountRef.current = 0;
-
-    const ua         = navigator.userAgent;
-    const params     = new URLSearchParams(window.location.search);
-    const sessionId  = getOrCreateSession();
-    const isReturning = !!localStorage.getItem(RETURNING_KEY);
-
-    // Track session-level entry page (first page of session)
-    if (!sessionStorage.getItem(ENTRY_KEY)) {
-      sessionStorage.setItem(ENTRY_KEY, location.pathname);
-    }
-    const entryPage = sessionStorage.getItem(ENTRY_KEY) || location.pathname;
-
-    // Page view counter per session
-    const pvCount = parseInt(sessionStorage.getItem(PV_KEY) || '0') + 1;
-    sessionStorage.setItem(PV_KEY, String(pvCount));
-    sessionPageViews.current = pvCount;
-
-    const basePayload = {
-      page:             location.pathname,
-      referrer:         document.referrer || "direct",
-      device:           getDeviceType(ua),
-      browser:          getBrowser(ua),
-      os:               getOS(ua),
-      screenResolution: `${window.screen.width}x${window.screen.height}`,
-      viewport:         `${window.innerWidth}x${window.innerHeight}`,
-      language:         navigator.language,
-      sessionID:        sessionId,
-      timezone:         Intl.DateTimeFormat().resolvedOptions().timeZone,
-      connectionType:   getConnectionType(),
-      isReturning,
-      entryPage,
-      pageViews:        pvCount,
-      bounced:          pvCount === 1,  // will be updated on navigation
-      utm: {
-        source:   params.get('utm_source')   || "",
-        medium:   params.get('utm_medium')   || "",
-        campaign: params.get('utm_campaign') || ""
-      }
-    };
-
-    // Mark as returning for future sessions
-    localStorage.setItem(RETURNING_KEY, '1');
-
-    // Define the global window-level logger
-    (window as any).reportActivity = async (type: string, target: string, details = "") => {
-      const payload = {
-        sessionID: sessionId,
-        page: window.location.pathname,
-        type,
-        target,
-        details
-      };
-      
-      axios.post(`${API_BASE}/analytics/track-activity`, payload).catch(() => {});
-    };
-
-    // ── GPS → IP fallback geo chain ──
-    const sendWithGPS = async (lat: number, lon: number, accuracy: number) => {
-      let geoLocation: Record<string, any> = { lat, lon, accuracy };
-      try {
-        const rev = await axios.get(
-          `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`,
-          { headers: { 'Accept-Language': 'en' } }
-        );
-        if (rev.data?.address) {
-          const a = rev.data.address;
-          geoLocation = {
-            lat, lon, accuracy,
-            city:        a.city || a.town || a.village || a.county || "",
-            region:      a.state || a.county || "",
-            country:     a.country || "",
-            countryCode: a.country_code?.toUpperCase() || "",
-            postcode:    a.postcode || "",
-            displayName: rev.data.display_name || "",
-            source:      "gps"
-          };
-        }
-      } catch { /* reverse geocode failed */ }
-      await axios.post(`${API_BASE}/visitors/track`, { ...basePayload, location: geoLocation }).catch(() => {});
-    };
-
-    // Fetch IP location and fire initial track
-    const sendWithIP = async () => {
-      const fetchIpapiCo = async () => {
-        const geo = await axios.get("https://ipapi.co/json/", { timeout: 3000 });
-        if (geo.data?.city) return { ip: geo.data.ip, city: geo.data.city, region: geo.data.region, country: geo.data.country_name, countryCode: geo.data.country_code, postcode: geo.data.postal, lat: geo.data.latitude, lon: geo.data.longitude, timezone: geo.data.timezone, isp: geo.data.org, org: geo.data.org, source: "ipapi.co" };
-        throw new Error("ipapi.co failed");
-      };
-
-      const fetchIpInfo = async () => {
-        const geo = await axios.get("https://ipinfo.io/json", { timeout: 3000 });
-        if (geo.data?.city) {
-          const [lat, lon] = (geo.data.loc || "0,0").split(",").map(Number);
-          return { ip: geo.data.ip, city: geo.data.city, region: geo.data.region, country: geo.data.country, countryCode: geo.data.country, postcode: geo.data.postal, lat, lon, isp: geo.data.org || "", org: geo.data.org || "", timezone: geo.data.timezone || "", source: "ipinfo" };
-        }
-        throw new Error("ipinfo failed");
-      };
-
-      const fetchGeoJs = async () => {
-        const geo = await axios.get("https://get.geojs.io/v1/ip/geo.json", { timeout: 3000 });
-        if (geo.data?.city) return { ip: geo.data.ip, city: geo.data.city, region: geo.data.region, country: geo.data.country, countryCode: geo.data.country_code, postcode: geo.data.area_code || "", lat: parseFloat(geo.data.latitude), lon: parseFloat(geo.data.longitude), timezone: geo.data.timezone, isp: geo.data.organization_name, org: geo.data.organization, source: "geojs" };
-        throw new Error("geojs failed");
-      };
-
-      const raceFastest = (promises: Promise<any>[]): Promise<any> => {
-        return new Promise((resolve) => {
-          let rejected = 0;
-          promises.forEach(p => {
-            p.then(res => resolve(res)).catch(() => {
-              rejected++;
-              if (rejected === promises.length) resolve({});
-            });
-          });
-        });
-      };
-
-      const geoLocation: Record<string, any> = await raceFastest([
-        fetchGeoJs(), fetchIpapiCo(), fetchIpInfo()
-      ]);
-
-      await axios.post(`${API_BASE}/visitors/track`, {
-        ...basePayload, resolvedIp: geoLocation.ip || "", location: geoLocation
-      }).then(() => {
-        // Log page load as first activity in database
-        (window as any).reportActivity?.('visit', `Landed on page: ${location.pathname}`, `Referrer: ${document.referrer || 'direct'}`);
-      }).catch(() => {});
-    };
-
-    sendWithIP();
-
-    // ── Global Clicks Tracking on All Pages and Subpages ──
-    const handleGlobalClick = (e: MouseEvent) => {
-      clickCountRef.current += 1;
-      const target = e.target as HTMLElement;
-      if (!target) return;
-
-      // Find closest interactive element
-      const interactiveEl = target.closest('a, button, input[type="submit"], input[type="button"], [role="button"], .cursor-pointer, [data-clickable="true"]');
-      if (!interactiveEl) return;
-
-      const tagName = interactiveEl.tagName.toLowerCase();
-      let text = (interactiveEl.textContent || '').trim().replace(/\s+/g, ' ');
-      
-      // If element contains SVG icon and no text, look for helper title
-      if (!text && interactiveEl.querySelector('svg')) {
-        text = interactiveEl.querySelector('title')?.textContent || '';
-      }
-
-      if (text.length > 50) text = text.substring(0, 50) + '...';
-
-      let eventTarget = text || 'Unnamed interactive element';
-      let details = '';
-
-      if (tagName === 'a') {
-        const href = interactiveEl.getAttribute('href') || '';
-        eventTarget = text ? `Link: "${text}"` : `Link to ${href}`;
-        details = `URL: ${href}`;
-        
-        // Mark external links, mailto, tel, etc.
-        if (href.startsWith('mailto:')) {
-          eventTarget = `Email Link: "${text || href.replace('mailto:', '')}"`;
-          details = `Email: ${href.replace('mailto:', '')}`;
-        } else if (href.startsWith('tel:')) {
-          eventTarget = `Phone Link: "${text || href.replace('tel:', '')}"`;
-          details = `Phone: ${href.replace('tel:', '')}`;
-        } else if (href.startsWith('http') && !href.includes(window.location.host)) {
-          details = `External URL: ${href}`;
-        }
-      } else if (tagName === 'button' || interactiveEl.getAttribute('role') === 'button') {
-        eventTarget = text ? `Button: "${text}"` : `Button (${interactiveEl.className.split(' ')[0] || 'unnamed'})`;
-        const ariaLabel = interactiveEl.getAttribute('aria-label');
-        if (ariaLabel) details = `Aria Label: ${ariaLabel}`;
-      } else if (tagName === 'input') {
-        const type = (interactiveEl as HTMLInputElement).type;
-        const val = (interactiveEl as HTMLInputElement).value;
-        const name = (interactiveEl as HTMLInputElement).name;
-        eventTarget = `Input field: ${name || type}`;
-        details = `Value: ${val || ''}`;
-      }
-
-      // Send activity
-      (window as any).reportActivity?.('click', eventTarget, details);
-    };
-
-    document.addEventListener('click', handleGlobalClick);
-
-    // ── Dynamic Section View Observer for All Pages and Subpages ──
-    const getSectionName = (el: HTMLElement) => {
-      if (el.getAttribute('data-section')) return el.getAttribute('data-section')!;
-      if (el.id) {
-        return el.id.replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-      }
-      const heading = el.querySelector('h1, h2, h3, h4');
-      if (heading && heading.textContent) {
-        const text = heading.textContent.trim().replace(/\s+/g, ' ');
-        if (text.length > 0 && text.length < 35) return text;
-      }
-      if (el.tagName.toLowerCase() === 'article') return 'Article Content';
-      return el.className ? `Block: ${el.className.split(' ')[0]}` : 'Unnamed Section';
-    };
-
-    const activeViews = new Map<HTMLElement, number>();
-
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        const el = entry.target as HTMLElement;
-        if (entry.isIntersecting) {
-          activeViews.set(el, Date.now());
-        } else {
-          const startTime = activeViews.get(el);
-          if (startTime) {
-            const duration = Math.round((Date.now() - startTime) / 1000);
-            activeViews.delete(el);
-
-            if (duration >= 1.5) { // Viewed for at least 1.5 seconds
-              const name = getSectionName(el);
-              (window as any).reportActivity?.('section_view', name, `Viewed section for ${duration}s`);
-            }
-          }
-        }
-      });
-    }, {
-      threshold: 0.35 // Must cover at least 35% of screen height
-    });
-
-    const findAndObserve = () => {
-      // Find sections or articles
-      const selectors = [
-        'section',
-        'article',
-        '#hero',
-        '#projects',
-        '#skills',
-        '#services',
-        '#stories',
-        '#videos',
-        '#about',
-        '#contact',
-        '.section-block',
-        '[data-section]'
-      ];
-      const targets = document.querySelectorAll(selectors.join(', '));
-      targets.forEach(t => observer.observe(t));
-    };
-
-    // Run observation after components settle
-    const observerTimer = setTimeout(findAndObserve, 800);
-
-    // ── On unload/navigation: sync metrics back ──
-    const syncSession = () => {
-      const timeSpent   = Math.round((Date.now() - pageStartRef.current) / 1000);
-      const currentPV   = parseInt(sessionStorage.getItem(PV_KEY) || '1');
-      const exitPage    = location.pathname;
-
-      // Close out any currently visible sections and record their time spent
-      activeViews.forEach((startTime, el) => {
-        const duration = Math.round((Date.now() - startTime) / 1000);
-        if (duration >= 1.5) {
-          const name = getSectionName(el);
-          // Fire-and-forget sync
-          axios.post(`${API_BASE}/analytics/track-activity`, {
-            sessionID: sessionId,
-            page: location.pathname,
-            type: 'section_view',
-            target: name,
-            details: `Viewed section for ${duration}s`
-          }).catch(() => {});
-        }
-      });
-
-      const payload = {
-        sessionID:  sessionId,
-        page:       location.pathname,
-        timeSpent,
-        scrollDepth: maxScrollRef.current,
-        clickCount:  clickCountRef.current,
-        exitPage,
-        pageViews:   currentPV,
-        bounced:     currentPV <= 1,
-      };
-
-      if (navigator.sendBeacon) {
-        navigator.sendBeacon(
-          `${API_BASE}/analytics/update-session`,
-          new Blob([JSON.stringify(payload)], { type: 'application/json' })
-        );
-      } else {
-        axios.post(`${API_BASE}/analytics/update-session`, payload).catch(() => {});
-      }
-    };
-
-    window.addEventListener('beforeunload', syncSession);
-    return () => {
-      syncSession();
-      document.removeEventListener('click', handleGlobalClick);
-      observer.disconnect();
-      clearTimeout(observerTimer);
-      window.removeEventListener('beforeunload', syncSession);
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.pathname]);
-
-  return null;
+type Activity = {
+  eventID: string;
+  type: string;
+  target: string;
+  details: string;
+  path: string;
+  timestamp: string;
+  contentType?: string;
+  contentId?: string;
+  contentTitle?: string;
+  contentPublishedAt?: string;
 };
 
-export default AnalyticsTracker;
+type ActivityWindow = Window & { reportActivity?: (type: string, target: string, details?: string) => void };
+
+const newId = () => Array.from(crypto.getRandomValues(new Uint8Array(16)), (byte) => byte.toString(16).padStart(2, "0")).join("");
+const endpoint = `${API_BASE}/visitors/track`;
+const contentSelector = "[data-analytics-id][data-analytics-type]";
+const trackedSelector = `${contentSelector}, section[id], [data-section]`;
+
+function analyticsUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const content = new URLSearchParams();
+  for (const key of ["post", "story"]) {
+    const value = params.get(key);
+    if (value && /^[\w-]{1,128}$/.test(value)) content.set(key, value);
+  }
+  return window.location.pathname + (content.size ? `?${content}` : "");
+}
+
+export default function AnalyticsTracker() {
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    if (pathname.startsWith("/admin")) return;
+
+    const started = Date.now();
+    const pageUrl = analyticsUrl();
+    const sessionID = getOrCreateSession();
+    const entryPage = sessionStorage.getItem(ENTRY_KEY) || pageUrl;
+    const pageViews = (Number(sessionStorage.getItem(PV_KEY)) || 0) + 1;
+    const isReturning = Boolean(localStorage.getItem(RETURNING_KEY));
+    sessionStorage.setItem(ENTRY_KEY, entryPage);
+    sessionStorage.setItem(PV_KEY, String(pageViews));
+    localStorage.setItem(RETURNING_KEY, "1");
+    const params = new URLSearchParams(window.location.search);
+    const ua = navigator.userAgent;
+    const base = {
+      pageViewID: newId().slice(0, 24),
+      page: pathname,
+      pageUrl,
+      sessionID,
+      entryPage,
+      pageViews,
+      visitedAt: new Date(started).toISOString(),
+      isReturning,
+      device: getDeviceType(ua),
+      browser: getBrowser(ua),
+      os: getOS(ua),
+      screenResolution: `${screen.width}x${screen.height}`,
+      viewport: `${innerWidth}x${innerHeight}`,
+      language: navigator.language,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      connectionType: getConnectionType(),
+      referrer: document.referrer.split(/[?#]/, 1)[0] || "direct",
+      utm: {
+        source: params.get("utm_source") || "",
+        medium: params.get("utm_medium") || "",
+        campaign: params.get("utm_campaign") || "",
+      },
+    };
+
+    const pending: Activity[] = [];
+    let inFlight: Activity[] = [];
+    let timer: number | undefined;
+    let frame: number | undefined;
+    let closed = false;
+    let sending = false;
+    let bounced = pageViews === 1;
+    let scrollDepth = 0;
+    let clickCount = 0;
+    const liveWindow = window as ActivityWindow;
+
+    const transmit = (activities: Activity[]) => fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...base,
+        activities,
+        bounced,
+        clickCount,
+        scrollDepth,
+        timeSpent: Math.round((Date.now() - started) / 1000),
+      }),
+      keepalive: true,
+    });
+
+    function schedule(delay = 500) {
+      if (!closed && timer === undefined) timer = window.setTimeout(() => {
+        timer = undefined;
+        void flush();
+      }, delay);
+    }
+
+    async function flush() {
+      if (closed || sending || pending.length === 0) return;
+      sending = true;
+      const batch = pending.splice(0, 30);
+      inFlight = batch;
+      let retry = false;
+      try {
+        const response = await transmit(batch);
+        if (response.status >= 500) throw new Error("Analytics unavailable");
+      } catch {
+        retry = true;
+        pending.unshift(...batch);
+      } finally {
+        inFlight = [];
+        sending = false;
+        if (pending.length) schedule(retry ? 3000 : 500);
+      }
+    }
+
+    function record(type: string, target: string, details = "", content?: Partial<Activity>, time = Date.now()) {
+      if (closed) return;
+      const path = window.location.pathname === pathname ? analyticsUrl() : pageUrl;
+      pending.push({ eventID: newId(), type, target: target.slice(0, 300), details: details.slice(0, 500), path, timestamp: new Date(time).toISOString(), ...content });
+      schedule();
+    }
+
+    const reportActivity = (type: string, target: string, details = "") => record(type, target, details);
+    liveWindow.reportActivity = reportActivity;
+    record("visit", `Landed on ${pageUrl}`, "", { path: pageUrl }, started);
+    void flush();
+
+    const handleScroll = (event: Event) => {
+      const scroller = event.target instanceof HTMLElement ? event.target : document.scrollingElement;
+      if (!scroller || scroller.scrollHeight <= scroller.clientHeight) return;
+      const depth = Math.round((scroller.scrollTop + scroller.clientHeight) / scroller.scrollHeight * 100);
+      scrollDepth = Math.max(scrollDepth, Math.min(100, depth));
+    };
+    const handleClick = (event: MouseEvent) => {
+      if (!(event.target instanceof Element)) return;
+      const control = event.target.closest("a, button, [role=button]");
+      if (!control) return;
+      clickCount++;
+      const label = control.getAttribute("aria-label") || control.textContent?.trim().replace(/\s+/g, " ") || control.tagName.toLowerCase();
+      const href = control.getAttribute("href");
+      const destination = href && !/^(mailto|tel):/i.test(href) ? href.split(/[?#]/, 1)[0] : "";
+      record("click", label, destination ? `URL: ${destination}` : "");
+    };
+
+    const watched = new Map<HTMLElement, string>();
+    const visible = new Map<HTMLElement, { started: number; timer?: number }>();
+    const seen = new Set<string>();
+
+    function stopWatching(el: HTMLElement) {
+      const view = visible.get(el);
+      if (!view) return;
+      visible.delete(el);
+      window.clearTimeout(view.timer);
+      if (watched.get(el) !== "" || document.hidden) return;
+      const seconds = Math.floor((Date.now() - view.started) / 1000);
+      const label = el.dataset.section || el.querySelector("h1,h2,h3,h4")?.textContent?.trim() || el.id;
+      if (seconds >= 2 && label) record("section_view", label, `Viewed section for ${seconds}s`);
+    }
+
+    const observer = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        const el = entry.target as HTMLElement;
+        const key = watched.get(el);
+        if (!entry.isIntersecting || entry.intersectionRect.height < Math.min(32, entry.boundingClientRect.height / 2) || document.hidden || key === undefined) {
+          stopWatching(el);
+          continue;
+        }
+        if (visible.has(el)) continue;
+        const view: { started: number; timer?: number } = { started: Date.now() };
+        visible.set(el, view);
+        if (!key) continue;
+        const isStory = el.dataset.analyticsType === "story";
+        const recordView = () => {
+          if (document.hidden || !el.isConnected || watched.get(el) !== key || (!isStory && seen.has(key))) return;
+          if (!isStory) seen.add(key);
+          const { analyticsId, analyticsType, analyticsTitle, analyticsPublishedAt } = el.dataset;
+          record("content_view", analyticsTitle || analyticsId || "", "", {
+            contentId: analyticsId,
+            contentType: analyticsType,
+            contentTitle: analyticsTitle,
+            contentPublishedAt: analyticsPublishedAt,
+          }, view.started);
+        };
+        if (isStory) recordView();
+        else if (!seen.has(key)) view.timer = window.setTimeout(recordView, 400);
+      }
+    }, { threshold: [0, 0.01, 0.05, 0.5] });
+
+    const scan = () => {
+      frame = undefined;
+      const targets = new Set(document.querySelectorAll<HTMLElement>(trackedSelector));
+      for (const [el, previous] of watched) {
+        const current = el.dataset.analyticsId && el.dataset.analyticsType ? `${el.dataset.analyticsType}:${el.dataset.analyticsId}` : "";
+        if (targets.has(el) && current === previous) continue;
+        stopWatching(el);
+        observer.unobserve(el);
+        watched.delete(el);
+      }
+      for (const el of targets) {
+        if (watched.has(el)) continue;
+        const key = el.dataset.analyticsId && el.dataset.analyticsType ? `${el.dataset.analyticsType}:${el.dataset.analyticsId}` : "";
+        watched.set(el, key);
+        observer.observe(el);
+      }
+    };
+    const changes = new MutationObserver(() => {
+      if (frame === undefined) frame = requestAnimationFrame(scan);
+    });
+    changes.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["data-analytics-id", "data-analytics-type"] });
+    scan();
+
+    function flushOnExit() {
+      for (const el of visible.keys()) stopWatching(el);
+      const events = [...inFlight, ...pending];
+      for (let index = 0; index < Math.max(1, events.length); index += 30) {
+        void transmit(events.slice(index, index + 30)).catch(() => {});
+      }
+    }
+
+    function handleVisibility() {
+      if (document.hidden) {
+        flushOnExit();
+      } else {
+        for (const el of watched.keys()) {
+          observer.unobserve(el);
+          observer.observe(el);
+        }
+      }
+    }
+
+    document.addEventListener("click", handleClick);
+    document.addEventListener("visibilitychange", handleVisibility);
+    window.addEventListener("scroll", handleScroll, { passive: true, capture: true });
+    window.addEventListener("pagehide", flushOnExit);
+    return () => {
+      if (window.location.pathname !== pathname) bounced = false;
+      flushOnExit();
+      closed = true;
+      if (frame !== undefined) cancelAnimationFrame(frame);
+      window.clearTimeout(timer);
+      changes.disconnect();
+      observer.disconnect();
+      document.removeEventListener("click", handleClick);
+      document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("scroll", handleScroll, true);
+      window.removeEventListener("pagehide", flushOnExit);
+      if (liveWindow.reportActivity === reportActivity) delete liveWindow.reportActivity;
+    };
+  }, [pathname]);
+
+  return null;
+}

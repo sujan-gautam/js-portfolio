@@ -13,6 +13,7 @@ import { uploadFileChunked, UploadProgress } from "@/lib/upload";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { AIRefineButton } from "@/components/admin/AIRefineButton";
+import PageVersionSettings from "@/components/admin/PageVersionSettings";
 
 const AdminSettingsPage = () => {
   const [settings, setSettings] = useState<AdminSettings>({ socialLinks: [] } as any);
@@ -85,6 +86,7 @@ const AdminSettingsPage = () => {
         </Button>
       </div>
 
+      <PageVersionSettings />
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
          {/* Main Settings Card */}
          <div className="space-y-6">

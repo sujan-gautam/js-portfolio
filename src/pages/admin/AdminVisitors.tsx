@@ -37,6 +37,7 @@ const formatTime = (seconds: number) => {
 // Activity type → visual config
 const ACTIVITY_CONFIG: Record<string, { icon: React.ReactNode; color: string; bg: string; label: string }> = {
   visit:             { icon: <Globe size={11}/>,          color: "text-blue-600",    bg: "bg-blue-100",    label: "Page Visit" },
+  content_view:      { icon: <Eye size={11}/>,            color: "text-indigo-600",  bg: "bg-indigo-100",  label: "Content viewed" },
   click:             { icon: <MousePointer2 size={11}/>,  color: "text-slate-600",   bg: "bg-slate-100",   label: "Click" },
   section_view:      { icon: <Eye size={11}/>,            color: "text-indigo-600",  bg: "bg-indigo-100",  label: "Section Viewed" },
   modal_open:        { icon: <Play size={11}/>,           color: "text-emerald-600", bg: "bg-emerald-100", label: "Opened" },
@@ -85,13 +86,15 @@ const groupIntoSessions = (logs: VisitorRecord[]) => {
       };
     }
 
-    // Ensure we don't duplicate the exact same page view timestamp
-    const exists = sessions[sid].pages.find((p: any) => p.page === log.page && Math.abs(new Date(p.timestamp).getTime() - new Date(log.timestamp).getTime()) < 1000);
+    // Separate repeat visits to the same URL by their recorded view IDs.
+    const exists = sessions[sid].pages.find((p: any) => log.pageViewID ? p.pageViewID === log.pageViewID : p.id === log.id);
 
     if (!exists) {
       sessions[sid].pages.push({
         id: log.id,
+        pageViewID: log.pageViewID,
         page: log.page,
+        pageUrl: log.pageUrl || log.page,
         timeSpent: log.timeSpent || 0,
         scrollDepth: log.scrollDepth || 0,
         clickCount: log.clickCount || 0,
@@ -112,8 +115,8 @@ const groupIntoSessions = (logs: VisitorRecord[]) => {
     s.pages.sort((a: any, b: any) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
     // Sort merged activities by timestamp chronologically
     s.activities.sort((a: any, b: any) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-    s.entryPage = s.pages[0]?.page || "/";
-    s.exitPage = s.pages[s.pages.length - 1]?.page || "/";
+    s.entryPage = s.pages[0]?.pageUrl || "/";
+    s.exitPage = s.pages[s.pages.length - 1]?.pageUrl || "/";
     s.timestamp = s.pages[0]?.timestamp || s.timestamp;
 
     // Compute highest engaged section from section_view activities
@@ -194,7 +197,8 @@ const AdminVisitors = () => {
       (s.location?.country || "").toLowerCase().includes(search.toLowerCase()) ||
       (s.location?.city || "").toLowerCase().includes(search.toLowerCase()) ||
       (s.referrer || "").toLowerCase().includes(search.toLowerCase()) ||
-      s.pages.some((p: any) => p.page.toLowerCase().includes(search.toLowerCase()));
+      s.pages.some((p: any) => p.pageUrl?.toLowerCase().includes(search.toLowerCase())) ||
+      s.activities.some((activity: any) => [activity.contentId, activity.contentTitle, activity.path].some(value => value?.toLowerCase().includes(search.toLowerCase())));
 
     const matchesCountry = filterCountry === "all" || s.location?.country === filterCountry;
     const matchesDevice = filterDevice === "all" || s.device === filterDevice;
@@ -610,8 +614,8 @@ const AdminVisitors = () => {
                         </td>
                         <td className="px-4 py-3 align-top">
                            <div className="flex flex-col gap-1 max-w-[200px]">
-                              <p className="text-xs text-emerald-600 truncate"><span className="text-slate-400">In:</span> {s.entryPage}</p>
-                              {s.pages.length > 1 && <p className="text-xs text-rose-600 truncate"><span className="text-slate-400">Out:</span> {s.exitPage}</p>}
+                              <p className="text-xs text-emerald-600 truncate" title={s.entryPage}><span className="text-slate-400">In:</span> {s.entryPage}</p>
+                              {s.pages.length > 1 && <p className="text-xs text-rose-600 truncate" title={s.exitPage}><span className="text-slate-400">Out:</span> {s.exitPage}</p>}
                               <p className="text-[10px] text-slate-500 truncate mt-0.5" title={s.referrer}><span className="text-slate-400">Ref:</span> {s.referrer === "direct" || !s.referrer ? "Direct" : s.referrer}</p>
                            </div>
                         </td>
@@ -721,7 +725,7 @@ const AdminVisitors = () => {
                                     {s.activities.map((act: any, idx: number) => {
                                       const cfg = getActivityConfig(act.type);
                                       return (
-                                        <div key={idx} className="relative flex items-start gap-2.5 py-1 group">
+                                        <div key={act.eventID || idx} className="relative flex items-start gap-2.5 py-1 group">
                                           {/* Dot on the line */}
                                           <div className={cn("absolute -left-[17px] w-4 h-4 rounded-full flex items-center justify-center shrink-0 border-2 border-white shadow-sm z-10", cfg.bg, cfg.color)}>
                                             {cfg.icon}
@@ -732,16 +736,22 @@ const AdminVisitors = () => {
                                               <div className="min-w-0">
                                                 <span className={cn("text-[9px] font-bold uppercase tracking-wider mr-1.5", cfg.color)}>{cfg.label}</span>
                                                 <span className="text-[11px] text-slate-700 font-medium leading-snug">{act.target}</span>
+                                                {act.contentId && (
+                                                  <p className="mt-0.5 break-all font-mono text-[10px] text-slate-600">{act.contentType} · {act.contentId}</p>
+                                                )}
+                                                {act.contentPublishedAt && (
+                                                  <p className="mt-0.5 text-[10px] text-slate-600">Content date <time dateTime={act.contentPublishedAt} title={act.contentPublishedAt}>{new Date(act.contentPublishedAt).toLocaleString()}</time></p>
+                                                )}
                                                 {act.details && (
                                                   <p className="text-[10px] text-slate-400 mt-0.5 truncate" title={act.details}>{act.details}</p>
                                                 )}
                                               </div>
                                               <div className="shrink-0 text-right">
-                                                <p className="text-[9px] text-slate-400 whitespace-nowrap">
-                                                  {new Date(act.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                                                </p>
-                                                {act.path && act.path !== s.entryPage && (
-                                                  <p className="text-[8px] text-indigo-400 font-mono mt-0.5 truncate max-w-[100px]">{act.path}</p>
+                                                <time className="text-[10px] text-slate-600" dateTime={act.timestamp} title={act.timestamp}>
+                                                  {new Date(act.timestamp).toLocaleString()}
+                                                </time>
+                                                {act.path && (
+                                                  <p className="text-[9px] text-indigo-600 font-mono mt-0.5 truncate max-w-[100px]" title={act.path}>{act.path}</p>
                                                 )}
                                               </div>
                                             </div>

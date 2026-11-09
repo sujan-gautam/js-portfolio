@@ -1,380 +1,233 @@
-import { useState, useEffect } from "react";
-import { 
-  MapPin, Mail, Phone, Facebook, Linkedin, Instagram, Github, Twitter, Youtube, 
-  Heart, Send, Loader2, Globe, MessageSquare, PhoneCall, X, CheckCircle2
-} from "lucide-react";
-import { aboutDB, settingsDB, courtesyDB, contactsDB, AboutData, AdminSettings, CourtesyItem } from "@/lib/adminData";
-import { toast } from "sonner";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import { ArrowUpRight, Check, CircleAlert, Facebook, Github, Globe, Instagram, Linkedin, Loader2, Mail, MapPin, MessageCircle, MessageSquare, Phone, Send, Twitter, UserRound, Youtube, type LucideIcon } from "lucide-react";
+import SEO from "@/components/SEO";
 import { SmartText } from "@/components/ui/SmartText";
 import { Skeleton } from "@/components/ui/skeleton";
+import { aboutDB, contactsDB, courtesyDB, settingsDB, type AboutData, type AdminSettings, type CourtesyItem } from "@/lib/adminData";
 
-const IconMap: Record<string, any> = {
-  facebook: Facebook,
-  linkedin: Linkedin,
-  instagram: Instagram,
-  github: Github,
-  twitter: Twitter,
-  youtube: Youtube,
-};
+const inputClass = "block min-h-11 w-full rounded-md border border-border bg-background py-2.5 pl-10 pr-3 text-base text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary sm:text-sm";
+const fieldIconClass = "pointer-events-none absolute left-3 top-3.5 text-muted-foreground";
+const detailIconClass = "absolute left-0 top-3 grid size-8 place-items-center rounded-md border border-border bg-card text-muted-foreground";
+const linkClass = "rounded-sm underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring";
+const headingClass = "font-poppins text-lg font-semibold tracking-tight sm:text-xl";
+const socialNames: Record<string, string> = { github: "GitHub", linkedin: "LinkedIn", youtube: "YouTube", whatsapp: "WhatsApp" };
+const socialIcons: Record<string, LucideIcon> = { facebook: Facebook, github: Github, instagram: Instagram, linkedin: Linkedin, twitter: Twitter, youtube: Youtube };
+const pageTitle = "Contact | Sujan Gautam";
+const pageDescription = "Contact Sujan Gautam about a project or send him a message.";
 
-const Contact = () => {
-  const [about, setAbout] = useState<AboutData | null>(null);
+function socialName(platform: string) {
+  const name = platform.trim();
+  return socialNames[name.toLowerCase()] || name.charAt(0).toUpperCase() + name.slice(1);
+}
+
+type FormStatus = "idle" | "sending" | "sent" | "invalid" | "error";
+
+export default function Contact() {
+  const [about, setAbout] = useState<Partial<AboutData> | null>(null);
   const [settings, setSettings] = useState<AdminSettings | null>(null);
   const [courtesy, setCourtesy] = useState<CourtesyItem[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  // Modal State
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [formData, setFormData] = useState({ name: "", email: "", phone: "", message: "" });
-  const [submitting, setSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
+  const [status, setStatus] = useState<FormStatus>("idle");
+  const sending = useRef(false);
 
   useEffect(() => {
-    Promise.all([
-      aboutDB.get(),
-      settingsDB.get(),
-      courtesyDB.getAll()
-    ]).then(([aboutData, settingsData, courtesyData]) => {
-      setAbout(aboutData);
-      setSettings(settingsData);
-      setCourtesy(courtesyData.filter(c => c.active));
-      setLoading(false);
+    let active = true;
+    aboutDB.get().then((data) => { if (active) setAbout(data ?? {}); });
+    settingsDB.get().then((data) => { if (active) setSettings(data); });
+    courtesyDB.getAll().then((items) => {
+      if (active && Array.isArray(items)) setCourtesy(items.filter((entry) => entry.active));
     });
+    return () => { active = false; };
   }, []);
 
-  useEffect(() => {
-    const siteName = "Sujan Gautam | Sujan1919";
-    const profession = "Software Developer & UI Architect";
-    const title = `Contact | ${siteName} | ${profession}`;
-    const desc = "Get in touch with Sujan Gautam (sujan1919). Open for collaborations, freelance projects, and professional inquiries in software development and UI/UX design.";
-    const keywords = "Sujan Gautam Contact, Sujan1919 Contact, Hire Sujan Gautam, Software Developer Contact, Nepal Developer, Sujan Shrestha";
-    const url = "https://sujan1919.com.np/contact/";
+  const send = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (sending.current) return;
+    const form = event.currentTarget;
+    const fields = new FormData(form);
+    const name = String(fields.get("name") ?? "").trim();
+    const email = String(fields.get("email") ?? "").trim();
+    const message = String(fields.get("message") ?? "").trim();
 
-    document.title = title;
-    setMeta("description", desc);
-    setMeta("keywords", keywords);
-    setMeta("author", "Sujan Gautam");
-    setMeta("og:title", title, true);
-    setMeta("og:description", desc, true);
-    setMeta("og:url", url, true);
-    setMeta("og:type", "website", true);
-    setMeta("twitter:card", "summary_large_image");
-    setMeta("twitter:title", title);
-    setMeta("twitter:description", desc);
-
-    // Canonical
-    let canonical = document.querySelector("link[rel='canonical']") as HTMLLinkElement;
-    if (!canonical) { canonical = document.createElement("link"); canonical.rel = "canonical"; document.head.appendChild(canonical); }
-    canonical.href = url;
-
-    // JSON-LD ContactPoint schema
-    const contactSchema = {
-      "@context": "https://schema.org",
-      "@type": "ContactPage",
-      "mainEntity": {
-        "@type": "Person",
-        "name": "Sujan Gautam",
-        "jobTitle": "Software Developer",
-        "url": "https://sujan1919.com.np",
-        "contactPoint": {
-          "@type": "ContactPoint",
-          "telephone": "+18179707616",
-          "contactType": "professional",
-          "email": "sujaan1919@gmail.com",
-          "availableLanguage": ["English", "Nepali"]
-        }
-      }
-    };
-
-    let el = document.getElementById("ld-contact");
-    if (!el) { el = document.createElement("script"); el.id = "ld-contact"; (el as HTMLScriptElement).type = "application/ld+json"; document.head.appendChild(el); }
-    el.textContent = JSON.stringify(contactSchema);
-
-    return () => { document.getElementById("ld-contact")?.remove(); };
-  }, []);
-
-  function setMeta(key: string, value: string, isProp = false) {
-    if (!value) return;
-    const attr = isProp ? "property" : "name";
-    let el = document.querySelector(`meta[${attr}="${key}"]`);
-    if (!el) { el = document.createElement("meta"); el.setAttribute(attr, key); document.head.appendChild(el); }
-    el.setAttribute("content", value);
-  }
-
-  const handleSendEmail = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.message || (!formData.email && !formData.phone)) {
-       return toast.error("Please provide your details and a message.");
+    if (!name || !email || !message) {
+      setStatus("invalid");
+      const field = !name ? "name" : !email ? "email" : "message";
+      form.querySelector<HTMLElement>(`[name="${field}"]`)?.focus();
+      return;
     }
 
-    setSubmitting(true);
-    (window as any).reportActivity?.('form_submit_start', 'Contact Form', `Name: ${formData.name || 'Anonymous'}`);
+    sending.current = true;
+    setStatus("sending");
+    const analytics = window as Window & { reportActivity?: (type: string, target: string) => void };
+    analytics.reportActivity?.("form_submit_start", "Contact Form");
     try {
-      await contactsDB.sendEmail(formData);
-      setSubmitted(true);
-      toast.success("Message sent successfully.");
-      (window as any).reportActivity?.('form_submit_success', 'Contact Form Submitted', `Name: ${formData.name}, Email: ${formData.email}`);
-      setFormData({ name: "", email: "", phone: "", message: "" });
-      setTimeout(() => {
-        setSubmitted(false);
-        setIsModalOpen(false);
-      }, 3000);
-    } catch (error: any) {
-       toast.error(error.message || "Failed to send message. Please try again.");
-       (window as any).reportActivity?.('form_submit_error', 'Contact Form Failed', `Error: ${error.message || 'Unknown error'}`);
+      await contactsDB.sendEmail({ name, email, message });
+      form.reset();
+      setStatus("sent");
+      analytics.reportActivity?.("form_submit_success", "Contact Form Submitted");
+    } catch {
+      setStatus("error");
+      analytics.reportActivity?.("form_submit_error", "Contact Form Failed");
+    } finally {
+      sending.current = false;
     }
-    setSubmitting(false);
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex flex-col justify-center max-w-7xl mx-auto px-6 md:px-10 w-full space-y-16">
-        <Skeleton className="h-20 w-3/4 mx-auto opacity-20" />
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-16">
-          <div className="space-y-6">
-            <Skeleton className="h-8 w-32 opacity-20" />
-            <Skeleton className="h-20 w-full opacity-10" />
-            <div className="flex gap-4">
-              {[1,2,3].map(i => <Skeleton key={i} className="w-10 h-10 rounded-full opacity-10" />)}
-            </div>
-          </div>
-          <div className="space-y-10">
-            <Skeleton className="h-8 w-32 opacity-20" />
-            <div className="space-y-6">
-              {[1,2,3].map(i => (
-                <div key={i} className="flex gap-4">
-                  <Skeleton className="w-8 h-8 rounded opacity-10" />
-                  <div className="space-y-2 flex-1">
-                    <Skeleton className="h-3 w-16 opacity-10" />
-                    <Skeleton className="h-4 w-full opacity-20" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div className="space-y-6">
-             <Skeleton className="h-8 w-32 opacity-20" />
-             <Skeleton className="h-16 w-full opacity-10" />
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const email = about?.email?.trim();
+  const phone = about?.phone?.trim();
+  const phoneDigits = phone?.replace(/\D/g, "");
+  const dial = phoneDigits ? (phone.startsWith("+") ? "+" : "") + phoneDigits : undefined;
+  const location = about?.address?.trim();
+  const socials = (settings?.socialLinks ?? [])
+    .map(({ platform, url }) => ({ platform: platform?.trim(), url: url?.trim() }))
+    .filter(({ platform, url }) => platform && /^https?:\/\//i.test(url));
+  const thanks = settings?.courtesyDescription?.trim();
+  const courtesyLinks = courtesy.flatMap((entry) => (entry.socialLinks ?? [])
+    .map(({ platform, url }) => ({ platform, url: url?.trim(), name: entry.name, id: entry.id }))
+    .filter(({ name, url }) => name?.trim() && /^https?:\/\//i.test(url)));
 
   return (
-    <div className="min-h-[100dvh] text-white selection:bg-red-500/30 font-poppins flex flex-col justify-center pt-8 pb-32">
-      
-      {/* Dynamic Contact Page Content */}
-      <div className="max-w-7xl mx-auto px-6 md:px-10 w-full animate-in fade-in duration-1000">
-        
-        {/* Main Header */}
-        <div className="text-center mb-6 md:mb-16">
-          <h1 className="text-[36px] md:text-[75px] font-black uppercase tracking-tighter leading-none">
-            <span className="sr-only">Sujan Gautam | </span>CONTACT <span className="text-[#CB2729]">Me</span>
-          </h1>
+    <>
+      <SEO
+        title={pageTitle}
+        description={pageDescription}
+        url="https://sujan1919.com.np/contact/"
+        structuredData={{
+          "@context": "https://schema.org",
+          "@type": "ContactPage",
+          mainEntity: {
+            "@type": "Person",
+            name: about?.name || "Sujan Gautam",
+            jobTitle: about?.title || "Software Developer",
+            url: "https://sujan1919.com.np",
+            ...(email || dial ? { contactPoint: { "@type": "ContactPoint", contactType: "professional", email, telephone: dial } } : {}),
+          },
+        }}
+      />
+      <main className="mx-auto min-h-screen max-w-[56rem] px-5 pb-28 pt-9 font-inter text-foreground sm:px-8 sm:pt-14">
+        <header className="border-b border-border pb-5 sm:pb-6">
+          <h1 className="font-poppins text-[clamp(1.75rem,5vw,2.75rem)] font-semibold leading-tight tracking-tight">Contact</h1>
+          <p className="mt-2 max-w-lg text-sm leading-relaxed text-muted-foreground sm:text-base">Have a project in mind or a question? Send me a message or reach me directly.</p>
+        </header>
+
+        <div className="mt-6 grid items-start gap-8 sm:mt-8 md:grid-cols-[minmax(0,1fr)_minmax(0,16rem)] md:gap-9">
+          <section aria-labelledby="contact-form" data-section="Contact form" className="min-w-0 rounded-lg border border-border bg-card p-4 sm:p-6">
+            <h2 id="contact-form" className={headingClass}>Send a message</h2>
+            <p id="contact-form-note" className="mt-1 text-sm leading-relaxed text-muted-foreground">Leave an email so I can reply.</p>
+            <form aria-describedby="contact-form-note" onSubmit={send} onInput={() => { if (!sending.current) setStatus("idle"); }} className="mt-5">
+              <fieldset disabled={status === "sending"} className="grid gap-4 disabled:opacity-65">
+                <legend className="sr-only">Your message and contact information</legend>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <label className="block min-w-0 space-y-1.5 text-sm font-medium">
+                    <span>Name</span>
+                    <span className="relative block">
+                      <UserRound size={16} className={fieldIconClass} aria-hidden="true" />
+                      <input className={inputClass} name="name" autoComplete="name" required />
+                    </span>
+                  </label>
+                  <label className="block min-w-0 space-y-1.5 text-sm font-medium">
+                    <span>Email</span>
+                    <span className="relative block">
+                      <Mail size={16} className={fieldIconClass} aria-hidden="true" />
+                      <input className={inputClass} type="email" name="email" autoComplete="email" required />
+                    </span>
+                  </label>
+                </div>
+                <label className="block space-y-1.5 text-sm font-medium">
+                  <span>Message</span>
+                  <span className="relative block">
+                    <MessageSquare size={16} className={fieldIconClass} aria-hidden="true" />
+                    <textarea className={`${inputClass} min-h-32 resize-y`} name="message" rows={5} placeholder="What would you like to discuss?" required />
+                  </span>
+                </label>
+              </fieldset>
+              <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-3 border-t border-border pt-4">
+                <button type="submit" disabled={status === "sending"} className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/85 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-60 sm:w-auto">
+                  {status === "sending" ? <><Loader2 size={16} className="animate-spin" aria-hidden="true" /> Sending…</> : <><Send size={15} aria-hidden="true" /> Send message</>}
+                </button>
+                <span role="status" className={status === "sent" ? "text-sm text-muted-foreground" : "sr-only"}>
+                  {status === "sending" && "Sending your message."}
+                  {status === "sent" && <span className="inline-flex items-center gap-1.5"><Check size={15} aria-hidden="true" /> Message sent.</span>}
+                </span>
+              </div>
+              {(status === "invalid" || status === "error") && (
+                <p role="alert" className="mt-3 flex items-start gap-2 text-sm text-red-400">
+                  <CircleAlert size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
+                  {status === "invalid" ? "Enter your name, email, and a message." : "Couldn’t send your message. Please try again."}
+                </p>
+              )}
+            </form>
+          </section>
+
+          <aside aria-labelledby="contact-direct" className="min-w-0 border-t border-border pt-5 md:border-t-0 md:pt-6">
+            <h2 id="contact-direct" className={headingClass}>Direct contact</h2>
+            {about === null ? (
+              <div aria-busy="true" aria-label="Loading contact details" className="mt-4 space-y-3">
+                <Skeleton className="h-4 w-40 max-w-full" />
+                <Skeleton className="h-4 w-32 max-w-full" />
+              </div>
+            ) : (email || dial || location) && (
+              <dl className="mt-2 divide-y divide-border border-b border-border text-sm">
+                {email && (
+                  <div className="relative py-3 pl-10">
+                    <dt className="mb-1 text-xs text-muted-foreground"><span className={detailIconClass} aria-hidden="true"><Mail size={16} /></span>Email</dt>
+                    <dd className="break-words"><a href={`mailto:${email}`} className={linkClass}>{email}</a></dd>
+                  </div>
+                )}
+                {dial && (
+                  <div className="relative py-3 pl-10">
+                    <dt className="mb-1 text-xs text-muted-foreground"><span className={detailIconClass} aria-hidden="true"><Phone size={16} /></span>Phone</dt>
+                    <dd className="break-words"><a href={`tel:${dial}`} className={linkClass}>{phone}</a></dd>
+                    <dd className="mt-1.5">
+                      <a href={`https://wa.me/${phoneDigits}`} target="_blank" rel="noopener noreferrer" className={`${linkClass} inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground`}>
+                        <MessageCircle size={13} aria-hidden="true" /> WhatsApp <ArrowUpRight size={12} aria-hidden="true" />
+                      </a>
+                    </dd>
+                  </div>
+                )}
+                {location && (
+                  <div className="relative py-3 pl-10">
+                    <dt className="mb-1 text-xs text-muted-foreground"><span className={detailIconClass} aria-hidden="true"><MapPin size={16} /></span>Location</dt>
+                    <dd className="break-words">{location}</dd>
+                  </div>
+                )}
+              </dl>
+            )}
+            {socials.length > 0 && (
+              <ul aria-label="Social profiles" className="mt-4 flex flex-wrap gap-2">
+                {socials.map(({ platform, url }) => {
+                  const Icon = socialIcons[platform.toLowerCase()] ?? Globe;
+                  const name = socialName(platform);
+                  return (
+                    <li key={`${platform}:${url}`}>
+                      <a href={url} target="_blank" rel="noopener noreferrer" aria-label={name} title={name} className={`${linkClass} grid size-11 place-items-center rounded-md border border-border bg-card text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground`}>
+                        <Icon size={18} aria-hidden="true" />
+                      </a>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </aside>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-16 mb-8 md:mb-16 items-start">
-          
-          {/* Column 1: Get in Touch */}
-          <div>
-            <h2 className="text-[20px] font-black uppercase mb-8 tracking-tight">GET IN TOUCH</h2>
-            <p className="text-white/60 text-[13px] leading-relaxed mb-8 max-w-[280px] font-medium tracking-wide">
-              You Can Contact Us Via Email, Calls Or Through Social Medias. ✨
-            </p>
-            <div className="flex gap-4">
-              {settings?.socialLinks?.map((link, i) => {
-                const Icon = IconMap[link.platform.toLowerCase()] || Globe;
-                return (
-                  <a 
-                    key={i} 
-                    href={link.url} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="w-10 h-10 rounded-full border border-white/10 flex items-center justify-center text-white/30 hover:text-white hover:border-[#CB2729] transition-all bg-white/[0.02]"
-                  >
-                    <Icon size={16} />
-                  </a>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Column 2: Contact Info */}
-          <div className="space-y-10">
-            <h2 className="text-[20px] font-black uppercase mb-8 tracking-tight">CONTACT ME</h2>
-            <div className="space-y-8">
-               <ContactItem label="ADDRESS :" value={about?.address || "604 N 31st Ave"} icon={<MapPin size={20} className="text-red-500" />} />
-               <ContactItem label="EMAIL :" value={about?.email || "sujaan1919@gmail.com"} icon={<Mail size={20} className="text-red-500" />} />
-               <ContactItem label="NUMBER :" value={about?.phone || "+18179707616"} icon={<Phone size={20} className="text-red-500" />} />
-            </div>
-          </div>
-
-          {/* Column 3: Courtesy */}
-          <div className="flex flex-col">
-            <h2 className="text-[20px] font-black uppercase mb-8 tracking-tight">COURTESY</h2>
-            <div>
-               <div className="text-white/60 text-[13px] leading-relaxed font-medium tracking-wide opacity-80 mb-6">
-                 <SmartText text={settings?.courtesyDescription || "Thanks To Shreya And Swostika, And Special Thanks To Sujit, For Their Help Throughout The Journey. ❤️"} />
-               </div>
-            </div>
-            
-            {/* Heart links to social handles */}
-            <div className="flex flex-wrap gap-4 mt-2">
-               {courtesy.some(c => c.socialLinks && c.socialLinks.length > 0) ? (
-                 courtesy.flatMap(c => (c.socialLinks || []).map((sl, idx) => (
-                   <a 
-                     key={`${c.id}-${idx}`} 
-                     href={sl.url} 
-                     target="_blank" 
-                     rel="noopener noreferrer"
-                     className="w-10 h-10 rounded-full border border-white/10 flex items-center justify-center text-white/20 bg-white/[0.03] hover:text-[#CB2729] hover:border-[#CB2729]/30 transition-all hover:scale-110 group relative"
-                   >
-                      <div className="absolute -top-10 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-black border border-white/10 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10 shadow-xl">
-                         <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#CB2729]">{c.name}</p>
-                         <p className="text-[7px] font-medium uppercase tracking-[0.1em] text-white/40 text-center">{sl.platform}</p>
-                      </div>
-                      <Heart size={16} className="transition-all group-hover:fill-[#CB2729]/20" />
-                   </a>
-                 )))
-               ) : (
-                 [1, 2, 3].map(i => (
-                   <div key={i} className="w-10 h-10 rounded-full border border-white/10 flex items-center justify-center text-white/20 bg-white/[0.02]">
-                      <Heart size={16} className="opacity-40" />
-                   </div>
-                 ))
-               )}
-            </div>
-          </div>
-
-        </div>
-      </div>
-
-      {/* Persistent CTA Bar - Matches About/Portfolio design */}
-      <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[1000] w-[90%] md:w-auto">
-         <div className="relative group cursor-pointer" onClick={() => { setIsModalOpen(true); (window as any).reportActivity?.('modal_open', 'Contact Modal', 'Clicked: Want to collab or hire me?'); }}>
-            <button 
-               className="relative flex items-center gap-4 px-8 md:px-10 py-3 md:py-3.5 rounded-full border border-white/5 bg-[#0a0a0a]/90 backdrop-blur-xl hover:bg-[#111] transition-all duration-300 shadow-xl"
-            >
-               <div className="w-1.5 h-1.5 rounded-full bg-[#CB2729] animate-pulse" />
-               <span className="text-[10px] md:text-[11px] font-bold uppercase tracking-[0.2em] text-white/30 group-hover:text-white transition-colors whitespace-nowrap font-inter">
-                 Want to collab or hire me?
-               </span>
-            </button>
-         </div>
-      </div>
-
-
-
-      {/* Clean & Professional Contact Modal */}
-      {isModalOpen && (
-         <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-300 backdrop-blur-sm bg-black/40">
-            {/* Backdrop */}
-            <div className="absolute inset-0" onClick={() => setIsModalOpen(false)} />
-            
-            <div className="relative w-full max-w-[400px] bg-[#0A0A0A] border border-white/5 rounded-2xl shadow-[0_0_50px_-12px_rgba(0,0,0,0.5)] overflow-hidden">
-               <div className="p-6 sm:p-8">
-                 <div className="flex justify-between items-start mb-8">
-                    <div>
-                       <h2 className="text-xl font-bold text-white tracking-tight font-inter">Contact</h2>
-                       <p className="text-white/20 text-[11px] font-medium font-inter mt-0.5">Let's talk about your next project.</p>
-                    </div>
-                    <button 
-                      onClick={() => setIsModalOpen(false)} 
-                      className="p-1 text-white/20 hover:text-white transition-all"
-                      disabled={submitting}
-                    >
-                      <X size={20} />
-                    </button>
-                 </div>
-
-                 {submitted ? (
-                    <div className="text-center py-8 space-y-3 animate-in fade-in duration-500">
-                       <CheckCircle2 size={48} className="mx-auto text-[#CB2729]" />
-                       <h3 className="text-base font-bold text-white">Message Sent</h3>
-                       <p className="text-white/40 text-xs">I'll get back to you shortly.</p>
-                    </div>
-                 ) : (
-                   <form onSubmit={handleSendEmail} className="space-y-5 font-inter">
-                      <div className="space-y-1.5">
-                         <label className="text-[11px] font-medium text-white/30 ml-1">Full Name</label>
-                         <input 
-                           type="text" 
-                           required
-                           value={formData.name}
-                           onChange={e => setFormData({...formData, name: e.target.value})}
-                           placeholder="Your name"
-                           className="w-full bg-white/[0.02] border border-white/5 rounded-xl px-4 py-3 text-[13px] text-white placeholder:text-white/10 focus:outline-none focus:border-[#CB2729]/50 transition-all"
-                         />
-                      </div>
-                      <div className="space-y-1.5">
-                         <label className="text-[11px] font-medium text-white/30 ml-1">Email Address</label>
-                         <input 
-                           type="email" 
-                           required
-                           value={formData.email}
-                           onChange={e => setFormData({...formData, email: e.target.value})}
-                           placeholder="your@email.com"
-                           className="w-full bg-white/[0.02] border border-white/5 rounded-xl px-4 py-3 text-[13px] text-white placeholder:text-white/10 focus:outline-none focus:border-[#CB2729]/50 transition-all"
-                         />
-                      </div>
-                      <div className="space-y-1.5">
-                         <label className="text-[11px] font-medium text-white/30 ml-1">Message</label>
-                         <textarea 
-                           rows={3}
-                           required
-                           value={formData.message}
-                           onChange={e => setFormData({...formData, message: e.target.value})}
-                           placeholder="How can I help you?"
-                           className="w-full bg-white/[0.02] border border-white/5 rounded-xl px-4 py-3 text-[13px] text-white placeholder:text-white/10 focus:outline-none focus:border-[#CB2729]/50 transition-all resize-none"
-                         />
-                      </div>
-
-                      <div className="pt-4 flex items-center gap-3">
-                         <button 
-                           disabled={submitting}
-                           className="flex-1 py-3 bg-[#CB2729] text-white font-bold text-[12px] uppercase tracking-widest rounded-xl hover:bg-red-700 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
-                         >
-                            {submitting ? <Loader2 className="animate-spin" size={16} /> : <>Send Message</>}
-                         </button>
-                         
-                         <div className="flex gap-2.5">
-                            <a 
-                              href={`tel:${about?.phone}`}
-                              className="w-10 h-10 rounded-xl border border-white/5 bg-white/[0.02] flex items-center justify-center text-white/20 hover:text-[#CB2729] transition-all"
-                              title="Call"
-                            >
-                              <PhoneCall size={16} />
-                            </a>
-                            <a 
-                              href={`https://wa.me/${about?.phone?.replace(/\+/g, '')}`}
-                              target="_blank"
-                              rel="noopener"
-                              className="w-10 h-10 rounded-xl border border-white/5 bg-white/[0.02] flex items-center justify-center text-white/20 hover:text-[#25D366] transition-all"
-                              title="WhatsApp"
-                            >
-                              <MessageSquare size={16} />
-                            </a>
-                         </div>
-                      </div>
-                   </form>
-                 )}
-               </div>
-            </div>
-         </div>
-      )}
-    </div>
+        {(thanks || courtesyLinks.length > 0) && (
+          <section aria-labelledby="contact-credits" className="mt-8 border-t border-border pt-4 sm:mt-10">
+            <h2 id="contact-credits" className="text-sm font-medium">Acknowledgments</h2>
+            {thanks && <p className="mt-2 max-w-prose whitespace-pre-line break-words text-sm leading-relaxed text-muted-foreground [&_a]:text-red-400 [&_a]:underline"><SmartText text={thanks} /></p>}
+            {courtesyLinks.length > 0 && (
+              <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+                {courtesyLinks.map(({ id, name, platform, url }) => (
+                  <li key={`${id}:${platform}:${url}`}>
+                    <a href={url} target="_blank" rel="noopener noreferrer" className={`${linkClass} inline-flex min-h-9 items-center gap-1 text-sm text-muted-foreground hover:text-foreground`}>
+                      {name}<span className="sr-only"> on {socialName(platform)}</span> <ArrowUpRight size={12} aria-hidden="true" />
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        )}
+      </main>
+    </>
   );
-};
-
-const ContactItem = ({ label, value, icon }: { label: string; value: string; icon: React.ReactNode }) => (
-  <div className="flex gap-4 items-start group/item">
-    <div className="pt-1">{icon}</div>
-    <div className="flex flex-col">
-      <span className="block text-[12px] font-bold text-white uppercase tracking-[0.2em] font-poppins">{label}</span>
-      <span className="block text-[15px] text-white font-light tracking-wide -mt-0.5">{value}</span>
-    </div>
-  </div>
-);
-
-export default Contact;
+}

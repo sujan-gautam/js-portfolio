@@ -18,6 +18,7 @@ const PortfolioSchema = new mongoose.Schema({
   demoUrl: String, 
   link: String, // Sync with frontend
   tags: String, // Sync with frontend
+  featuredOnHome: { type: Boolean, default: false },
   status: { type: Boolean, default: true },
   createdAt: { type: Date, default: Date.now }
 }, { strict: false });
@@ -232,6 +233,9 @@ const VisitorRecordSchema = new mongoose.Schema({
   screenResolution: String,
   language: String,
   sessionID: String,
+  pageViewID: String,
+  pageUrl: String,
+  receivedAt: Date,
   // ── Deep Analytics Fields ──
   timeSpent: { type: Number, default: 0 },        // seconds on page
   bounced: { type: Boolean, default: true },       // no second page view
@@ -245,6 +249,12 @@ const VisitorRecordSchema = new mongoose.Schema({
   clickCount: { type: Number, default: 0 },        // clicks during session
   isReturning: { type: Boolean, default: false },  // returning visitor
   activities: [{
+    _id: false,
+    eventID: String,
+    contentType: String,
+    contentId: String,
+    contentTitle: String,
+    contentPublishedAt: Date,
     type: { type: String }, // 'visit', 'click', 'section_view', 'modal_open', 'play_music', 'submit_form', etc.
     target: String,
     details: String,
@@ -307,6 +317,10 @@ const SettingsSchema = new mongoose.Schema({
   authorBio: String,
   authorImage: String
 });
+const PageVersionsSchema = new mongoose.Schema({
+  _id: String,
+  versions: { type: Map, of: { type: String, enum: ["v1", "v2"] } },
+});
 const CourtesySchema = new mongoose.Schema({
   name: String, role: String, message: String, image: String, socialLinks: [{ platform: String, url: String }], active: { type: Boolean, default: true }
 });
@@ -354,6 +368,7 @@ export const Update = mongoose.model("Update", UpdateSchema);
 export const Skill = mongoose.model("Skill", SkillSchema);
 export const About = mongoose.model("About", AboutSchema);
 export const Settings = mongoose.model("Settings", SettingsSchema);
+export const PageVersions = mongoose.model("PageVersions", PageVersionsSchema);
 export const Courtesy = mongoose.model("Courtesy", CourtesySchema);
 export const BlogCategory = mongoose.model("BlogCategory", BlogCategorySchema);
 export const BlogTag = mongoose.model("BlogTag", BlogTagSchema);

@@ -1,8 +1,10 @@
 import express from "express";
+import axios from "axios";
 import * as Models from "../models/index.js";
 import { parser } from "../config/cloudinary.js";
 import { v2 as cloudinary } from "cloudinary";
 import jwt from "jsonwebtoken";
+import { visiblePost } from "../utils/postVisibility.js";
 
 const router = express.Router();
 
@@ -48,21 +50,84 @@ function checkBan(req, res, next) {
   next();
 }
 
+async function postAccess(req, res, next) {
+  res.set("Cache-Control", "private, no-store");
+  const token = req.headers.authorization?.match(/^Bearer (\S+)$/i)?.[1];
+  if (token && process.env.JWT_SECRET) {
+    try {
+      const claims = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ["HS256"] });
+      if (claims.id && ["member", "admin"].includes(claims.role)) {
+        const user = await Models.User.findById(claims.id).select("role status");
+        if (user?.role === claims.role && user.status !== "inactive") req.postRole = user.role;
+      }
+    } catch {
+      // Invalid or expired tokens get the same response as signed-out visitors.
+    }
+  }
+  next();
+}
+
+const requirePostAdmin = (req, res, next) => {
+  if (req.postRole !== "admin") return res.status(403).json({ error: "Admin access required" });
+  next();
+};
+
+const versionKeys = new Set(["home", "about", "feed", "portfolio", "contact", "feedPost", "blog", "blogPost", "story", "navigation"]);
+const pageVersionsId = "public-layouts";
+const hostingEnvironment = process.env.VERCEL_ENV || process.env.NODE_ENV;
+const defaultPageVersion = hostingEnvironment === "production" ? "v2" : "v1";
+const readVersions = (settings) => Object.fromEntries([...versionKeys].map((key) => [key, settings?.versions?.get(key) ?? defaultPageVersion]));
+
+router.get("/page-versions", async (_req, res) => {
+  res.set("Cache-Control", "no-store");
+  try {
+    const settings = await Models.PageVersions.findById(pageVersionsId);
+    res.type("json").send(JSON.stringify(readVersions(settings)));
+  } catch {
+    res.status(503).json({ error: "Page versions unavailable" });
+  }
+});
+
+router.put("/page-versions", postAccess, requirePostAdmin, async (req, res) => {
+  const entries = Object.entries(req.body ?? {});
+  if (!entries.length || entries.some(([key, value]) => !versionKeys.has(key) || !["v1", "v2"].includes(value))) {
+    return res.status(400).json({ error: "Invalid page versions" });
+  }
+  try {
+    const updates = Object.fromEntries(entries.map(([key, value]) => [`versions.${key}`, value]));
+    const settings = await Models.PageVersions.findByIdAndUpdate(pageVersionsId, { $set: updates }, { new: true, upsert: true, runValidators: true });
+    res.json(readVersions(settings));
+  } catch {
+    res.status(503).json({ error: "Could not save page versions" });
+  }
+});
+
+router.use(["/collection/visitors", "/analytics/insights"], postAccess, requirePostAdmin);
+
+const mayReadPost = (post, req) => !post.membersOnly || Boolean(req.postRole);
+const postUpdateFilter = (id, req, Model) => ({
+  _id: id,
+  ...(req.postRole !== "admin" ? publishedPosts(Model) : {}),
+  ...(req.postRole ? {} : { membersOnly: { $ne: true } }),
+});
+
+const publishedPosts = (Model) => Model === Models.BlogPost ? { status: "Published" } : { published: true };
+
 // ═══════════════════════════════════════════════════
 // FEED — Dedicated interaction routes
 // ═══════════════════════════════════════════════════
 
 // GET published posts
-router.get("/feed/posts", async (req, res) => {
+router.get("/feed/posts", postAccess, async (req, res) => {
   try {
     const posts = await Models.Feed.find({ published: true })
       .sort({ pinned: -1, createdAt: -1 });
-    res.json(posts);
+    res.json(posts.map((post) => visiblePost(post, Boolean(req.postRole))));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // POST vote on a poll option
-router.post("/feed/posts/:id/poll/vote", async (req, res) => {
+router.post("/feed/posts/:id/poll/vote", postAccess, async (req, res) => {
   try {
     console.log(`POLL_VOTE_PROCESS: ID=${req.params.id}`);
     const post = await Models.Feed.findById(req.params.id);
@@ -70,8 +135,10 @@ router.post("/feed/posts/:id/poll/vote", async (req, res) => {
       return res.status(404).json({ error: "Poll post not found" });
     }
     
+    if (!mayReadPost(post, req)) return res.status(403).json({ error: "Log in to vote" });
     const ip = req.ip || req.connection.remoteAddress || "unknown";
     const { optionId, voterId } = req.body;
+    if (typeof voterId !== "string" || !voterId) return res.status(400).json({ error: "Missing voter ID" });
 
     const alreadyVotedByIP = post.pollOptions.some(o => o.voters.includes(ip));
     const alreadyVotedBySession = post.pollOptions.some(o => o.voters.includes(voterId));
@@ -83,12 +150,18 @@ router.post("/feed/posts/:id/poll/vote", async (req, res) => {
     const option = post.pollOptions.id(optionId);
     if (!option) return res.status(404).json({ error: "Option not found" });
     
-    option.votes += 1;
-    option.voters.push(voterId);
-    if (ip !== "unknown") option.voters.push(ip);
-    
-    await post.save();
-    res.json(post);
+    const voters = ip === "unknown" ? [voterId] : [voterId, ip];
+    const updated = await Models.Feed.findOneAndUpdate(
+      {
+        ...postUpdateFilter(post.id, req, Models.Feed),
+        pollOptions: { $elemMatch: { _id: option.id } },
+        $nor: [{ "pollOptions.voters": { $in: voters } }],
+      },
+      { $inc: { "pollOptions.$.votes": 1 }, $push: { "pollOptions.$.voters": { $each: voters } } },
+      { new: true }
+    );
+    if (!updated) return res.status(403).json({ error: "Vote unavailable" });
+    res.json(visiblePost(updated, Boolean(req.postRole)));
   } catch (err) { 
     console.error(`POLL_VOTE_CRASH:`, err);
     res.status(500).json({ error: err.message }); 
@@ -96,7 +169,7 @@ router.post("/feed/posts/:id/poll/vote", async (req, res) => {
 });
 
 // POST react to a post
-router.post("/feed/posts/:id/react", checkBan, async (req, res) => {
+router.post("/feed/posts/:id/react", postAccess, checkBan, async (req, res) => {
   try {
     const ip = req.ip || req.connection.remoteAddress || "unknown";
     const { id } = req.params;
@@ -117,22 +190,24 @@ router.post("/feed/posts/:id/react", checkBan, async (req, res) => {
     }
 
     if (!postObj) return res.status(404).json({ error: "Post not found" });
+    if (!mayReadPost(postObj, req)) return res.status(403).json({ error: "Log in to react" });
     if (postObj.reactedIPs?.includes(ip)) return res.status(403).json({ error: "Already reacted! ✨" });
 
     const inc = {};
     inc[`reactions.${type}`] = 1;
     
-    const updated = await Model.findByIdAndUpdate(id, { 
+    const updated = await Model.findOneAndUpdate(postUpdateFilter(id, req, Model), {
       $inc: inc,
       $push: { reactedIPs: ip } 
     }, { new: true });
     
-    res.json(updated);
+    if (!updated) return res.status(403).json({ error: "Log in to react" });
+    res.json(visiblePost(updated, Boolean(req.postRole)));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // Other feed routes (comment, view, share) follow...
-router.post("/feed/posts/:id/comment", checkBan, async (req, res) => {
+router.post("/feed/posts/:id/comment", postAccess, checkBan, async (req, res) => {
   try {
     const ip = req.ip || req.connection.remoteAddress || "unknown";
     const { id } = req.params;
@@ -150,13 +225,15 @@ router.post("/feed/posts/:id/comment", checkBan, async (req, res) => {
     }
 
     if (!postObj) return res.status(404).json({ error: "Post not found" });
+    if (!mayReadPost(postObj, req)) return res.status(403).json({ error: "Log in to comment" });
     
     const updated = await Model.findByIdAndUpdate(
       id,
       { $push: { comments: { text, author: author || "Visitor", avatar, ip, votersId: votersId || "unknown", createdAt: new Date() } } },
       { new: true }
     );
-    res.json(updated);
+    if (!updated) return res.status(403).json({ error: "Log in to comment" });
+    res.json(visiblePost(updated, Boolean(req.postRole)));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -320,13 +397,22 @@ const collectionMap = {
   blog_ideas: Models.BlogIdea
 };
 
+const protectedCollections = new Set(["feed", "blog_posts", "users"]);
+router.use("/collection/:name", (req, res, next) => {
+  if (!protectedCollections.has(req.params.name)) return next();
+  const adminOnly = (req.method !== "GET" && req.method !== "HEAD") || req.params.name === "users";
+  postAccess(req, res, () => adminOnly ? requirePostAdmin(req, res, next) : next());
+});
+
 // Generic CRUD endpoints
 router.get("/collection/:name", async (req, res) => {
   const Model = collectionMap[req.params.name];
   if (!Model) return res.status(404).json({ error: "Collection not found" });
   try {
-    const data = await Model.find({});
-    res.json(data);
+    const isPostCollection = Model === Models.Feed || Model === Models.BlogPost;
+    const query = isPostCollection && req.postRole !== "admin" ? publishedPosts(Model) : {};
+    const data = await Model.find(query);
+    res.json(isPostCollection ? data.map((post) => visiblePost(post, Boolean(req.postRole))) : data);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -336,9 +422,11 @@ router.get("/collection/:name/:id", async (req, res) => {
   const Model = collectionMap[req.params.name];
   if (!Model) return res.status(404).json({ error: "Collection not found" });
   try {
-    const data = await Model.findById(req.params.id);
+    const isPostCollection = Model === Models.Feed || Model === Models.BlogPost;
+    const query = isPostCollection && req.postRole !== "admin" ? publishedPosts(Model) : {};
+    const data = await Model.findOne({ _id: req.params.id, ...query });
     if (!data) return res.status(404).json({ error: "Not found" });
-    res.json(data);
+    res.json(isPostCollection ? visiblePost(data, Boolean(req.postRole)) : data);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -428,7 +516,7 @@ router.get("/singleton/:name", async (req, res) => {
     let data = await Model.findOne({});
     if (!data) {
       if (isAbout) {
-        data = await Model.create({ name: "Sujan Gautam", title: "Graphic Designer", bio: "Default bio..." });
+        data = await Model.create({});
       } else {
         data = await Model.create({ siteName: "Sujan 1919" });
       }
@@ -449,6 +537,128 @@ router.get("/visitors/count", async (req, res) => {
   }
 });
 
+async function resolveVisitorLocation(ip, provided) {
+  // Location is already resolved by the frontend browser (real visitor IP)
+  // If not provided, attempt backend fallback
+  let location = provided?.city ? provided : {};
+
+  if (!location.city) {
+    // Backend fallback for bots/crawlers — uses ip-api.com (free, no key, richest fields)
+    try {
+      const geo = await axios.get(`http://ip-api.com/json/${ip}?fields=status,country,countryCode,region,regionName,city,district,zip,lat,lon,timezone,isp,org,as,query`, { timeout: 6000 });
+      if (geo.data?.status === "success") {
+        location = {
+          ip:          geo.data.query,
+          city:        geo.data.city,
+          district:    geo.data.district,
+          region:      geo.data.regionName,
+          regionCode:  geo.data.region,
+          country:     geo.data.country,
+          countryCode: geo.data.countryCode,
+          postcode:    geo.data.zip,
+          lat:         geo.data.lat,
+          lon:         geo.data.lon,
+          timezone:    geo.data.timezone,
+          isp:         geo.data.isp,
+          org:         geo.data.org,
+          as:          geo.data.as,
+          source:      "ip-api-server"
+        };
+      }
+    } catch (e) { console.error("Geo fallback failed:", e.message); }
+  }
+
+  return location;
+}
+
+const boundedText = (value, limit) => typeof value === "string" ? value.slice(0, limit) : "";
+const metric = (value, max) => Number.isFinite(value) ? Math.max(0, Math.min(max, Math.round(value))) : 0;
+const contentTypes = new Set(["post", "article", "story", "project"]);
+const eventDate = (value, fallback) => {
+  const time = typeof value === "string" ? Date.parse(value) : NaN;
+  return Number.isFinite(time) && time <= Date.now() + 300000 ? new Date(time) : fallback;
+};
+const viewIdPattern = /^[a-f0-9-]{20,64}$/i;
+
+function trackingActivity(value, page, timestamp) {
+  if (typeof value?.eventID !== "string" || !viewIdPattern.test(value.eventID)) return null;
+  const activity = {
+    eventID: value.eventID,
+    type: boundedText(value.type, 50),
+    target: boundedText(value.target, 300),
+    details: boundedText(value.details, 500),
+    path: boundedText(value.path, 500) || page,
+    timestamp: eventDate(value.timestamp, timestamp),
+  };
+  if (value.type === "content_view") {
+    if (!contentTypes.has(value.contentType) || !boundedText(value.contentId, 128)) return null;
+    activity.contentType = value.contentType;
+    activity.contentId = boundedText(value.contentId, 128);
+    activity.contentTitle = boundedText(value.contentTitle, 300);
+    const published = eventDate(value.contentPublishedAt);
+    if (published) activity.contentPublishedAt = published;
+  }
+  return activity;
+}
+
+async function savePageView(req, res, ip) {
+  const { body } = req;
+  if (typeof body.pageViewID !== "string" || !/^[a-f0-9]{24}$/i.test(body.pageViewID) || !boundedText(body.sessionID, 100)) {
+    return res.status(400).json({ error: "Invalid page view" });
+  }
+  const page = boundedText(body.page, 500) || "/";
+  const timestamp = eventDate(body.visitedAt, new Date());
+  const activities = Array.isArray(body.activities)
+    ? body.activities.slice(0, 40).map((event) => trackingActivity(event, page, timestamp)).filter(Boolean)
+    : [];
+  const filter = { _id: body.pageViewID, sessionID: boundedText(body.sessionID, 100) };
+  const update = {
+    $setOnInsert: {
+      ip, page, timestamp, pageViewID: body.pageViewID, receivedAt: new Date(),
+      pageUrl: boundedText(body.pageUrl, 500) || page,
+      entryPage: boundedText(body.entryPage, 500) || page,
+      device: boundedText(body.device, 50),
+      browser: boundedText(body.browser, 50),
+      os: boundedText(body.os, 50),
+      userAgent: boundedText(req.headers["user-agent"], 500),
+      referrer: boundedText(body.referrer, 500),
+      utm: {
+        source: boundedText(body.utm?.source, 100),
+        medium: boundedText(body.utm?.medium, 100),
+        campaign: boundedText(body.utm?.campaign, 100),
+      },
+      screenResolution: boundedText(body.screenResolution, 30),
+      viewport: boundedText(body.viewport, 30),
+      language: boundedText(body.language, 30),
+      timezone: boundedText(body.timezone, 80),
+      connectionType: boundedText(body.connectionType, 30),
+      isReturning: body.isReturning === true,
+    },
+    $max: {
+      timeSpent: metric(body.timeSpent, 86400),
+      scrollDepth: metric(body.scrollDepth, 100),
+      clickCount: metric(body.clickCount, 100000),
+      pageViews: Math.max(1, metric(body.pageViews, 100000)),
+    },
+    $min: { bounced: body.bounced !== false },
+    $set: { exitPage: page },
+    ...(activities.length ? { $addToSet: { activities: { $each: activities } } } : {}),
+  };
+  let result;
+  try {
+    result = await Models.VisitorRecord.updateOne(filter, update, { upsert: true, setDefaultsOnInsert: false });
+  } catch (error) {
+    if (error.code !== 11000) throw error;
+    const retry = await Models.VisitorRecord.updateOne(filter, update);
+    if (!retry.matchedCount) return res.status(409).json({ error: "Page view ID already in use" });
+  }
+  if (result?.upsertedCount) {
+    const location = await resolveVisitorLocation(ip, body.location);
+    if (location.city) await Models.VisitorRecord.updateOne(filter, { $set: { location } });
+  }
+  res.json({ ok: true });
+}
+
 router.post("/visitors/track", async (req, res) => {
   try {
     // Use the real IP resolved by the client's browser (via ipwho.is on the frontend)
@@ -457,35 +667,8 @@ router.post("/visitors/track", async (req, res) => {
     if (ip && ip.includes(',')) ip = ip.split(',')[0].trim();
     if (ip.includes("::ffff:")) ip = ip.split(":").pop();
 
-    // Location is already resolved by the frontend browser (real visitor IP)
-    // If not provided, attempt backend fallback
-    let location = req.body.location && req.body.location.city ? req.body.location : {};
-
-    if (!location.city) {
-      // Backend fallback for bots/crawlers — uses ip-api.com (free, no key, richest fields)
-      try {
-        const geo = await axios.get(`http://ip-api.com/json/${ip}?fields=status,country,countryCode,region,regionName,city,district,zip,lat,lon,timezone,isp,org,as,query`, { timeout: 6000 });
-        if (geo.data?.status === "success") {
-          location = {
-            ip:          geo.data.query,
-            city:        geo.data.city,
-            district:    geo.data.district,
-            region:      geo.data.regionName,
-            regionCode:  geo.data.region,
-            country:     geo.data.country,
-            countryCode: geo.data.countryCode,
-            postcode:    geo.data.zip,
-            lat:         geo.data.lat,
-            lon:         geo.data.lon,
-            timezone:    geo.data.timezone,
-            isp:         geo.data.isp,
-            org:         geo.data.org,
-            as:          geo.data.as,
-            source:      "ip-api-server"
-          };
-        }
-      } catch (e) { console.error("Geo fallback failed:", e.message); }
-    }
+    if (req.body.pageViewID) return await savePageView(req, res, ip);
+    const location = await resolveVisitorLocation(ip, req.body.location);
 
     await Models.VisitorRecord.create({
       ip,

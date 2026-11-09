@@ -1,161 +1,137 @@
-import { useState, useEffect } from "react";
-import { Phone, ChevronLeft, ChevronRight } from "lucide-react";
-import { aboutDB, slidersDB, SliderItem, AboutData } from "@/lib/adminData";
-import axios from "axios";
-import { API_BASE } from "@/config";
-import { SmartText } from "@/components/ui/SmartText";
+import { useEffect, useState } from "react";
+import * as Dialog from "@radix-ui/react-dialog";
+import { ArrowRight, ChevronLeft, ChevronRight, Images, MapPin, X } from "lucide-react";
+import { Link } from "react-router-dom";
+import { aboutDB, slidersDB, type AboutData, type SliderItem } from "@/lib/adminData";
 import { Skeleton } from "@/components/ui/skeleton";
+import profileFallback from "@/assets/profile-3.jpg";
 
-const HeroSection = () => {
+const masthead = "min-w-0 border-b border-border pb-4 sm:pb-5";
+const avatar = "size-16 shrink-0 rounded-lg border border-border bg-card object-cover object-[50%_40%] sm:size-[88px]";
+const action = "inline-flex min-h-11 items-center gap-1.5 rounded-md px-2.5 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring";
+const galleryButton = "grid size-11 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring";
+
+export default function HeroSection() {
+  const [about, setAbout] = useState<Partial<AboutData>>({});
+  const [slides, setSlides] = useState<SliderItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [about, setAbout] = useState<AboutData | null>(null);
-  const [sliders, setSliders] = useState<SliderItem[]>([]);
-  const [visitorCount, setVisitorCount] = useState(56170);
-
-  const [isLoading, setIsLoading] = useState(true);
+  const [failedImages, setFailedImages] = useState<string[]>([]);
 
   useEffect(() => {
-    async function loadData() {
-      setIsLoading(true);
-      // Fetch About & Sliders simultaneously
-      const [aboutData, slidersData] = await Promise.all([
-        aboutDB.get(),
-        slidersDB.getAll()
-      ]);
-      setAbout(aboutData);
-      setSliders(slidersData.filter(s => s.active));
-
-      // Fetch real visitor count without corrupting tracking
-      try {
-        const res = await axios.get(`${API_BASE}/analytics/insights?period=all`);
-        if (res.data?.summary?.totalVisits) {
-          setVisitorCount(res.data.summary.totalVisits);
-        }
-      } catch (err) {
-        console.error("Failed to fetch visitor count", err);
+    let active = true;
+    Promise.all([aboutDB.get(), slidersDB.getAll()]).then(([profile, images]) => {
+      if (!active) return;
+      setAbout(profile ?? {});
+      if (Array.isArray(images)) {
+        setSlides(images.filter((image) => image.active && image.image).sort((a, b) => a.order - b.order));
       }
-      setIsLoading(false);
-    }
-    loadData();
+      setLoading(false);
+    });
+    return () => { active = false; };
   }, []);
 
-  const sortedSliders = sliders.sort((a,b) => a.order - b.order);
-  const visuals = sortedSliders.map(s => s.image);
-  const totalSlides = visuals.length;
+  const name = about.name?.trim() || "Sujan Gautam";
+  const avatarSlide = slides[0];
+  const currentPhoto = slides[currentSlide];
+  const photoSource = (slide: SliderItem | undefined) => slide && !failedImages.includes(slide.image) ? slide.image : profileFallback;
+  const markFailed = (source: string) => {
+    if (source !== profileFallback) setFailedImages((images) => images.includes(source) ? images : [...images, source]);
+  };
+  const changePhoto = (direction: number) => {
+    setCurrentSlide((index) => (index + direction + slides.length) % slides.length);
+  };
 
-  const prev = () => setCurrentSlide((c) => (c === 0 ? totalSlides - 1 : c - 1));
-  const next = () => setCurrentSlide((c) => (c === totalSlides - 1 ? 0 : c + 1));
-
-  // Determine roles based on comma separated string or fallback
-  const roleText = about?.title || "Web Designer / Developer";
-  const roles = roleText.split(/[/&,]/).map(r => r.trim()).filter(Boolean);
-
-  if (isLoading) {
+  if (loading) {
     return (
-      <section className="flex flex-col lg:flex-row items-center gap-8 lg:gap-16 px-6 py-10 max-w-6xl mx-auto">
-        <Skeleton className="w-72 h-72 md:w-96 md:h-96 rounded-full border-2 border-white/5 opacity-20" />
-        <div className="flex-1 space-y-6 w-full">
-          <Skeleton className="h-14 w-3/4 mx-auto lg:mx-0 opacity-20" />
-          <Skeleton className="h-8 w-1/2 mx-auto lg:mx-0 opacity-10" />
-          <div className="space-y-4 pt-4">
-            <Skeleton className="h-4 w-full opacity-10" />
-            <Skeleton className="h-4 w-full opacity-10" />
-            <Skeleton className="h-4 w-5/6 opacity-10" />
+      <header className={masthead} aria-busy="true">
+        <p role="status" className="sr-only">Loading profile</p>
+        <div aria-hidden="true" className="flex items-center justify-between gap-4">
+          <div className="space-y-2">
+            <Skeleton className="h-7 w-36" />
+            <Skeleton className="h-4 w-32" />
           </div>
-          <div className="flex gap-4 pt-8 justify-center lg:justify-start">
-            <Skeleton className="h-12 w-40 rounded-full opacity-20" />
-          </div>
+          <Skeleton className={avatar} />
         </div>
-      </section>
+      </header>
     );
   }
 
+  const avatarSource = photoSource(avatarSlide);
+  const gallerySource = photoSource(currentPhoto);
+  const portrait = (
+    <img
+      src={avatarSource}
+      alt=""
+      className={avatar}
+      style={{ filter: avatarSource !== profileFallback ? avatarSlide?.filter : undefined }}
+      onError={() => markFailed(avatarSource)}
+    />
+  );
+
   return (
-    <section className="flex flex-col lg:flex-row items-center gap-12 lg:gap-20 px-6 py-20 max-w-5xl mx-auto min-h-[70vh]">
-      {/* Circular Image Carousel */}
-      {totalSlides > 0 && (
-        <div className="relative flex-shrink-0">
-          <div className="w-72 h-72 md:w-96 md:h-96 rounded-full overflow-hidden border-2 border-border relative">
-            <div className="absolute inset-0 bg-background/20 z-10 pointer-events-none" />
-            <img
-              src={sortedSliders[currentSlide]?.image}
-              alt={about?.name || "Sujan"}
-              className="w-full h-full object-cover transition-all duration-700"
-              style={{ filter: sortedSliders[currentSlide]?.filter || 'none' }}
-              width={800}
-              height={800}
-            />
-          </div>
-
-          {/* Nav arrows only if there are multiple slides */}
-          {totalSlides > 1 && (
-            <>
-              <button
-                onClick={prev}
-                className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+    <header className={masthead}>
+      <div className="flex min-w-0 items-center justify-between gap-4 sm:gap-6">
+        {slides.length > 1 ? (
+          <Dialog.Root onOpenChange={(open) => { if (open) setCurrentSlide(0); }}>
+            <Dialog.Trigger aria-label="Open photo gallery" className="group relative order-last shrink-0 rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
+              {portrait}
+              <span aria-hidden="true" className="absolute -bottom-1 -right-1 grid size-5 place-items-center rounded-md border border-border bg-card text-muted-foreground group-hover:text-foreground">
+                <Images size={12} />
+              </span>
+            </Dialog.Trigger>
+            <Dialog.Portal>
+              <Dialog.Overlay className="fixed inset-0 z-[10000] bg-black/75" />
+              <Dialog.Content
+                aria-describedby={undefined}
+                className="fixed inset-x-4 top-1/2 z-[10001] mx-auto max-w-2xl -translate-y-1/2 overflow-hidden rounded-xl border border-border bg-card font-inter text-foreground"
+                onKeyDown={(event) => {
+                  if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+                    event.preventDefault();
+                    changePhoto(event.key === "ArrowLeft" ? -1 : 1);
+                  }
+                }}
               >
-                <ChevronLeft size={28} />
-              </button>
-              <button
-                onClick={next}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <ChevronRight size={28} />
-              </button>
-
-              {/* Dots */}
-              <div className="flex justify-center gap-2 mt-3">
-                {visuals.map((_, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setCurrentSlide(i)}
-                    className={`w-2 h-2 rounded-full transition-colors ${
-                      i === currentSlide ? "bg-foreground" : "bg-muted-foreground/40"
-                    }`}
-                  />
-                ))}
-              </div>
-            </>
+                <header className="flex items-center justify-between gap-3 px-3 py-1 sm:px-4">
+                  <Dialog.Title className="text-sm font-medium">Photos</Dialog.Title>
+                  <Dialog.Close aria-label="Close photo gallery" className={galleryButton}><X size={19} aria-hidden="true" /></Dialog.Close>
+                </header>
+                <img
+                  src={gallerySource}
+                  alt={currentPhoto?.title?.trim() || name}
+                  className="h-[min(58dvh,36rem)] w-full border-y border-border bg-background object-contain"
+                  style={{ filter: gallerySource !== profileFallback ? currentPhoto?.filter : undefined }}
+                  onError={() => markFailed(gallerySource)}
+                />
+                <div className="flex items-center justify-between px-3 py-1 sm:px-4">
+                  <p className="text-xs tabular-nums text-muted-foreground" aria-live="polite">
+                    Photo {currentSlide + 1} of {slides.length}
+                  </p>
+                  <div className="flex">
+                    <button type="button" aria-label="Previous photo" onClick={() => changePhoto(-1)} className={galleryButton}><ChevronLeft size={19} aria-hidden="true" /></button>
+                    <button type="button" aria-label="Next photo" onClick={() => changePhoto(1)} className={galleryButton}><ChevronRight size={19} aria-hidden="true" /></button>
+                  </div>
+                </div>
+              </Dialog.Content>
+            </Dialog.Portal>
+          </Dialog.Root>
+        ) : <div className="order-last shrink-0">{portrait}</div>}
+        <div className="min-w-0">
+          <h1 className="break-words font-poppins text-[clamp(1.75rem,5vw,2.75rem)] font-semibold leading-tight tracking-tight">{name}</h1>
+          {about.title && <p className="mt-1 break-words text-sm text-muted-foreground sm:text-base">{about.title}</p>}
+          {about.address && (
+            <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
+              <MapPin size={13} className="shrink-0" aria-hidden="true" /> {about.address}
+            </p>
           )}
         </div>
-      )}
-
-      {/* Text Content */}
-      <div className="flex-1 text-center lg:text-left">
-        <h1 className="text-4xl md:text-5xl font-bold text-hero-title mb-2">
-          Hi, I Am <span className="sr-only">Sujan Gautam | </span>{about?.name?.split(" ")[0] || "Sujan"}
-        </h1>
-        <h2 className="text-2xl md:text-3xl font-semibold mb-6">
-          {roles.map((role, idx) => (
-            <span key={idx}>
-              <span className="text-hero-role">{role}</span>
-              {idx < roles.length - 1 && <span className="text-hero-role"> / </span>}
-            </span>
-          ))}
-        </h2>
-        <div className="text-hero-desc leading-relaxed text-sm md:text-base mb-8 max-w-lg whitespace-pre-wrap">
-          <SmartText text={(about as any)?.description || about?.bio || "Hey! I Am A Part Time Web Designer & Developer (Frontend/Backend), Currently Learning Flutter. I Can Perfectly Design/Develop A Website For Any Orgs, Institutes, Offices Or For A Particular Person. Check Out My Portfolios From The Sections Below And Do Check Our Social Media Handles @Webwithfreelancer🙌!"} />
-        </div>
-
-        {/* Hire Me Button */}
-        <a 
-          href={`tel:${about?.phone || ""}`} 
-          className="inline-flex items-center gap-3 bg-hire text-white px-6 py-3 rounded-full font-semibold text-lg hover:brightness-110 active:scale-95 transition-all cursor-pointer shadow-lg shadow-primary/20"
-        >
-          Hire Me
-          <span className="w-9 h-9 rounded-full bg-white flex items-center justify-center shadow-sm">
-            <Phone size={18} className="text-primary fill-primary" />
-          </span>
-        </a>
-
-        {/* Visitor Count */}
-        <div className="mt-6">
-          <p className="text-muted-foreground text-sm">Total Visitors:</p>
-          <p className="text-foreground font-medium">{visitorCount.toLocaleString()}</p>
-        </div>
       </div>
-    </section>
+      <div className="-ml-2.5 mt-2 flex flex-wrap items-center gap-x-1">
+        <Link to="/about/" className={`${action} text-muted-foreground hover:bg-secondary hover:text-foreground`}>About</Link>
+        <Link to="/contact/" className={`${action} text-foreground hover:bg-secondary`}>
+          Contact <ArrowRight size={14} aria-hidden="true" />
+        </Link>
+      </div>
+    </header>
   );
-};
-
-export default HeroSection;
+}

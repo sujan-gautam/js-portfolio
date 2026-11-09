@@ -1,0 +1,38 @@
+name: Production smoke check
+
+on:
+  deployment_status:
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  smoke:
+    name: Verify live site and page switches
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.deployment.environment == 'Production' &&
+       github.event.deployment_status.state == 'success')
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    env:
+      SITE_URL: https://www.sujan1919.com.np
+    steps:
+      - name: Verify the home page and public version flags
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --max-time 20 --retry 3 "$SITE_URL/" -o home.html
+          grep -q 'id="root"' home.html
+
+          curl --fail --silent --show-error --max-time 20 --retry 3 "$SITE_URL/api/page-versions" -o versions.json
+          jq --exit-status '
+            type == "object" and
+            (keys == ["about","blog","blogPost","contact","feed","feedPost","home","navigation","portfolio","story"]) and
+            (all(.[]; . == "v1" or . == "v2"))
+          ' versions.json
+
+          {
+            echo '### Live page versions'
+            jq -r 'to_entries[] | "- \(.key) · \(.value)"' versions.json
+          } >> "$GITHUB_STEP_SUMMARY"

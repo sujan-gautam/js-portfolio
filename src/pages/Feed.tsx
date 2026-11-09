@@ -1,12 +1,13 @@
+import { contentTracking } from "@/lib/contentTracking";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { feedAPI, FeedPost, FeedComment, settingsDB, AdminSettings } from "@/lib/adminData";
+import { feedAPI, FeedPost, settingsDB, AdminSettings } from "@/lib/adminData";
 import { SmartText } from "@/components/ui/SmartText";
 import { 
-  Heart, MessageCircle, Share2, MoreHorizontal, Send, 
+  Heart, MessageCircle, Share2, MoreHorizontal,
   ChevronLeft, ChevronRight, X, Play, Pause, Music, Volume2, VolumeX,
-  PieChart, BarChart2, Eye, MapPin, Pin, Loader2, PlayCircle, Camera, Quote,
-  Link, Flag, User, EyeOff, Lock
+  MapPin, Pin, PlayCircle,
+  Link, Flag, User, EyeOff
 } from "lucide-react";
 import YouTube from "react-youtube";
 import { useAuth } from "@/context/AuthContext";
@@ -14,45 +15,21 @@ import { API_BASE } from "@/config";
 import axios from "axios";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CommentSection } from "@/components/CommentSection";
-import { ReactionBar, REACTIONS } from "@/components/ReactionBar";
 import { PollCard } from "@/components/PollCard";
-import { timeAgo, getVoterId } from "@/lib/feedUtils";
 import SEO from "@/components/SEO";
-const timelineStyles = `
-  @keyframes music-bar { 0% { transform: scaleY(0.3); } 100% { transform: scaleY(1); } }
-`;
+import StoriesSection from "@/components/VersionedStories";
+import { RestrictedPostPrompt } from "@/components/RestrictedPostPrompt";
 
-// Load cute handwritten font for polaroids
-const loadHandwrittenFont = () => {
-  if (typeof document !== 'undefined' && !document.getElementById('polaroid-font')) {
-    const style = document.createElement('style');
-    style.textContent = timelineStyles;
-    document.head.appendChild(style);
+const postDateFormat = new Intl.DateTimeFormat("en", {
+  month: "short",
+  day: "numeric",
+  year: "numeric",
+});
 
-    const link = document.createElement('link');
-    link.id = 'polaroid-font';
-    link.rel = 'stylesheet';
-    link.href = 'https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&display=swap';
-    document.head.appendChild(link);
-  }
-};
-loadHandwrittenFont();
+// Leave room for the author, caption, and actions in a typical post.
+const inlineMediaHeight = "max-h-[clamp(7rem,calc(100cqh_-_28.5rem),55dvh)] sm:max-h-[clamp(8rem,calc(100cqh_-_28rem),55dvh)]";
+const postAction = "inline-flex min-h-11 items-center gap-2 rounded-md px-2 text-sm text-muted-foreground transition-colors hover:bg-white/5 hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring";
 
-// ── Helpers ───────────────────────────────────────────
-const VOTER_ID_KEY = "feed_voter_id";
-
-
-
-
-
-
-// ── Comment Section ───────────────────────────────────
-
-
-
-
-
-// ── Shared Music Types ────────────────────────────────
 interface MusicData {
   id: string;
   videoId: string;
@@ -86,20 +63,19 @@ const PostCard = ({
   const showMusicUI = !isIOS || (playingMusicId === initialPost.id && isMusicReady);
   const { user } = useAuth();
   const [post, setPost] = useState(initialPost);
+  const isLocked = post.locked || (post.membersOnly && !user);
   const [hasLiked, setHasLiked] = useState(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem(`feed_liked_${initialPost.id}`) === 'true';
     }
     return false;
   });
-  const [commentsOpen, setCommentsOpen] = useState(false);
   const [imgExpandedIndex, setImgExpandedIndex] = useState<number | null>(null);
   const [videoFullscreen, setVideoFullscreen] = useState(false);
   const [activeVideoUrl, setActiveVideoUrl] = useState(post.videoUrl || "");
   const [fsPlaying, setFsPlaying] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
   const [isHidden, setIsHidden] = useState(false);
-  const [floatingHearts, setFloatingHearts] = useState<{ id: number; x: number; y: number; rotation: number; scale: number; opacity: number }[]>([]);
   const [fsMuted, setFsMuted] = useState(false);
   const [fsFlash, setFsFlash] = useState<'play' | 'pause' | null>(null);
   const fsFlashTimeout = useRef<any>(null);
@@ -199,15 +175,11 @@ const PostCard = ({
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
             visibleStartRef.current = Date.now();
-            // Dynamically update the browser URL for deep-linking/sharing
-            window.history.replaceState(null, '', `?post=${post.id}`);
 
-            const isGated = post.membersOnly && !user;
-
-            if (videoRef.current && !isGated) {
+            if (videoRef.current && !isLocked) {
               videoRef.current.play().catch(() => {});
             }
-            if (post.musicVideoId && !isGated) {
+            if (post.musicVideoId && !isLocked) {
               setMusicData({
                 id: post.id,
                 videoId: post.musicVideoId,
@@ -247,14 +219,14 @@ const PostCard = ({
         }
       }
     };
-  }, [post.type, post.musicVideoId, post.id, playingMusicId, activeIndex]);
+  }, [post.type, post.musicVideoId, post.id, playingMusicId, activeIndex, isLocked]);
 
   // Handle auto-play when carousel index changes
   useEffect(() => {
-    if (videoRef.current && !(post.membersOnly && !user)) {
+    if (videoRef.current && !isLocked) {
       videoRef.current.play().catch(() => {});
     }
-  }, [activeIndex, post.membersOnly, user]);
+  }, [activeIndex, isLocked]);
 
   const formatCount = (num: number) => {
     if (num >= 1000000) return (num / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
@@ -262,14 +234,9 @@ const PostCard = ({
     return num.toString();
   };
 
-  const handleGoogleLogin = () => {
-    localStorage.setItem("auth_return", window.location.pathname);
-    window.location.href = `${API_BASE}/auth/google`;
-  };
-
   const openFullscreen = (e: React.MouseEvent, url?: string) => {
     e.stopPropagation();
-    if (post.membersOnly && !user) return;
+    if (isLocked) return;
     
     if (url) setActiveVideoUrl(url);
     else setActiveVideoUrl(post.videoUrl || "");
@@ -325,22 +292,10 @@ const PostCard = ({
   };
 
   const handleReact = async (type: string) => {
-    if (post.membersOnly && !user) return;
+    if (isLocked) return;
     if (type === "like") {
        setHasLiked(true);
        if (typeof window !== 'undefined') localStorage.setItem(`feed_liked_${post.id}`, 'true');
-       const hearts = Array.from({ length: 10 }).map((_, i) => ({
-         id: Date.now() + i,
-         x: Math.random() * 60 - 30, // Drift
-         y: Math.random() * -120 - 40, // Float up
-         rotation: Math.random() * 90 - 45,
-         scale: Math.random() * 0.4 + 0.6,
-         opacity: Math.random() * 0.5 + 0.5
-       }));
-       setFloatingHearts(prev => [...prev, ...hearts]);
-       setTimeout(() => {
-         setFloatingHearts(prev => prev.filter(h => !hearts.find(nh => nh.id === h.id)));
-       }, 1500);
     }
 
     try {
@@ -366,15 +321,21 @@ const PostCard = ({
     }
   };
 
+  const getPostUrl = () => {
+    const url = new URL(window.location.pathname, window.location.origin);
+    url.searchParams.set("post", post.id);
+    return url.href;
+  };
+
   const handleShare = async () => {
-    if (post.membersOnly && !user) return;
+    if (isLocked) return;
     try {
       await feedAPI.trackShare(post.id);
       setPost(p => ({ ...p, shares: (p.shares || 0) + 1 }));
       if (navigator.share) {
-        navigator.share({ title: "Sujan's Feed", text: post.content || post.pollQuestion || "", url: window.location.href });
+        navigator.share({ title: "Sujan's Feed", text: post.content || post.pollQuestion || "", url: getPostUrl() });
       } else {
-        navigator.clipboard.writeText(window.location.href);
+        navigator.clipboard.writeText(getPostUrl());
       }
       const titleStr = post.articleTitle || post.content?.substring(0, 30) || 'Post';
       (window as any).reportActivity?.('click', `Shared post: ${titleStr}`, `Shared or copied link`);
@@ -383,53 +344,56 @@ const PostCard = ({
     }
   };
 
+  const articleExcerpt = post.content && post.content !== post.articleTitle
+    ? post.content
+    : post.seoDescription !== post.articleTitle ? post.seoDescription : undefined;
   const totalReacts = Object.values(post.reactions || {}).reduce((a, b) => a + b, 0);
+
+  const published = new Date(post.createdAt);
 
   if (isHidden) {
     return (
-      <div className="bg-[#0a0a0a] border border-dashed border-white/10 rounded-[20px] p-8 flex flex-col items-center justify-center gap-3 animate-in fade-in duration-500">
-        <EyeOff size={24} className="text-white/20" />
-        <p className="text-[13px] text-white/40 font-medium uppercase tracking-widest">Post Hidden</p>
-        <button onClick={() => setIsHidden(false)} className="text-[11px] text-[#0a84ff] font-bold hover:underline">Undo</button>
+      <div className="flex items-center gap-3 text-sm text-muted-foreground">
+        <EyeOff size={16} aria-hidden="true" />
+        <p>Post hidden</p>
+        <button onClick={() => setIsHidden(false)} className="ml-auto min-h-11 text-red-500 hover:underline">Undo</button>
       </div>
     );
   }
 
   return (
     <>
-      <div ref={postRef} id={`post-${post.id}`} className="bg-[#0a0a0a] border border-white/5 rounded-[20px] relative overflow-hidden">
+      <div ref={postRef} className="relative">
         {/* Post Header */}
-        <div className="flex items-center gap-3 px-4 pt-4 pb-3">
-          <div className="w-8 h-8 rounded-full bg-[#1a1a1a] flex items-center justify-center shrink-0 border border-white/10 overflow-hidden ring-1 ring-white/5">
+        <div className="mb-3 flex items-center gap-3">
+          <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-secondary text-secondary-foreground">
              {settings?.feedProfileImage ? (
                <img src={settings.feedProfileImage} alt="" className="w-full h-full object-cover" />
              ) : (
-               <span className="text-white/40 font-bold text-[13px]">{(settings?.feedProfileName || "S")[0]}</span>
+               <span className="text-sm font-semibold">{(settings?.feedProfileName || "S")[0]}</span>
              )}
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5">
-              <p className="text-[14px] font-semibold text-white tracking-tight leading-none">
-                {settings?.feedProfileName || "Sujan"}
+              <p className="truncate text-sm font-semibold text-foreground">
+                {settings?.feedProfileName || "Sujan Gautam"}
               </p>
               {post.pinned && (
-                <div className="flex items-center gap-1 text-[#8e8e93] bg-white/5 px-1.5 py-0.5 rounded-full border border-white/5 animate-in fade-in zoom-in duration-300">
-                  <Pin size={10} className="fill-[#8e8e93] rotate-45" />
-                  <span className="text-[9px] font-bold uppercase tracking-wider">Pinned</span>
+                <div className="flex shrink-0 items-center gap-1 text-xs text-red-500">
+                  <Pin size={12} aria-hidden="true" />
+                  <span>Pinned</span>
                 </div>
               )}
-              {/* Optional verified-style dot or just clean space */}
             </div>
-            <div className="flex items-center gap-1.5 mt-1">
-               <p className="text-[11px] text-[#8e8e93] font-normal opacity-80">
-                {timeAgo(post.createdAt)}
-               </p>
-               {post.musicVideoId && !(post.membersOnly && !user) && showMusicUI && (
+            <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
+               {Number.isFinite(published.getTime()) && (
+                 <time dateTime={published.toISOString()}>{postDateFormat.format(published)}</time>
+               )}
+               {post.musicVideoId && !isLocked && showMusicUI && (
                  <>
-                   <span className="text-[#8e8e93] text-[10px] opacity-40">•</span>
                    <div className="flex items-center gap-1">
-                      <Music size={10} className={isMusicActive ? "text-[#ff3b30]" : "text-[#8e8e93]"} />
-                      <p className="text-[11px] text-[#8e8e93] font-medium truncate max-w-[140px]">
+                      <Music size={10} className={isMusicActive ? "text-red-500" : "text-muted-foreground"} />
+                      <p className="text-[11px] text-muted-foreground font-medium truncate max-w-[140px]">
                         {post.musicTitle || "Original Audio"}
                       </p>
                    </div>
@@ -438,10 +402,10 @@ const PostCard = ({
             </div>
           </div>
           <div className="flex items-center gap-1">
-            {post.musicVideoId && !(post.membersOnly && !user) && showMusicUI && (
+            {post.musicVideoId && !isLocked && showMusicUI && (
               <button 
                 onClick={handleMuteToggle}
-                className="text-[#8e8e93] hover:text-white transition-colors px-1 h-8 w-8 flex items-center justify-center rounded-full hover:bg-white/5"
+                className="text-muted-foreground hover:text-white transition-colors px-1 h-8 w-8 flex items-center justify-center rounded-full hover:bg-white/5"
                 title={globalMute ? "Unmute Audio" : "Mute Audio"}
               >
                 {globalMute ? <VolumeX size={16} /> : <Volume2 size={16} />}
@@ -450,7 +414,9 @@ const PostCard = ({
             <div className="relative">
               <button 
                 onClick={() => setMenuOpen(!menuOpen)}
-                className="text-[#8e8e93] hover:text-white transition-colors px-1 h-8 w-8 flex items-center justify-center rounded-full hover:bg-white/5"
+                aria-label="Post options"
+                aria-expanded={menuOpen}
+                className={postAction}
               >
                 <MoreHorizontal size={20} />
               </button>
@@ -459,12 +425,11 @@ const PostCard = ({
             {menuOpen && (
               <>
                 <div className="fixed inset-0 z-[999]" onClick={() => setMenuOpen(false)} />
-                <div className="absolute top-full right-0 mt-2 w-[190px] bg-[#1c1c1e]/95 backdrop-blur-xl border border-white/10 rounded-[18px] shadow-2xl z-[1000] overflow-hidden animate-in fade-in zoom-in-95 duration-200 origin-top-right">
+                <div className="absolute top-full right-0 mt-2 w-[190px] bg-popover border border-border rounded-lg shadow-lg z-[1000] overflow-hidden animate-in fade-in zoom-in-95 duration-200 origin-top-right">
                   <div className="p-1.5 space-y-0.5">
                     <button 
                       onClick={() => {
-                        const url = `${window.location.origin}${window.location.pathname}?post=${post.id}`;
-                        navigator.clipboard.writeText(url);
+                        navigator.clipboard.writeText(getPostUrl());
                         showAlert("Link copied! 🔗");
                         setMenuOpen(false);
                       }}
@@ -515,35 +480,19 @@ const PostCard = ({
         </div>
 
         {/* Members Only Gating */}
-        {post.membersOnly && !user ? (
-           <div className="relative overflow-hidden rounded-xl bg-[#121212] flex flex-col items-center justify-center py-20 px-8 text-center border border-white/5 mx-4 mb-4">
-              <div className="absolute inset-0 bg-[#0a0a0a]/40 backdrop-blur-2xl z-0" />
-              <div className="relative z-10 flex flex-col items-center">
-                 <div className="w-14 h-14 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-6 shadow-2xl">
-                    <Lock size={24} className="text-white/40" />
-                 </div>
-                 <h3 className="text-lg font-bold text-white mb-2 tracking-tight">Members Only Content</h3>
-                 <p className="text-white/40 text-[13px] mb-8 max-w-[240px] leading-relaxed">
-                    This post is exclusive to members. Please sign in to view the media and interactions.
-                 </p>
-                 <button 
-                   onClick={handleGoogleLogin}
-                   className="h-11 px-6 bg-white text-black font-bold text-[13px] rounded-full hover:bg-neutral-200 active:scale-95 transition-all shadow-xl flex items-center gap-3"
-                 >
-                    <img src="https://www.google.com/favicon.ico" className="w-4 h-4" alt="google" />
-                    Continue with Google
-                 </button>
-              </div>
-           </div>
+        {isLocked ? (
+          <div className="pb-4">
+            <RestrictedPostPrompt />
+          </div>
         ) : (
           <>
             {/* Content */}
             {post.content && post.type !== 'article' && (
-              <div className="px-5 pb-5 font-['Inter']">
+              <div className="pb-4">
                 <div
                   ref={textContentRef}
-                  className={`text-white/90 text-[15px] leading-[1.6] whitespace-pre-line break-words ${
-                    post.textLayout === 'quote' ? 'italic font-medium text-[18px]' : ''
+                  className={`whitespace-pre-line break-words text-base leading-relaxed text-foreground ${
+                    post.textLayout === 'quote' ? 'text-lg italic' : ''
                   } ${isTextOnly && isTooLong && !isExpanded ? 'line-clamp-4' : ''}`}
                 >
                   <SmartText text={post.content} />
@@ -554,11 +503,8 @@ const PostCard = ({
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      if (isExpanded && postRef.current) {
-                        const rect = postRef.current.getBoundingClientRect();
-                        if (rect.top < 0) {
-                          postRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                        }
+                      if (isExpanded) {
+                        postRef.current?.closest("article")?.scrollIntoView({ block: "start" });
                       }
                       const next = !isExpanded;
                       setIsExpanded(next);
@@ -568,9 +514,10 @@ const PostCard = ({
                         post.content?.substring(0, 40)
                       );
                     }}
-                    className="mt-2 text-[13px] font-semibold text-white/50 hover:text-white transition-colors cursor-pointer select-none inline-flex items-center gap-1 focus:outline-none"
+                    aria-expanded={isExpanded}
+                    className="mt-2 min-h-11 text-sm font-medium text-red-500 hover:underline"
                   >
-                    {isExpanded ? 'see less...' : 'see more...'}
+                    {isExpanded ? "Show less" : "Read more"}
                   </button>
                 )}
               </div>
@@ -578,10 +525,10 @@ const PostCard = ({
 
         {/* Video / Reel - Only show if not in carousel or if standalone */}
         {mediaItems.length === 1 && mediaItems[0].type === "video" && (
-          <div className="relative mx-4 mb-5 overflow-hidden rounded-[16px] bg-black shadow-lg border border-white/5">
+          <div className="relative mb-4 overflow-hidden rounded-lg border border-border bg-black">
             {post.videoUrl?.includes('youtube.com') || post.videoUrl?.includes('youtu.be') ? (
               <div className="w-full relative cursor-pointer" onClick={openFullscreen}>
-                 <img src={getYTThumbnail(post.videoUrl) || ""} className="w-full object-cover" style={{maxHeight:'55vh'}} />
+                 <img src={getYTThumbnail(post.videoUrl) || ""} className={`w-full object-contain ${inlineMediaHeight}`} />
                  <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
                     <div className="w-14 h-14 rounded-full bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center">
                        <PlayCircle size={24} className="text-white" />
@@ -597,8 +544,7 @@ const PostCard = ({
                 muted 
                 autoPlay 
                 controls 
-                className="w-full object-cover bg-black" 
-                style={{maxHeight:'55vh'}} 
+                className={`w-full bg-black object-contain ${inlineMediaHeight}`}
               />
             )}
           </div>
@@ -689,10 +635,10 @@ const PostCard = ({
 
         {/* Media Carousel (Images & Videos) */}
         {mediaItems.length > 0 && (mediaItems.length > 1 || mediaItems[0].type === "image") && (
-          <div className="w-full relative group px-4 mb-5">
-            <div className="relative overflow-hidden rounded-[16px] border border-white/5 bg-[#0a0a0a]">
+          <div className="group relative mb-4 w-full">
+            <div className="relative overflow-hidden rounded-md border border-border bg-card">
               <div 
-                className="flex transition-transform duration-700 ease-expo"
+                className={`flex aspect-video transition-transform duration-700 ease-expo ${inlineMediaHeight}`}
                 style={{ transform: `translateX(-${activeIndex * 100}%)` }}
               >
                 {mediaItems.map((item, i) => (
@@ -701,15 +647,14 @@ const PostCard = ({
                       <img 
                         src={item.url} 
                         alt="" 
-                        className="w-full object-cover cursor-zoom-in" 
-                        style={{maxHeight:'55vh', minHeight:'30vh'}} 
+                        className="h-full w-full cursor-zoom-in object-contain"
                         onClick={() => setImgExpandedIndex(imagesList.indexOf(item.url))}
                       />
                     ) : (
                       <div className="w-full relative">
                          {item.url.includes('youtube.com') || item.url.includes('youtu.be') ? (
-                           <div className="w-full relative cursor-pointer" onClick={(e) => { e.stopPropagation(); openFullscreen(e, item.url); }}>
-                             <img src={getYTThumbnail(item.url) || ""} className="w-full object-cover" style={{maxHeight:'55vh', minHeight:'30vh'}} />
+                           <div className="relative h-full w-full cursor-pointer" onClick={(e) => { e.stopPropagation(); openFullscreen(e, item.url); }}>
+                             <img src={getYTThumbnail(item.url) || ""} className="h-full w-full object-contain" />
                              <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
                                 <div className="w-14 h-14 rounded-full bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center">
                                    <PlayCircle size={24} className="text-white" />
@@ -725,8 +670,7 @@ const PostCard = ({
                              muted 
                              autoPlay={i === activeIndex}
                              controls
-                             className="w-full object-cover bg-black" 
-                             style={{maxHeight:'55vh', minHeight:'30vh'}} 
+                             className="h-full w-full bg-black object-contain"
                            />
                          )}
                       </div>
@@ -766,12 +710,12 @@ const PostCard = ({
 
         {/* Link Preview */}
         {post.linkPreview?.url && (
-          <div className="px-4 mb-5">
+          <div className="mb-4">
             <a 
               href={post.linkPreview.url} 
               target="_blank" 
               rel="noopener noreferrer"
-              className="block group/link overflow-hidden rounded-[16px] border border-white/5 bg-white/[0.02] hover:bg-white/[0.04] transition-colors"
+              className="block group/link overflow-hidden rounded-md border border-border bg-card hover:border-primary transition-colors"
             >
               {post.linkPreview.image && (
                 <div className="aspect-[1.91/1] w-full overflow-hidden border-b border-white/5 bg-black">
@@ -780,11 +724,11 @@ const PostCard = ({
               )}
               <div className="p-4 space-y-1">
                 <div className="flex items-center gap-2">
-                   <span className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em]">{post.linkPreview.domain || 'LINK'}</span>
+                   <span className="text-xs font-medium text-muted-foreground">{post.linkPreview.domain || 'LINK'}</span>
                 </div>
                 <h4 className="text-[14px] font-bold text-white/90 line-clamp-1 leading-tight">{post.linkPreview.title || post.linkPreview.url}</h4>
                 {post.linkPreview.description && (
-                  <p className="text-[12px] text-[#8e8e93] line-clamp-2 leading-relaxed mt-1 font-medium">{post.linkPreview.description}</p>
+                  <p className="text-[12px] text-muted-foreground line-clamp-2 leading-relaxed mt-1 font-medium">{post.linkPreview.description}</p>
                 )}
               </div>
             </a>
@@ -792,138 +736,98 @@ const PostCard = ({
         )}
             
             {post.caption && (
-              <div className="px-6 pb-3">
+              <div className="pb-3">
                 <div className="bg-white/[0.03] border border-white/[0.05] rounded-xl p-3.5 relative">
                    <p className="text-white/80 text-[13px]">{post.caption}</p>
                 </div>
               </div>
             )}
             {post.location && (
-              <div className="px-6 pb-2 flex items-center gap-1.5 text-white/40 text-[12px] font-medium">
-                <MapPin size={13} className="text-[#CB2729]" />{post.location}
+              <div className="pb-2 flex items-center gap-1.5 text-white/40 text-[12px] font-medium">
+                <MapPin size={13} className="text-red-500" />{post.location}
               </div>
             )}
 
 
-        {/* Article Preview */}
         {post.type === "article" && (
-          <div className="px-4 mb-5">
-            <a 
-              href={`/post/${post.id}`} 
-              className="block group/article overflow-hidden rounded-[16px] border border-white/5 bg-white/[0.02] hover:bg-white/[0.04] transition-all cursor-pointer"
-            >
+          <a
+            href={`/post/${post.id}`}
+            className="group/article mb-2 block rounded-sm border-t border-border pt-4 pb-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
+          >
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+              <span className="font-semibold text-red-500">{post.category || "Article"}</span>
+              {!!post.readTime && <span>{post.readTime} min read</span>}
+            </div>
+            {post.articleTitle && (
+              <h2 className="mt-2 break-words font-poppins text-2xl font-semibold leading-tight tracking-tight text-foreground group-hover/article:underline sm:text-4xl">
+                {post.articleTitle}
+              </h2>
+            )}
+
+            <div className={`mt-4 grid items-center gap-4 ${post.articleCover ? "sm:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] sm:gap-6" : ""}`}>
               {post.articleCover && (
-                <div className="w-full h-48 overflow-hidden bg-[#111]">
-                  <img src={post.articleCover} alt={post.articleTitle} className="w-full h-full object-cover transition-transform duration-700 group-hover/article:scale-105" />
-                </div>
+                <img
+                  src={post.articleCover}
+                  alt=""
+                  loading="lazy"
+                  className="aspect-[2/1] w-full rounded-md object-contain"
+                />
               )}
-              <div className="p-5 space-y-3">
-                <div className="flex items-center gap-2">
-                   <span className="text-[10px] font-black text-[#0a84ff] uppercase tracking-[0.2em] bg-[#0a84ff]/10 px-2 py-0.5 rounded-full">
-                     {post.category || 'ARTICLE'}
-                   </span>
-                   {post.readTime && (
-                     <span className="text-[11px] font-medium text-white/40">
-                       {post.readTime} min read
-                     </span>
-                   )}
-                </div>
-                <h4 className="text-[18px] font-bold text-white/90 leading-tight group-hover/article:text-[#0a84ff] transition-colors">{post.articleTitle}</h4>
-                <div className="text-[14px] text-[#8e8e93] line-clamp-3 leading-relaxed font-normal">
-                  {post.content && post.content !== post.articleTitle 
-                    ? post.content 
-                    : (post.seoDescription && post.seoDescription !== post.articleTitle 
-                        ? post.seoDescription 
-                        : "Explore the full narrative and research insights in this dedicated article...")}
-                </div>
-                <div className="pt-2 text-[12px] font-bold text-white/60 group-hover/article:text-white transition-colors flex items-center gap-1">
-                  Read Full Article <ChevronRight size={14} className="translate-y-[1px] group-hover/article:translate-x-1 transition-transform" />
-                </div>
+              <div className={post.articleCover ? "min-w-0 sm:order-first" : "min-w-0"}>
+                {articleExcerpt && (
+                  <p className="line-clamp-2 max-w-prose text-base leading-relaxed text-muted-foreground sm:line-clamp-3">
+                    {articleExcerpt}
+                  </p>
+                )}
+                <span className={`inline-flex items-center gap-1.5 text-sm font-medium text-foreground ${articleExcerpt ? "mt-3" : ""}`}>
+                  Read article
+                  <ChevronRight size={16} aria-hidden="true" className="motion-safe:transition-transform motion-safe:group-hover/article:translate-x-1" />
+                </span>
               </div>
-            </a>
-          </div>
+            </div>
+          </a>
         )}
 
         {/* Poll */}
         {post.type === "poll" && (
-          <div className="px-6 pb-4">
+          <div className="pb-4">
             <PollCard post={post} onUpdate={setPost} showAlert={showAlert} />
           </div>
         )}
 
         {/* Tags */}
         {post.tags?.length ? (
-          <div className="px-6 pb-4 flex gap-2 flex-wrap">
-            {post.tags.map((t, i) => <span key={`${t}-${i}`} className="text-[11px] font-medium bg-white/[0.04] border border-white/[0.08] text-white/50 px-3 py-1.5 rounded-full">#{t}</span>)}
+          <div className="flex flex-wrap gap-x-3 gap-y-1 pb-2">
+            {post.tags.map((t, i) => <span key={`${t}-${i}`} className="text-sm text-muted-foreground">#{t}</span>)}
           </div>
         ) : null}
 
-        {/* Music logic keyframes */}
-        <style>{`
-          @keyframes music-bar { 0% { transform: scaleY(0.3); } 100% { transform: scaleY(1); } }
-        `}</style>
           </>
         )}
 
-        {!(post.membersOnly && !user) && (
-          <div className="px-5 py-4 flex items-center justify-between border-t border-white/5 font-['Inter']">
-          <div className="flex items-center gap-7">
-            <div className="relative">
-              <button
-                onClick={() => handleReact("like")}
-                className="flex items-center gap-2.5 text-[#8e8e93] hover:text-[#ff3b30] transition-colors relative"
-              >
-                <Heart size={22} strokeWidth={1.5} className={hasLiked ? "fill-[#ff3b30] text-[#ff3b30] animate-in zoom-in-125 duration-300" : ""} />
-                <span className="text-[13px] font-medium">{formatCount(totalReacts) || ""}</span>
-              </button>
-
-              {/* Premium Floating Hearts */}
-              {floatingHearts.map(heart => (
-                <div
-                  key={heart.id}
-                  className="absolute left-1/2 bottom-full pointer-events-none z-50 text-[#ff3b30]/60"
-                  style={{
-                    '--dx': `${heart.x}px`,
-                    '--dy': `${heart.y}px`,
-                    '--dr': `${heart.rotation}deg`,
-                    animation: `float-heart 1.2s ease-out forwards`
-                  } as any}
-                >
-                  <Heart size={20} fill="currentColor" />
-                </div>
-              ))}
-              {/* Animation keyframes */}
-              <style>{`
-                @keyframes float-heart {
-                  0% { transform: translate(-50%, 0) scale(0.5); opacity: 0; }
-                  15% { opacity: 0.9; transform: translate(-50%, -15px) scale(1.1); }
-                  100% { transform: translate(calc(-50% + var(--dx)), var(--dy)) rotate(var(--dr)) scale(0.8); opacity: 0; }
-                }
-              `}</style>
-            </div>
-
-            <button
-              onClick={() => setCommentsOpen(true)}
-              className="flex items-center gap-2.5 text-[#8e8e93] hover:text-white transition-colors"
-            >
-              <MessageCircle size={22} strokeWidth={1.5} />
-              <span className="text-[13px] font-medium">{formatCount(post.comments?.length || 0) || ""}</span>
+        {!isLocked && (
+          <div className="-mx-2 flex flex-wrap items-center gap-x-2 sm:gap-x-4">
+            <button onClick={() => handleReact("like")} className={postAction} aria-label={`Like post (${totalReacts} reactions)`}>
+              <Heart size={16} aria-hidden="true" className={hasLiked ? "fill-current text-red-500" : ""} />
+              {formatCount(totalReacts)}
             </button>
-
-            <button
-              onClick={handleShare}
-              className="flex items-center text-[#8e8e93] hover:text-white transition-colors"
-            >
-              <Share2 size={22} strokeWidth={1.5} />
+            <CommentSection
+              post={post}
+              onCommentsChange={(comments) => setPost((current) => ({ ...current, comments }))}
+              trigger={
+                <button className={postAction} aria-label={`Open comments (${post.comments?.length ?? 0})`}>
+                  <MessageCircle size={16} aria-hidden="true" />
+                  {formatCount(post.comments?.length ?? 0)}
+                </button>
+              }
+            />
+            <button onClick={handleShare} className={`ml-auto ${postAction}`}>
+              <Share2 size={16} aria-hidden="true" />
+              Share
             </button>
           </div>
-        </div>
         )}
 
-        {/* Comments Section */}
-        {commentsOpen && (
-          <CommentSection post={post} onUpdate={setPost} showAlert={showAlert} openOverride={commentsOpen} setOpenOverride={setCommentsOpen} />
-        )}
       </div>
 
       {/* Expanded image lightbox */}
@@ -963,8 +867,10 @@ const PostCard = ({
 
 // ── Main Feed Page ────────────────────────────────────
 const Feed = () => {
+  const { user, loading: authLoading } = useAuth();
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
   const [globalMute, setGlobalMute] = useState(true);
   const [musicData, setMusicData] = useState<MusicData | null>(null);
@@ -1033,12 +939,22 @@ const Feed = () => {
                         (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     setIsIOS(isIOSDevice);
     setGlobalMute(isIOSDevice);
+    settingsDB.get().then(setSettings);
+  }, []);
+
+  useEffect(() => {
+    if (authLoading) return;
+    let active = true;
+    setLoading(true);
+    setPosts([]);
+    setMusicData(null);
 
     Promise.all([
       feedAPI.getPosts(),
-      axios.get(`${API_BASE}/collection/blog_posts`)
+      axios.get(`${API_BASE}/collection/blog_posts`).catch(() => null)
     ]).then(([feedData, blogRes]) => {
-      const blogData = blogRes.data || [];
+      if (!active) return;
+      const blogData = blogRes?.data || [];
       
       // Map BlogPosts to FeedPost structure
       const mappedBlogs: FeedPost[] = blogData
@@ -1046,8 +962,10 @@ const Feed = () => {
         .map((b: any) => ({
           id: b.id || b._id,
           content: (() => {
-            if (!b.content) return b.excerpt || "No content available.";
-            const plain = b.content.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim();
+            const excerpt = b.excerpt?.trim();
+            if (excerpt) return excerpt;
+            if (!b.content) return "";
+            const plain = b.content.replace(/<[^>]+>|&nbsp;/g, " ").replace(/\s+/g, " ").trim();
             const title = b.title || "";
             let snippet = plain;
             if (snippet.toLowerCase().startsWith(title.toLowerCase())) {
@@ -1067,6 +985,7 @@ const Feed = () => {
           comments: b.comments || [],
           category: b.categoryName || "Article",
           membersOnly: b.membersOnly,
+          locked: b.locked,
           readTime: b.readTime
         }));
 
@@ -1077,22 +996,24 @@ const Feed = () => {
         return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       });
 
-      setPosts(combined); 
-      setLoading(false); 
-      
-      // Handle deep-linking to specific post
-      const params = new URLSearchParams(window.location.search);
-      const postId = params.get('post');
-      if (postId) {
-        setTimeout(() => {
-          const el = document.getElementById(`post-${postId}`);
-          if (el) el.scrollIntoView({ behavior: 'smooth' });
-        }, 300);
-      }
+      setPosts(combined);
+      setLoadFailed(!blogRes && combined.length === 0);
+      setLoading(false);
+    }).catch(() => {
+      if (!active) return;
+      setLoadFailed(true);
+      setLoading(false);
     });
+    return () => { active = false; };
+  }, [authLoading, user?.id]);
 
-    settingsDB.get().then(setSettings);
-  }, []);
+  useEffect(() => {
+    if (loading) return;
+    const postId = new URLSearchParams(window.location.search).get("post");
+    if (postId) {
+      document.getElementById(`post-${postId}`)?.scrollIntoView({ block: "start" });
+    }
+  }, [loading]);
 
   // Handle global volume sync
   useEffect(() => {
@@ -1130,15 +1051,33 @@ const Feed = () => {
     }
   }, [musicData?.videoId, ytPlayer]);
 
+  const [firstPost, ...remainingPosts] = posts;
+  const renderPost = (post: FeedPost) => (
+    <article id={`post-${post.id}`} {...(!post.locked && (!post.membersOnly || user) ? contentTracking(post.type === "article" ? "article" : "post", post.id, post.articleTitle, post.createdAt) : {})} className="mx-auto w-full min-w-0 max-w-2xl px-5 sm:px-8">
+      <div className="border-b border-border py-5 sm:py-6">
+        <PostCard
+          post={post}
+          showAlert={setAlertMessage}
+          globalMute={globalMute}
+          setGlobalMute={setGlobalMute}
+          setMusicData={setMusicData}
+          playingMusicId={musicData?.id || null}
+          isIOS={isIOS}
+          settings={settings}
+          ytPlayer={ytPlayer}
+          isMusicReady={isMusicReady}
+        />
+      </div>
+    </article>
+  );
+
   return (
     <>
       <SEO 
-        title="Sujan Gautam | Professional Feed & Updates"
-        description="Follow Sujan Gautam's professional journey, latest projects, articles, and stories. A dynamic feed of updates from a Senior Software Developer."
+        title="Sujan Gautam | Feed"
+        description="Notes on software, design, and recent projects by Sujan Gautam."
       />
-    <div 
-      className="h-screen w-full text-white font-['Inter'] overflow-y-auto snap-y snap-mandatory scroll-smooth relative no-scrollbar" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-      
+    <main className="flex h-dvh flex-col pb-[calc(3.5rem_+_env(safe-area-inset-bottom,0px))] font-inter text-foreground sm:pb-[calc(3.25rem_+_env(safe-area-inset-bottom,0px))]">
       {/* System Alert Popup */}
       {alertMessage && createPortal(
         <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setAlertMessage(null)}>
@@ -1147,7 +1086,7 @@ const Feed = () => {
               <p className="text-[16px] font-bold text-white tracking-tight">System Alert</p>
               <p className="text-[13px] text-white/80 leading-relaxed font-medium">{alertMessage}</p>
             </div>
-            <button onClick={() => setAlertMessage(null)} className="w-full py-3.5 border-t border-white/10 text-[#0a84ff] font-bold text-[15px] hover:bg-white/5 active:bg-white/10 transition-colors">
+            <button onClick={() => setAlertMessage(null)} className="w-full py-3.5 border-t border-white/10 text-red-500 font-bold text-[15px] hover:bg-white/5 active:bg-white/10 transition-colors">
               OK
             </button>
           </div>
@@ -1155,51 +1094,48 @@ const Feed = () => {
         document.body
       )}
 
-      {/* Main Timeline Wrapper */}
-      <div className="max-w-6xl mx-auto w-full pb-36 px-4 pt-4 md:pt-16 relative">
-        <h1 className="sr-only">Sujan Gautam | Personal Feed & Professional Updates</h1>
-        {/* Simple Feed Layout */}
-        <div className="flex flex-col items-center gap-10 w-full">
+      <section
+        aria-labelledby="feed-heading"
+        aria-busy={loading}
+        tabIndex={0}
+        className="relative min-h-0 flex-1 [container-type:size] overflow-y-auto overscroll-y-contain [scrollbar-width:none] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring [@media(pointer:coarse)]:snap-y [@media(pointer:coarse)]:snap-mandatory"
+      >
+        <div className="snap-start snap-always [@media(pointer:coarse)]:min-h-full">
+          <header className="mx-auto w-full max-w-2xl px-1 font-poppins sm:px-4">
+            <h1 id="feed-heading" className="sr-only">Feed</h1>
+            <StoriesSection showLabel={false} />
+          </header>
           {loading ? (
-            Array(3).fill(0).map((_, i) => (
-              <div key={i} className="w-full md:w-[460px] lg:w-[500px] space-y-4">
-                <div className="flex items-center gap-3">
-                  <Skeleton className="w-10 h-10 rounded-full opacity-20" />
-                  <div className="space-y-1.5">
-                     <Skeleton className="h-3 w-24 opacity-20" />
-                     <Skeleton className="h-2 w-16 opacity-10" />
+            <div className="mx-auto w-full max-w-2xl px-5 sm:px-8">
+              <p className="sr-only" role="status">Loading posts</p>
+              {Array.from({ length: 2 }, (_, index) => (
+                <div key={index} aria-hidden="true" className="space-y-4 border-b border-border py-5">
+                  <div className="flex items-center gap-3">
+                    <Skeleton className="size-10 rounded-full" />
+                    <div className="space-y-2">
+                      <Skeleton className="h-3 w-28" />
+                      <Skeleton className="h-2.5 w-20" />
+                    </div>
                   </div>
+                  <Skeleton className="h-3 w-4/5" />
+                  <Skeleton className="h-3 w-3/5" />
                 </div>
-                <Skeleton className="h-72 w-full rounded-2xl opacity-10" />
-              </div>
-            ))
-          ) : posts.length === 0 ? (
-            <div className="py-20 text-white/20 text-xs uppercase tracking-[0.3em] font-medium">No posts here yet</div>
+              ))}
+            </div>
+          ) : firstPost ? (
+            renderPost(firstPost)
           ) : (
-            posts.map((post) => (
-              <div 
-                id={`post-${post.id}`} 
-                key={post.id} 
-                className="w-full md:w-[460px] lg:w-[500px] snap-start snap-always py-4"
-              >
-                <PostCard 
-                  post={post} 
-                  showAlert={setAlertMessage} 
-                  globalMute={globalMute} 
-                  setGlobalMute={setGlobalMute} 
-                  setMusicData={setMusicData}
-                  playingMusicId={musicData?.id || null}
-                  isIOS={isIOS}
-                  settings={settings}
-                  ytPlayer={ytPlayer}
-                  isMusicReady={isMusicReady}
-                />
-              </div>
-            ))
+            <p role="status" className="mx-auto w-full max-w-2xl px-5 py-8 text-sm text-muted-foreground sm:px-8">
+              {loadFailed ? "Couldn’t load posts. Refresh to try again." : "No posts yet."}
+            </p>
           )}
         </div>
-      </div>
-
+        {remainingPosts.map((post) => (
+          <div key={post.id} className="snap-start snap-always [@media(pointer:coarse)]:min-h-full">
+            {renderPost(post)}
+          </div>
+        ))}
+      </section>
 
       {/* Global Shared YouTube Player (Fast Audio Switching) */}
       <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 pointer-events-none z-[-1]">
@@ -1227,11 +1163,9 @@ const Feed = () => {
           onError={() => { setMusicData(null); setIsMusicReady(false); }}
         />
       </div>
-    </div>
+    </main>
     </>
   );
 };
 
 export default Feed;
-
-

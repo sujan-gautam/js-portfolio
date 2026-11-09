@@ -1,3 +1,4 @@
+import { contentTracking } from "@/lib/contentTracking";
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import YouTube from "react-youtube";
@@ -25,7 +26,7 @@ const storyAnimations = `
   }
 `;
 
-const StoriesSection = () => {
+const StoriesSection = ({ showLabel = true }: { showLabel?: boolean }) => {
   const { user } = useAuth();
   const [stories, setStories] = useState<StoryItem[]>([]);
   const [music, setMusic] = useState<MusicItem[]>([]);
@@ -52,11 +53,9 @@ const StoriesSection = () => {
   };
 
   useEffect(() => {
-    if (storyViewerOpen) {
-      document.documentElement.classList.add("story-open");
-    } else {
-      document.documentElement.classList.remove("story-open");
-    }
+    if (!storyViewerOpen) return;
+    document.documentElement.classList.add("story-open");
+    return () => document.documentElement.classList.remove("story-open");
   }, [storyViewerOpen]);
 
   useEffect(() => {
@@ -86,11 +85,10 @@ const StoriesSection = () => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "ArrowRight") nextStory(e);
       else if (e.key === "ArrowLeft") prevStory(e);
-      else if (e.key === "Escape") closeStories();
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [storyViewerOpen, storyIndex]);
+  }, [storyViewerOpen, storyIndex, searchParams]);
 
   useEffect(() => {
     if (storyViewerOpen && stories[storyIndex]?.id) {
@@ -129,7 +127,7 @@ const StoriesSection = () => {
           { replace: true }
         );
       }
-    } else if (!storyViewerOpen && !isLoading && searchParams.has("story")) {
+    } else if (!storyViewerOpen && !isLoading && searchParams.has("story") && !stories.some((story) => story.id === searchParams.get("story"))) {
       setSearchParams(
         (prev) => {
           const next = new URLSearchParams(prev);
@@ -155,6 +153,8 @@ const StoriesSection = () => {
 
   const hasMusic = music.length > 0 && music[0].videoId;
   const currentBgMusic = hasMusic ? music[0] : null;
+  const musicTitle = currentBgMusic?.title.replace(/&amp;/gi, "&") || "Music";
+  const musicArtist = currentBgMusic?.artist?.replace(/&amp;/gi, "&");
   const hasStories = stories.length > 0;
   const isFirstStoryRestricted = hasStories && stories[0].isMembersOnly && !user;
   const storyImage = hasStories ? getMediaUrl(stories[0].image, stories[0].isMembersOnly || false) : "";
@@ -217,6 +217,13 @@ const StoriesSection = () => {
     }
     const closedStory = stories[storyIndex];
     (window as any).reportActivity?.('modal_close', `Closed Story Viewer`, `Last Story: ${closedStory?.title || 'Untitled'}`);
+    if (searchParams.has("story")) {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("story");
+        return next;
+      }, { replace: true });
+    }
     setStoryViewerOpen(false);
   };
 
@@ -304,7 +311,7 @@ const StoriesSection = () => {
 
     try {
       await axios.post(`${API_BASE}/collection/stories/${currentViewerStory.id}/comment`, { text: textPayload, device: navigator.userAgent });
-      (window as any).reportActivity?.('comment_story', `Commented on: ${currentViewerStory.title || 'Story'}`, `Comment: ${textPayload.substring(0, 80)}`);
+      (window as any).reportActivity?.('comment_story', `Commented on: ${currentViewerStory.title || 'Story'}`, "Submitted a story comment");
     } catch (err: any) {
       setStories(prev => prev.map(s => s.id === currentViewerStory.id ? { ...s, comments: (s.comments || []).filter(c => c.text !== textPayload) } : s));
       if (err.response?.data?.error) showAlert(err.response.data.error);
@@ -343,10 +350,10 @@ const StoriesSection = () => {
           type={currentViewerStory.type === "video" ? "video.other" : "article"}
           image={currentViewerStory.type !== "video" ? getMediaUrl(currentViewerStory.image, currentViewerStory.isMembersOnly || false) : undefined}
           video={currentViewerStory.type === "video" ? getMediaUrl(currentViewerStory.image, currentViewerStory.isMembersOnly || false) : undefined}
-          url={`https://sujan1919.com.np/?story=${currentViewerStory.id}`}
+          url={`https://sujan1919.com.np/feed/?story=${encodeURIComponent(currentViewerStory.id)}`}
           publishedTime={currentViewerStory.createdAt}
           structuredData={(() => {
-            const canonicalUrl = `https://sujan1919.com.np/?story=${currentViewerStory.id}`;
+            const canonicalUrl = `https://sujan1919.com.np/feed/?story=${encodeURIComponent(currentViewerStory.id)}`;
             const isVideo = currentViewerStory.type === "video";
             const mediaUrl = getMediaUrl(currentViewerStory.image, currentViewerStory.isMembersOnly || false) || "https://res.cloudinary.com/dspj4fc14/image/upload/v1782236706/exact-echo/og/og_feed.jpg";
             const desc = currentViewerStory.description || currentViewerStory.caption || "View an exclusive story from Sujan Gautam's portfolio.";
@@ -385,15 +392,15 @@ const StoriesSection = () => {
           })()}
         />
       )}
-      <p className="text-xs font-bold tracking-[0.2em] text-white mb-4 uppercase">
-        STORIES:
-      </p>
+      {showLabel && (
+        <p className="mb-4 text-xs font-bold uppercase tracking-[0.2em] text-white">Stories:</p>
+      )}
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-end gap-4">
         {isLoading ? (
           <div className="flex gap-4">
             <Skeleton className="w-16 h-16 rounded-full opacity-20 border border-white/5" />
-            <Skeleton className="w-40 h-10 rounded-2xl opacity-10 border border-white/5" />
+            <Skeleton className="h-10 w-28 rounded-xl opacity-10" />
           </div>
         ) : (
           <>
@@ -419,89 +426,79 @@ const StoriesSection = () => {
               </button>
             )}
 
-            {hasMusic && currentBgMusic && (
-              <div 
-                className="flex items-center gap-3 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-2 pr-4 shadow-xl hover:bg-white/10 transition-all cursor-pointer w-fit group font-inter animate-in fade-in slide-in-from-right-4 duration-700 active:scale-95" 
-                onClick={togglePlayBg}
-              >
-                {/* Compact Album Art with Waveform Overlay */}
-                <div className="relative w-14 h-10 rounded-lg overflow-hidden flex-shrink-0 bg-neutral-900/50">
-                  <img 
-                    src={`https://i.ytimg.com/vi/${currentBgMusic.videoId}/mqdefault.jpg`} 
-                    alt="Album Art" 
-                    className={`w-full h-full object-cover transition-opacity duration-500 ${isPlayingBg ? 'opacity-40' : 'opacity-20'}`} 
-                  />
-                  <div className="absolute inset-0 flex items-center justify-center gap-[2px] px-2.5">
-                    {[10, 18, 8, 20, 12].map((h, i) => (
-                      <div 
-                        key={i} 
-                        className="w-[2px] bg-white rounded-full transition-all duration-300"
-                        style={{ 
-                          height: isPlayingBg ? `${h}px` : '3px',
-                          animation: isPlayingBg ? `musicWave 0.7s ease-in-out infinite alternate ${i * 0.1}s` : 'none'
-                        }} 
-                      />
-                    ))}
-                  </div>
-                </div>
+            {currentBgMusic && (
+              <>
+                <button
+                  type="button"
+                  onClick={togglePlayBg}
+                  disabled={!isBgPlayerReady}
+                  aria-label={`${isPlayingBg ? "Pause" : "Play"} ${musicTitle}`}
+                  title={musicArtist ? `${musicTitle} — ${musicArtist}` : musicTitle}
+                  className="group/note flex w-32 flex-col items-center gap-2 rounded-xl font-inter focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring disabled:cursor-wait"
+                >
+                  <span className="relative z-10 block w-full rounded-xl border border-border bg-secondary px-2.5 py-1.5 text-center transition-colors group-hover/note:bg-muted">
+                    <span className="line-clamp-2 break-words text-xs font-semibold leading-tight text-foreground">{musicTitle}</span>
+                    {musicArtist && <span className="mt-0.5 block truncate text-[11px] leading-tight text-muted-foreground">{musicArtist}</span>}
+                    <span aria-hidden="true" className="absolute -bottom-1 left-8 size-2 rounded-full bg-secondary transition-colors group-hover/note:bg-muted" />
+                    <span aria-hidden="true" className="absolute -bottom-2.5 left-10 size-1 rounded-full bg-secondary transition-colors group-hover/note:bg-muted" />
+                  </span>
+                  <span className="relative flex size-14 items-center justify-center rounded-full border border-border bg-card">
+                    <Music size={20} className="text-muted-foreground" aria-hidden="true" />
+                    <img
+                      src={`https://i.ytimg.com/vi/${currentBgMusic.videoId}/mqdefault.jpg`}
+                      alt=""
+                      className="absolute inset-0 size-full rounded-full object-cover"
+                      onError={(event) => { event.currentTarget.hidden = true; }}
+                    />
+                    <span className="absolute -bottom-0.5 -right-0.5 flex size-6 items-center justify-center rounded-full bg-primary text-primary-foreground ring-2 ring-background">
+                      {!isBgPlayerReady ? (
+                        <Loader2 size={12} className="animate-spin" aria-hidden="true" />
+                      ) : isPlayingBg ? (
+                        <Pause size={12} fill="currentColor" aria-hidden="true" />
+                      ) : (
+                        <Play size={12} fill="currentColor" className="translate-x-px" aria-hidden="true" />
+                      )}
+                    </span>
+                  </span>
+                </button>
 
-                {/* Song Info - High Density */}
-                <div className="flex flex-col min-w-[70px] max-w-[110px] overflow-hidden">
-                  <div className="flex whitespace-nowrap animate-marquee group-hover:pause-animation">
-                    <h3 className="text-white text-[11px] font-black tracking-tight leading-none uppercase pr-6">
-                       {currentBgMusic.title}
-                    </h3>
-                    <h3 className="text-white text-[11px] font-black tracking-tight leading-none uppercase pr-6" aria-hidden="true">
-                       {currentBgMusic.title}
-                    </h3>
-                  </div>
-                  <p className="text-white/30 text-[9px] font-bold uppercase tracking-widest leading-none mt-1">
-                    {currentBgMusic.artist || (currentBgMusic.title.includes('-') ? currentBgMusic.title.split('-')[1].trim() : 'Artist')}
-                  </p>
-                </div>
-
-                {/* Minimalist Play Button */}
-                <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center transition-all group-hover:scale-110 shadow-lg flex-shrink-0">
-                   {!isBgPlayerReady ? (
-                     <Loader2 size={12} className="text-white animate-spin" />
-                   ) : isPlayingBg ? (
-                     <Pause size={12} className="fill-white text-white" />
-                   ) : (
-                     <Play size={12} className="fill-white text-white translate-x-[1px]" />
-                   )}
-                </div>
-
-                {/* YouTube Handler */}
-                <div className="absolute opacity-0 w-0 h-0 pointer-events-none">
-                  <YouTube 
-                    videoId={currentBgMusic.videoId} 
-                    opts={{ 
-                      width: '1', 
-                      height: '1', 
-                      playerVars: { 
-                        autoplay: 0, 
-                        start: currentBgMusic.startTime || 0, 
-                        end: currentBgMusic.endTime, 
+                <div className="pointer-events-none absolute size-0 opacity-0" aria-hidden="true">
+                  <YouTube
+                    videoId={currentBgMusic.videoId}
+                    opts={{
+                      width: "1",
+                      height: "1",
+                      playerVars: {
+                        autoplay: 0,
+                        start: currentBgMusic.startTime || 0,
+                        end: currentBgMusic.endTime,
                         controls: 0,
                         origin: window.location.origin
-                      } 
-                    }} 
-                    onReady={e => { setBgPlayer(e.target); setIsBgPlayerReady(true); }} 
-                    onStateChange={e => { 
-                      if (e.data === 0) { setIsPlayingBg(false); e.target.seekTo(currentBgMusic.startTime || 0); } 
-                      if (e.data === 2) setIsPlayingBg(false); 
-                      if (e.data === 1) setIsPlayingBg(true); 
-                    }} 
+                      }
+                    }}
+                    onReady={(e) => {
+                      e.target.getIframe()?.setAttribute("tabindex", "-1");
+                      setBgPlayer(e.target);
+                      setIsBgPlayerReady(true);
+                    }}
+                    onStateChange={(e) => {
+                      if (e.data === 0) {
+                        setIsPlayingBg(false);
+                        e.target.seekTo(currentBgMusic.startTime || 0);
+                      }
+                      if (e.data === 2) setIsPlayingBg(false);
+                      if (e.data === 1) setIsPlayingBg(true);
+                    }}
                   />
                 </div>
-              </div>
+              </>
             )}
           </>
         )}
       </div>
 
-      <Dialog open={storyViewerOpen} onOpenChange={setStoryViewerOpen}>
-        <DialogContent className="max-w-[420px] w-full h-[100dvh] md:h-[85vh] p-0 bg-black md:border md:border-white/10 md:rounded-3xl overflow-hidden shadow-2xl flex flex-col [&>button]:hidden font-inter">
+      <Dialog open={storyViewerOpen} onOpenChange={(open) => { if (!open) closeStories(); }}>
+        <DialogContent {...(storyViewerOpen && currentViewerStory && (!currentViewerStory.isMembersOnly || user) ? contentTracking("story", currentViewerStory.id, currentViewerStory.title, currentViewerStory.createdAt) : {})} className="max-w-[420px] w-full h-[100dvh] md:h-[85vh] p-0 bg-black md:border md:border-white/10 md:rounded-3xl overflow-hidden shadow-2xl flex flex-col [&>button]:hidden font-inter">
           <DialogTitle className="sr-only">Story Viewer</DialogTitle>
           <DialogDescription className="sr-only">Viewing community stories with music and interactions.</DialogDescription>
 

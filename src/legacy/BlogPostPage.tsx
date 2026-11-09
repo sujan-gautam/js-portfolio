@@ -1,8 +1,9 @@
+import { contentTracking } from "@/lib/contentTracking";
 import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { blogPostsDB, BlogPost, blogCategoriesDB, BlogCategory } from "@/lib/adminData";
-import { 
-  Calendar, Clock, ChevronLeft, Share2, 
+import { blogPostsDB, BlogPost, blogCategoriesDB, BlogCategory, feedAPI } from "@/lib/adminData";
+import {
+  Calendar, Clock, ChevronLeft, Share2,
   Heart, MessageSquare, Tag, Bookmark,
   Facebook, Twitter, Linkedin, Link as LinkIcon,
   Loader2, ArrowRight, MessageCircle, Sparkles,
@@ -21,7 +22,7 @@ import { Lock } from "lucide-react";
 const BlogPostPage = () => {
   const { slug } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [post, setPost] = useState<BlogPost | null>(null);
   const [category, setCategory] = useState<BlogCategory | null>(null);
   const [relatedPosts, setRelatedPosts] = useState<BlogPost[]>([]);
@@ -35,27 +36,31 @@ const BlogPostPage = () => {
   };
 
   useEffect(() => {
+    if (authLoading) return;
+    let active = true;
     const loadPost = async () => {
       setLoading(true);
       try {
         const allPosts = await blogPostsDB.getAll();
+        if (!active) return;
         const found = allPosts.find(p => p.slug === slug && p.status === "Published");
-        
+
         if (found) {
           setPost(found);
           // Load category
           if (found.category) {
             const cat = await blogCategoriesDB.getById(found.category);
-            if (cat) setCategory(cat);
+            if (active && cat) setCategory(cat);
           }
           // Load related
           const related = allPosts
             .filter(p => p.id !== found.id && p.status === "Published" && p.category === found.category)
             .slice(0, 3);
-          setRelatedPosts(related);
-          
-          // Track view (simple increment)
-          await blogPostsDB.update(found.id, { views: (found.views || 0) + 1 });
+          if (active) setRelatedPosts(related);
+
+          if (!found.locked && (!found.membersOnly || user)) {
+            feedAPI.trackView(found.id).catch(() => {});
+          }
         } else {
           toast.error("Narrative not found");
           navigate("/blog");
@@ -63,18 +68,26 @@ const BlogPostPage = () => {
       } catch (err) {
         console.error("Failed to load post", err);
       }
-      setLoading(false);
+      if (active) setLoading(false);
     };
     loadPost();
     window.scrollTo(0, 0);
-  }, [slug]);
+    return () => { active = false; };
+  }, [authLoading, slug, user]);
 
   const handleLike = async () => {
-    if (!post) return;
-    const newCount = (post.reactions?.heart || 0) + (isLiked ? -1 : 1);
-    setIsLiked(!isLiked);
-    setPost({ ...post, reactions: { ...post.reactions, heart: newCount } });
-    await blogPostsDB.update(post.id, { reactions: { ...post.reactions, heart: newCount } });
+    if (!post || isLiked) return;
+    if (post.locked || (post.membersOnly && !user)) {
+      toast.error("Log in to react");
+      return;
+    }
+    try {
+      const updated = await feedAPI.react(post.id, "heart");
+      setIsLiked(true);
+      setPost((current) => current ? { ...current, reactions: { ...current.reactions, ...updated.reactions } } : current);
+    } catch {
+      toast.error("Couldn’t save your reaction.");
+    }
   };
 
   const handleShare = () => {
@@ -94,7 +107,7 @@ const BlogPostPage = () => {
 
   return (
     <div className="min-h-screen bg-white font-inter">
-      <SEO 
+      <SEO
         title={`${post.title} | Psychological Narratives`}
         description={post.excerpt || post.seo?.description}
         image={post.featuredImage}
@@ -133,7 +146,7 @@ const BlogPostPage = () => {
               </span>
             )}
           </div>
-          
+
           <h1 className="text-4xl md:text-6xl font-extrabold text-slate-900 tracking-tight leading-[1.1]">
             {post.title}
           </h1>
@@ -158,9 +171,9 @@ const BlogPostPage = () => {
         {/* Featured Image */}
         {post.featuredImage && (
           <div className="mb-16 -mx-6 md:mx-0">
-            <img 
-              src={post.featuredImage} 
-              className="w-full h-auto md:rounded-[32px] object-cover shadow-2xl shadow-indigo-500/10" 
+            <img
+              src={post.featuredImage}
+              className="w-full h-auto md:rounded-[32px] object-cover shadow-2xl shadow-indigo-500/10"
               alt={post.title}
             />
             {post.excerpt && <p className="mt-6 text-center text-slate-400 text-sm italic italic leading-relaxed px-6">"{post.excerpt}"</p>}
@@ -168,7 +181,7 @@ const BlogPostPage = () => {
         )}
 
         {/* Article Body */}
-        {post.membersOnly && !user ? (
+        {post.locked || (post.membersOnly && !user) ? (
           <div className="relative overflow-hidden rounded-[32px] bg-slate-50 flex flex-col items-center justify-center py-24 px-8 text-center border border-slate-100 shadow-2xl shadow-indigo-500/5">
             <div className="absolute inset-0 bg-white/40 backdrop-blur-3xl z-0" />
             <div className="relative z-10 flex flex-col items-center">
@@ -179,7 +192,7 @@ const BlogPostPage = () => {
               <p className="text-slate-500 text-sm mb-10 max-w-[320px] leading-relaxed">
                 This narrative is reserved for the community. Please sign in to read the full insight and join the discussion.
               </p>
-              <Button 
+              <Button
                 onClick={handleGoogleLogin}
                 className="h-14 px-8 bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm rounded-2xl transition-all shadow-xl flex items-center gap-4 hover:scale-105 active:scale-95"
               >
@@ -189,7 +202,7 @@ const BlogPostPage = () => {
             </div>
           </div>
         ) : (
-          <article className="prose prose-indigo prose-lg md:prose-xl max-w-none prose-headings:text-slate-900 prose-p:text-slate-600 prose-p:leading-relaxed prose-strong:text-slate-900 prose-blockquote:border-indigo-500 prose-blockquote:bg-indigo-50/30 prose-blockquote:p-6 prose-blockquote:rounded-r-xl prose-img:rounded-3xl mb-20">
+          <article {...contentTracking("article", post.id, post.title, post.publishedAt || post.createdAt)} className="prose prose-indigo prose-lg md:prose-xl max-w-none prose-headings:text-slate-900 prose-p:text-slate-600 prose-p:leading-relaxed prose-strong:text-slate-900 prose-blockquote:border-indigo-500 prose-blockquote:bg-indigo-50/30 prose-blockquote:p-6 prose-blockquote:rounded-r-xl prose-img:rounded-3xl mb-20">
             <div dangerouslySetInnerHTML={{ __html: post.content.replace(/\n/g, '<br />') }} />
           </article>
         )}
@@ -197,7 +210,7 @@ const BlogPostPage = () => {
         {/* Post Actions */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-8 py-10 border-t border-slate-100 mb-20">
           <div className="flex items-center gap-4">
-             <button 
+             <button
               onClick={handleLike}
               className={cn(
                 "flex items-center gap-2 px-6 py-3 rounded-full font-bold text-sm transition-all shadow-lg",
@@ -228,7 +241,7 @@ const BlogPostPage = () => {
               Responses <span className="text-slate-300 text-lg">({post.comments?.length || 0})</span>
             </h2>
           </div>
-          
+
           <div className="space-y-8">
             {/* Comment Form */}
             <div className="flex gap-4 items-start bg-slate-50 p-6 rounded-[24px]">
@@ -236,7 +249,7 @@ const BlogPostPage = () => {
                 <User size={20} className="text-slate-400" />
               </div>
               <div className="flex-1 space-y-4">
-                <textarea 
+                <textarea
                   placeholder="Share your thoughts on this narrative..."
                   value={commentText}
                   onChange={(e) => setCommentText(e.target.value)}

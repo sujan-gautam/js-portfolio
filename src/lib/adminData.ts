@@ -3,7 +3,7 @@ import axios from "axios";
 import { API_BASE } from "../config";
 
 export interface AdminUser { id: string; name: string; email: string; role: string; status: "active" | "inactive"; createdAt: string; }
-export interface PortfolioItem { id: string; title: string; description: string; image: string; category: string; demoUrl: string; link: string; status: boolean; createdAt: string; }
+export interface PortfolioItem { id: string; title: string; description: string; image: string; category: string; demoUrl: string; link: string; status: boolean; featuredOnHome?: boolean; createdAt: string; }
 export interface EducationItem { id: string; degree: string; institution: string; year: string; gpa?: string; description: string; image?: string; status: boolean; }
 export interface PollOption { id: string; label: string; votes: number; voters: string[]; }
 export interface FeedComment { id: string; text: string; author: string; avatar?: string; votersId?: string; ip?: string; createdAt: string; reactions: { heart: number; fire: number; laugh: number }; }
@@ -12,6 +12,8 @@ export interface FeedPost {
   type: "text" | "image" | "poll" | "video" | "reel" | "article";
   category?: "blog" | "research" | string;
   articleTitle?: string;
+  title?: string;
+  featuredImage?: string;
   articleCover?: string;
   articleContent?: string;
   readTime?: number;
@@ -33,6 +35,7 @@ export interface FeedPost {
   pinned?: boolean;
   published?: boolean;
   membersOnly?: boolean;
+  locked?: boolean;
   musicVideoId?: string;
   musicTitle?: string;
   musicArtist?: string;
@@ -84,7 +87,7 @@ export interface StoryLayer {
 }
 export interface StoryComment { id: string; text: string; createdAt: string; ip: string; device: string; }
 export interface StoryAnalytics { type: string; ip: string; device: string; timestamp: string; }
-export interface StoryItem { id: string; title: string; image: string; type?: "image" | "video" | "gif"; active: boolean; isMembersOnly?: boolean; createdAt: string; duration?: number; musicVideoId?: string; musicTitle?: string; musicArtist?: string; musicStartTime?: number; musicEndTime?: number; layers?: StoryLayer[]; filter?: string; views?: number; allowComments?: boolean; comments?: StoryComment[]; reacts?: { heart: number, fire: number, laugh: number }; analyticsLogs?: StoryAnalytics[]; }
+export interface StoryItem { id: string; title: string; description?: string; caption?: string; musicX?: number; musicY?: number; musicStyle?: number; image: string; type?: "image" | "video" | "gif"; active: boolean; isMembersOnly?: boolean; createdAt: string; duration?: number; musicVideoId?: string; musicTitle?: string; musicArtist?: string; musicStartTime?: number; musicEndTime?: number; layers?: StoryLayer[]; filter?: string; views?: number; allowComments?: boolean; comments?: StoryComment[]; reacts?: { heart: number, fire: number, laugh: number }; analyticsLogs?: StoryAnalytics[]; }
 export interface PopupItem { id: string; title: string; content: string; image: string; active: boolean; startDate: string; endDate: string; }
 export interface AdItem { id: string; title: string; image: string; link: string; position: string; active: boolean; impressions: number; clicks: number; }
 export interface ContactMessage { id: string; name: string; email: string; subject: string; message: string; read: boolean; createdAt: string; }
@@ -116,6 +119,8 @@ export interface VisitorRecord {
   language?: string;
   timezone?: string;
   sessionID?: string;
+  pageViewID?: string;
+  pageUrl?: string;
   connectionType?: string;
   // Deep Analytics
   timeSpent?: number;
@@ -135,8 +140,8 @@ export interface MusicItem { id: string; title: string; artist: string; url: str
 export interface UpdateItem { id: string; title: string; description: string; type: "feature" | "bugfix" | "improvement"; createdAt: string; }
 export interface SkillItem { id: string; name: string; image: string; proficiency: number; }
 export interface CourtesyItem { id: string; name: string; role: string; message: string; socialLinks: { platform: string; url: string }[]; image?: string; active: boolean; }
-export interface AboutData { name: string; title: string; bio: string; phone: string; email: string; address: string; dob: string; nationality: string; languages: string; experience: string; clients: string; projects: string; }
-export interface AdminSettings { siteName: string; siteDescription: string; courtesyDescription: string; quoteEnabled: boolean; maintenanceMode: boolean; analyticsId: string; socialLinks: { platform: string; url: string }[]; seoKeywords?: string; seoAuthor?: string; ogImage?: string; seoThemeColor?: string; feedProfileName?: string; feedProfileImage?: string; }
+export interface AboutData { cvUrl?: string; name: string; title: string; bio: string; phone: string; email: string; address: string; dob: string; nationality: string; languages: string; experience: string; clients: string; projects: string; }
+export interface AdminSettings { adminLogo?: string; siteLogo?: string; favicon?: string; authorName?: string; authorTitle?: string; authorBio?: string; authorImage?: string; seoTitle?: string; twitterHandle?: string; siteName: string; siteDescription: string; courtesyDescription: string; quoteEnabled: boolean; maintenanceMode: boolean; analyticsId: string; socialLinks: { platform: string; url: string }[]; seoKeywords?: string; seoAuthor?: string; ogImage?: string; seoThemeColor?: string; feedProfileName?: string; feedProfileImage?: string; }
 
 // ── Blog System Interfaces ──────────────────────────────
 export interface BlogCategory {
@@ -160,7 +165,8 @@ export interface BlogPost {
   title: string;
   slug: string;
   content: string;
-  excerpt?: String;
+  excerpt?: string;
+  pinned?: boolean;
   featuredImage?: string;
   images?: {
     url: string;
@@ -199,6 +205,7 @@ export interface BlogPost {
   comments: any[];
   versionHistory?: { content: string; updatedAt: string }[];
   membersOnly?: boolean;
+  locked?: boolean;
   createdAt: string;
   updatedAt: string;
 }
