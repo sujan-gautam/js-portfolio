@@ -6,8 +6,8 @@ import { aboutDB, slidersDB, type AboutData, type SliderItem } from "@/lib/admin
 import { Skeleton } from "@/components/ui/skeleton";
 import profileFallback from "@/assets/profile-3.jpg";
 
-const masthead = "min-w-0 border-b border-border pb-4 lg:col-start-1 lg:row-start-1 lg:pb-5";
-const avatar = "size-14 shrink-0 rounded-lg border border-border bg-card object-cover object-[50%_40%] sm:size-16 lg:size-[88px]";
+const masthead = "min-w-0 border-b border-border pb-4 sm:pb-5";
+const avatar = "size-16 shrink-0 rounded-lg border border-border bg-card object-cover object-[50%_40%] sm:size-[88px]";
 const action = "inline-flex min-h-11 items-center gap-1.5 rounded-md px-2.5 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring";
 const galleryButton = "grid size-11 place-items-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring";
 
@@ -46,12 +46,12 @@ export default function HeroSection() {
     return (
       <header className={masthead} aria-busy="true">
         <p role="status" className="sr-only">Loading profile</p>
-        <div aria-hidden="true" className="flex items-center gap-3 lg:flex-col lg:items-start lg:gap-4">
-          <Skeleton className={avatar} />
+        <div aria-hidden="true" className="flex items-center justify-between gap-4">
           <div className="space-y-2">
             <Skeleton className="h-7 w-36" />
             <Skeleton className="h-4 w-32" />
           </div>
+          <Skeleton className={avatar} />
         </div>
       </header>
     );
@@ -71,10 +71,10 @@ export default function HeroSection() {
 
   return (
     <header className={masthead}>
-      <div className="flex min-w-0 items-center gap-3 sm:gap-4 lg:flex-col lg:items-start">
+      <div className="flex min-w-0 items-center justify-between gap-4 sm:gap-6">
         {slides.length > 1 ? (
           <Dialog.Root onOpenChange={(open) => { if (open) setCurrentSlide(0); }}>
-            <Dialog.Trigger aria-label="Open photo gallery" className="group relative shrink-0 rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
+            <Dialog.Trigger aria-label="Open photo gallery" className="group relative order-last shrink-0 rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
               {portrait}
               <span aria-hidden="true" className="absolute -bottom-1 -right-1 grid size-5 place-items-center rounded-md border border-border bg-card text-muted-foreground group-hover:text-foreground">
                 <Images size={12} />
@@ -115,18 +115,18 @@ export default function HeroSection() {
               </Dialog.Content>
             </Dialog.Portal>
           </Dialog.Root>
-        ) : portrait}
+        ) : <div className="order-last shrink-0">{portrait}</div>}
         <div className="min-w-0">
-          <h1 className="break-words font-poppins text-2xl font-semibold leading-tight tracking-tight sm:text-[1.75rem]">{name}</h1>
-          {about.title && <p className="mt-0.5 break-words text-sm text-muted-foreground lg:mt-1">{about.title}</p>}
+          <h1 className="break-words font-poppins text-[clamp(1.75rem,5vw,2.75rem)] font-semibold leading-tight tracking-tight">{name}</h1>
+          {about.title && <p className="mt-1 break-words text-sm text-muted-foreground sm:text-base">{about.title}</p>}
           {about.address && (
-            <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground lg:mt-3">
+            <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
               <MapPin size={13} className="shrink-0" aria-hidden="true" /> {about.address}
             </p>
           )}
         </div>
       </div>
-      <div className="-ml-2.5 mt-2 flex flex-wrap items-center gap-x-1 lg:mt-3">
+      <div className="-ml-2.5 mt-2 flex flex-wrap items-center gap-x-1">
         <Link to="/about/" className={`${action} text-muted-foreground hover:bg-secondary hover:text-foreground`}>About</Link>
         <Link to="/contact/" className={`${action} text-foreground hover:bg-secondary`}>
           Contact <ArrowRight size={14} aria-hidden="true" />

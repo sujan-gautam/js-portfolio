@@ -353,13 +353,10 @@ export const FeedPostPage = () => {
  *                  crawl and index each story independently.
  *
  * User behaviour : As soon as the React app boots, we immediately redirect
- *                  the browser to /?story=:id  so the user lands on the
- *                  homepage with the immersive story modal auto-opened.
+ *                  the browser to /feed/?story=:id with the story viewer open.
  */
 export const StoryPage = () => {
   const { id } = useParams<{ id: string }>();
 
-  // Instantly redirect to the homepage with the story modal param.
-  // The StoriesSection component will detect ?story=<id> and auto-open it.
-  return <Navigate to={`/?story=${id}`} replace />;
+  return <Navigate to={`/feed/?story=${encodeURIComponent(id ?? "")}`} replace />;
 };
