@@ -120,7 +120,7 @@ const TiptapEditor = ({ content, onChange, placeholder }: TiptapEditorProps) => 
       // Use a small timeout or check to prevent feedback loops
       const isActuallyDifferent = content.replace(/\s/g, '') !== editor.getHTML().replace(/\s/g, '');
       if (isActuallyDifferent) {
-         editor.commands.setContent(content, false) // false = don't emit update event
+         editor.commands.setContent(content, { emitUpdate: false })
       }
     }
   }, [content, editor])

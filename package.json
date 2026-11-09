@@ -8,6 +8,7 @@
     "build": "vite build && node --input-type=module -e \"import{renameSync,existsSync}from'fs';const p='dist/index.html';if(existsSync(p)){renameSync(p,'dist/raw-index.html');console.log('Renamed dist/index.html -> dist/raw-index.html');}\"",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
+    "typecheck": "tsc --noEmit -p tsconfig.app.json",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest"

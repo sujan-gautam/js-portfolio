@@ -64,7 +64,10 @@ export const AdminEducationList = () => {
       onDelete={async id => { await educationDB.delete(id); educationDB.getAll().then(setData); }}
       onRefresh={() => educationDB.getAll().then(setData)}
       onRefineItem={async (item) => {
-        if (!item.description) return toast.error("No description to refine");
+        if (!item.description) {
+          toast.error("No description to refine");
+          return;
+        }
         const loadingToast = toast.loading(`Refining ${item.degree}...`);
         try {
           const { data: refinedData } = await axios.post(`${API_BASE}/utils/refine-content`, {

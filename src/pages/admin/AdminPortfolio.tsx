@@ -28,7 +28,10 @@ export const AdminPortfolioList = () => {
       onDelete={async id => { await portfolioDB.delete(id); portfolioDB.getAll().then(setData); }}
       onRefresh={() => portfolioDB.getAll().then(setData)}
       onRefineItem={async (item) => {
-        if (!item.description) return toast.error("No description to refine");
+        if (!item.description) {
+          toast.error("No description to refine");
+          return;
+        }
         const loadingToast = toast.loading(`Refining ${item.title}...`);
         try {
           const { data: refinedData } = await axios.post(`${API_BASE}/utils/refine-content`, {

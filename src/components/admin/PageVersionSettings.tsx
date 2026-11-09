@@ -13,6 +13,13 @@ export default function PageVersionSettings() {
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState("");
   const keys = Object.keys(pageVersionLabels) as PageVersionKey[];
+  const currentVersion = (key: PageVersionKey) => data?.[key] ?? "v1";
+  const pendingCount = Object.keys(changes).length;
+
+  function selectAll(version: "v1" | "v2") {
+    setChanges(Object.fromEntries(keys.filter((key) => currentVersion(key) !== version).map((key) => [key, version])));
+    setFeedback("");
+  }
 
   async function save() {
     setSaving(true);
@@ -32,14 +39,19 @@ export default function PageVersionSettings() {
   return (
     <section aria-labelledby="page-versions-heading" className="rounded-lg border border-slate-200 bg-white p-4 sm:p-6">
       <h2 id="page-versions-heading" className="text-base font-semibold text-slate-900">Page versions</h2>
-      <p className="mt-1 text-sm text-slate-600">V1 is the original layout. Enable V2 to show the redesigned layout for that page.</p>
+      <p className="mt-1 text-sm text-slate-600">V2 is the production default. Use V1 to restore the original layout for any page.</p>
       {isPending ? <p role="status" className="mt-3 text-sm text-slate-600">Loading page versions…</p> : isError && !data ? (
         <p className="mt-3 text-sm text-slate-600">Page versions could not load. <button type="button" className="underline" onClick={() => void refetch()}>Retry</button></p>
       ) : (
         <>
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <Button type="button" variant="outline" size="sm" disabled={saving} onClick={() => selectAll("v2")}>Select all V2</Button>
+            <Button type="button" variant="outline" size="sm" disabled={saving} onClick={() => selectAll("v1")}>Select all V1</Button>
+            {pendingCount > 0 && <span className="text-xs text-slate-600">{pendingCount} unsaved {pendingCount === 1 ? "change" : "changes"}</span>}
+          </div>
           <div className="mt-3 grid gap-x-8 sm:grid-cols-2">
             {keys.map((key) => {
-              const enabled = (changes[key] ?? data?.[key]) === "v2";
+              const enabled = (changes[key] ?? currentVersion(key)) === "v2";
               return (
                 <div key={key} className="flex min-h-12 items-center justify-between gap-3 border-b border-slate-100">
                   <label htmlFor={`page-version-${key}`} className="text-sm text-slate-800">{pageVersionLabels[key]}</label>
@@ -50,7 +62,7 @@ export default function PageVersionSettings() {
                       setChanges((current) => {
                         const next = { ...current };
                         const version = checked ? "v2" : "v1";
-                        if (version === (data?.[key] ?? "v1")) delete next[key];
+                        if (version === currentVersion(key)) delete next[key];
                         else next[key] = version;
                         return next;
                       });
@@ -61,7 +73,8 @@ export default function PageVersionSettings() {
             })}
           </div>
           <div className="mt-4 flex flex-wrap items-center gap-3">
-            <Button type="button" onClick={save} disabled={saving || !Object.keys(changes).length}>Save page versions</Button>
+            <Button type="button" onClick={save} disabled={saving || !pendingCount}>Save page versions</Button>
+            {pendingCount > 0 && <Button type="button" variant="ghost" disabled={saving} onClick={() => { setChanges({}); setFeedback(""); }}>Discard changes</Button>}
             <span role="status" className="text-sm text-slate-600">{feedback}</span>
           </div>
         </>

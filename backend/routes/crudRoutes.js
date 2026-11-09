@@ -74,13 +74,15 @@ const requirePostAdmin = (req, res, next) => {
 
 const versionKeys = new Set(["home", "about", "feed", "portfolio", "contact", "feedPost", "blog", "blogPost", "story", "navigation"]);
 const pageVersionsId = "public-layouts";
-const readVersions = (settings) => Object.fromEntries(settings?.versions ?? []);
+const hostingEnvironment = process.env.VERCEL_ENV || process.env.NODE_ENV;
+const defaultPageVersion = hostingEnvironment === "production" ? "v2" : "v1";
+const readVersions = (settings) => Object.fromEntries([...versionKeys].map((key) => [key, settings?.versions?.get(key) ?? defaultPageVersion]));
 
 router.get("/page-versions", async (_req, res) => {
   res.set("Cache-Control", "no-store");
   try {
     const settings = await Models.PageVersions.findById(pageVersionsId);
-    res.json(readVersions(settings));
+    res.type("json").send(JSON.stringify(readVersions(settings)));
   } catch {
     res.status(503).json({ error: "Page versions unavailable" });
   }

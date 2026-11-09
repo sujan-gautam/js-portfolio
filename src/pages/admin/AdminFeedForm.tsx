@@ -112,7 +112,13 @@ const AdminFeedForm = () => {
         setMusicArtist(post.musicArtist || "");
         setMusicStartTime(post.musicStartTime || 0);
         setMusicEndTime(post.musicEndTime || 0);
-        setLinkPreview(post.linkPreview || { url: "", title: "", description: "", image: "", domain: "" });
+        setLinkPreview({
+          url: post.linkPreview?.url ?? "",
+          title: post.linkPreview?.title ?? "",
+          description: post.linkPreview?.description ?? "",
+          image: post.linkPreview?.image ?? "",
+          domain: post.linkPreview?.domain ?? "",
+        });
         setLikeCount(post.reactions?.like || 0);
         setShareCount(post.shares || 0);
 
@@ -412,7 +418,7 @@ const AdminFeedForm = () => {
             </Card>
 
             {/* Media & Polls */}
-            {(type !== "text" || (type === "article" && hasArticlePoll)) && (
+            {type !== "text" && (
               <Card className="bg-white border border-slate-200 shadow-none rounded-lg overflow-hidden">
                 <CardHeader className="px-6 py-4 border-b border-slate-100 flex flex-row items-center justify-between">
                   <CardTitle className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
