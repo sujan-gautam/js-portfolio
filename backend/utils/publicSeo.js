@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { load } from "cheerio";
 
 export const SITE = "https://www.sujan1919.com.np";
@@ -58,9 +59,10 @@ function videoAsset(value, poster) {
     };
   }
   if (!/\.(mp4|webm|mov|m4v|ogv|ogg|m3u8)$/i.test(url.pathname) && !url.pathname.includes("/video/upload/")) return undefined;
-  if (!poster && host === "res.cloudinary.com" && url.pathname.includes("/video/upload/")) {
+  if (host === "res.cloudinary.com" && url.pathname.includes("/video/upload/")) {
     const path = url.pathname.replace("/video/upload/", "/video/upload/so_0/").replace(/\.[^/.]+$/, "");
-    poster = url.origin + path + ".jpg";
+    const mp4 = url.pathname.replace("/video/upload/", "/video/upload/f_mp4/").replace(/\.[^/.]+$/, "");
+    return { contentUrl: /\.mov$/i.test(url.pathname) ? url.origin + mp4 + ".mp4" : source, thumbnailUrl: poster || url.origin + path + ".jpg" };
   }
   return { contentUrl: source, thumbnailUrl: poster };
 }
@@ -76,28 +78,44 @@ export function describeContent(kind, item) {
     || (kind === "story" ? "Story by Sujan Gautam" : "Post by Sujan Gautam");
   const description = plainText(item.seo?.description || item.seoDescription || item.excerpt || text || item.caption || title).replace(/\s+/g, " ").slice(0, 160);
   const storySource = kind === "story" ? item.mediaUrl || item.image : undefined;
-  const storyVideo = kind === "story" && (item.type === "video" || /\.(mp4|webm|mov|m4v|ogv|ogg)(?:[?#]|$)/i.test(storySource || ""));
   const candidates = [
-    item.articleCover, item.featuredImage, !storyVideo && storySource, !storyVideo && item.image,
+    item.articleCover, item.featuredImage, storySource, item.image,
     ...(Array.isArray(item.images) ? item.images.map((image) => typeof image === "string" ? image : image?.url) : []),
     ...$("img[src]").map((_, element) => $(element).attr("src")).get(),
   ];
-  const images = [...new Set(candidates.map(assetUrl).filter(Boolean))];
-  const video = videoAsset(item.videoUrl || (storyVideo ? storySource : undefined)
-    || $("video[src], video source[src], iframe[src]").first().attr("src"),
-  assetUrl(item.videoThumbnail || item.thumbnail) || images[0]);
+  const images = [...new Set(candidates.map(assetUrl).filter((url) => url && !videoAsset(url)))];
+  const videos = new Map();
+  const sources = [item.videoUrl, ...candidates, ...$("video[src], video source[src], iframe[src]").map((_, element) => $(element).attr("src")).get()];
+  for (const source of sources) {
+    const video = videoAsset(source, source === item.videoUrl ? assetUrl(item.videoThumbnail || item.thumbnail) : undefined);
+    const key = video?.contentUrl || video?.embedUrl;
+    if (key && !videos.has(key)) videos.set(key, video);
+  }
   return {
-    kind, path: canonicalPath(kind, item), title, text, description, images, video,
+    kind, path: canonicalPath(kind, item), id: item.id || String(item._id), title, text, description, images,
+    videos: [...videos.values()],
     caption: plainText(item.caption),
     published: isoDate(item.publishedAt || item.createdAt),
     modified: isoDate(item.updatedAt),
   };
 }
 
+export function watchEntries(entry) {
+  return entry.videos.filter((video) => video.thumbnailUrl).map((video, index, videos) => {
+    const key = createHash("sha256").update(video.contentUrl || video.embedUrl).digest("hex").slice(0, 16);
+    const title = videos.length > 1 ? `${entry.title} · Video ${index + 1}` : entry.title;
+    return {
+      kind: "watch", path: `/videos/${entry.kind}/${entry.id}/${key}`, parent: entry.path,
+      title, description: entry.description, published: entry.published, modified: entry.modified,
+      images: [], videos: [video], video,
+    };
+  });
+}
+
 export function contentSchema(entry) {
   const url = SITE + entry.path;
   const graph = [{
-    "@type": entry.kind === "story" ? "WebPage" : "BlogPosting",
+    "@type": ["watch", "story"].includes(entry.kind) ? "WebPage" : "BlogPosting",
     "@id": url,
     url,
     headline: entry.title,
@@ -106,6 +124,7 @@ export function contentSchema(entry) {
     dateModified: entry.modified || entry.published,
     author: { "@type": "Person", name: "Sujan Gautam", url: SITE + "/about/" },
     image: entry.images.length ? entry.images : undefined,
+    mainEntity: entry.kind === "watch" ? { "@id": url + "#video" } : undefined,
   }];
   if (entry.video?.thumbnailUrl && entry.published) {
     graph.push({
@@ -119,15 +138,16 @@ export function contentSchema(entry) {
 
 const e = escapeMarkup;
 export function renderContent(entry, storyViewerPath) {
-  const { title, text, caption, images, video, published } = entry;
-  const embed = video?.embedUrl
+  const { title, text, caption, images, videos, published, parent } = entry;
+  const embed = videos.map((video) => video.embedUrl
     ? `<iframe class="aspect-video w-full" src="${e(video.embedUrl)}" title="${e(title)}" allowfullscreen></iframe>`
     : video?.contentUrl
-      ? `<video class="w-full" src="${e(video.contentUrl)}"${video.thumbnailUrl ? ` poster="${e(video.thumbnailUrl)}"` : ""} controls playsinline preload="metadata"></video>` : "";
+      ? `<video class="aspect-video w-full rounded-lg bg-black" src="${e(video.contentUrl)}"${video.thumbnailUrl ? ` poster="${e(video.thumbnailUrl)}"` : ""} controls playsinline preload="metadata"></video>` : "").join("");
   const photos = images.map((url) => `<img class="w-full rounded-lg" src="${e(url)}" alt="${e(caption || title)}">`).join("");
   const paragraphs = [caption && caption !== title ? caption : "", text === title || text === caption ? "" : text]
     .filter(Boolean).flatMap((part) => part.split(/\n+/)).map((part) => `<p>${e(part)}</p>`).join("");
-  return `<main class="mx-auto max-w-2xl space-y-5 px-5 pb-28 pt-9 text-foreground"><a href="/feed/">Back to feed</a><article class="space-y-4"><h1 class="font-poppins text-3xl font-semibold">${e(title)}</h1>${published ? `<time datetime="${e(published)}">${e(published.slice(0, 10))}</time>` : ""}${embed}${photos}${paragraphs}</article>${storyViewerPath ? `<a href="${e(storyViewerPath)}">Open story viewer</a>` : ""}</main>`;
+  const videoLinks = parent ? "" : watchEntries(entry).map((watch, index) => `<li><a class="underline" href="${e(watch.path)}">Watch video ${index + 1}</a></li>`).join("");
+  return `<main class="mx-auto max-w-2xl space-y-5 px-5 pb-28 pt-9 text-foreground"><a class="underline" href="${e(parent || "/feed/")}">${parent ? "View original post" : "Back to feed"}</a><article class="space-y-4"><h1 class="font-poppins text-3xl font-semibold">${e(title)}</h1>${embed}${published ? `<time datetime="${e(published)}">${e(published.slice(0, 10))}</time>` : ""}${photos}${paragraphs}${parent ? `<p>${e(entry.description)}</p>` : ""}</article>${videoLinks ? `<ul>${videoLinks}</ul>` : ""}${storyViewerPath ? `<a href="${e(storyViewerPath)}">Open story viewer</a>` : ""}</main>`;
 }
 
 export function renderListing(title, entries, introduction = "") {
