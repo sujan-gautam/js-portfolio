@@ -48,7 +48,7 @@ const Contact = () => {
     const title = `Contact | ${siteName} | ${profession}`;
     const desc = "Get in touch with Sujan Gautam (sujan1919). Open for collaborations, freelance projects, and professional inquiries in software development and UI/UX design.";
     const keywords = "Sujan Gautam Contact, Sujan1919 Contact, Hire Sujan Gautam, Software Developer Contact, Nepal Developer, Sujan Shrestha";
-    const url = "https://sujan1919.com.np/contact/";
+    const url = "https://www.sujan1919.com.np/contact/";
 
     document.title = title;
     setMeta("description", desc);

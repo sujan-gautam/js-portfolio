@@ -75,7 +75,6 @@ import { AdminVideosList, AdminVideosForm } from "@/pages/admin/AdminVideos";
 // Visitors
 import AdminVisitors from "@/pages/admin/AdminVisitors";
 
-import SEO from "@/components/SEO";
 import AnalyticsTracker from "@/components/AnalyticsTracker";
 
 import { AuthProvider } from "@/context/AuthContext";
@@ -112,7 +111,6 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
       <TooltipProvider>
-        <SEO />
         <Toaster />
         <Sonner />
         <BrowserRouter>

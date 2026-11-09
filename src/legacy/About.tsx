@@ -178,7 +178,7 @@ const About = () => {
     const title = `About | ${siteName} | ${profession}`;
     const desc = "Discover the journey, skills, and professional expertise of Sujan Gautam (sujan1919), a senior Software Developer and UI Architect dedicated to crafting premium digital solutions.";
     const keywords = "Sujan Gautam, Sujan1919, Sujan, Software Developer, About, Portfolio, Web Developer, UI Architect, Nepal Developer";
-    const url = "https://sujan1919.com.np/about/";
+    const url = "https://www.sujan1919.com.np/about/";
 
     document.title = title;
     setMeta("description", desc);

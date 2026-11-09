@@ -981,7 +981,7 @@ const Feed = () => {
     const title = `Feed | ${siteName} | ${profession}`;
     const desc = "Stay updated with the latest posts, projects, and insights from Sujan Gautam (sujan1919). Interactive feed featuring software development, UI/UX design, and creative technology.";
     const keywords = "Sujan Gautam Feed, Sujan1919 Posts, Software Developer Updates, Web Development Blog, Sujan Shrestha, Portfolio Feed";
-    const url = "https://sujan1919.com.np/feed/";
+    const url = "https://www.sujan1919.com.np/feed/";
 
     document.title = title;
     setMeta("description", desc);

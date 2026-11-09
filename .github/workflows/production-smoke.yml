@@ -18,12 +18,18 @@ jobs:
     env:
       SITE_URL: https://www.sujan1919.com.np
     steps:
-      - name: Verify the home page and public version flags
+      - name: Verify the home page, version flags, and sitemap
         shell: bash
         run: |
           set -euo pipefail
           curl --fail --silent --show-error --max-time 20 --retry 3 "$SITE_URL/" -o home.html
           grep -q 'id="root"' home.html
+
+          curl --fail --silent --show-error --max-time 20 --retry 3 "$SITE_URL/robots.txt" -o robots.txt
+          grep -Fq "Sitemap: $SITE_URL/sitemap.xml" robots.txt
+          curl --fail --silent --show-error --max-time 20 --retry 3 "$SITE_URL/sitemap.xml" -o sitemap.xml
+          grep -Fq "<loc>$SITE_URL/feed/</loc>" sitemap.xml
+          grep -Fq 'xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"' sitemap.xml
 
           curl --fail --silent --show-error --max-time 20 --retry 3 "$SITE_URL/api/page-versions" -o versions.json
           jq --exit-status '

@@ -67,7 +67,7 @@ export default function About() {
     const title = `About | ${siteName}`;
     const desc = "About Sujan Gautam, including his background, skills, education, and CV.";
     const keywords = "Sujan Gautam, Sujan1919, Sujan, Software Developer, About, Portfolio, Web Developer, UI Architect, Nepal Developer";
-    const url = "https://sujan1919.com.np/about/";
+    const url = "https://www.sujan1919.com.np/about/";
 
     document.title = title;
     setMeta("description", desc);

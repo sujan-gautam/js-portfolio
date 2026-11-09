@@ -9,6 +9,7 @@ import nodemailer from "nodemailer";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { SITE, INDEX_ROBOTS, PRIVATE_ROBOTS, PUBLIC_QUERIES, assetUrl, canonicalPath, contentSchema, describeContent, escapeMarkup, plainText, renderContent, renderListing, sitemapXml } from "./utils/publicSeo.js";
 
 import authRoutes from "./routes/authRoutes.js";
 import passport from "passport";
@@ -119,121 +120,88 @@ app.use(async (req, res, next) => {
 });
 
 // Routes
+app.use("/api", (_req, res, next) => {
+  res.set("X-Robots-Tag", "noindex");
+  next();
+});
 app.use("/api", crudRoutes);
 app.use("/api/auth", authRoutes);
 
 // ── Dynamic Sitemap (Google SEO) ─────────────────────────────────────────────
 import * as Models from "./models/index.js";
 
-app.get("/api/sitemap.xml", async (req, res) => {
-  const SITE = "https://sujan1919.com.np";
-  const today = new Date().toISOString().split("T")[0];
+const CONTENT_MODELS = { post: Models.Feed, article: Models.BlogPost, story: Models.Story };
+const CONTENT_FIELDS = "slug title excerpt seo seoTitle seoDescription articleTitle articleCover articleContent caption description content pollQuestion image images featuredImage videoUrl videoThumbnail thumbnail mediaUrl type createdAt updatedAt publishedAt membersOnly isMembersOnly";
 
-  // Static pages
-  const staticPages = [
-    { url: `${SITE}/`,          priority: "1.0", freq: "daily" },
-    { url: `${SITE}/about/`,    priority: "0.8", freq: "monthly" },
-    { url: `${SITE}/feed/`,     priority: "0.9", freq: "daily" },
-    { url: `${SITE}/portfolio/`,priority: "0.9", freq: "weekly" },
-    { url: `${SITE}/contact/`,  priority: "0.7", freq: "yearly" },
-    { url: `${SITE}/blog/`,     priority: "0.9", freq: "daily" },
-  ];
+function listPublicContent(kind, limit) {
+  const query = CONTENT_MODELS[kind].find(PUBLIC_QUERIES[kind]).select(CONTENT_FIELDS).sort({ createdAt: -1 });
+  if (limit) query.limit(limit);
+  return query.lean();
+}
 
-  let feedUrls = [], storyUrls = [], blogUrls = [];
+const STATIC_PAGES = ["/", "/about/", "/feed/", "/portfolio/", "/contact/", "/blog",
+  "/techy-pos/", "/mitas-kitchen/", "/golden-deals/", "/webwithfreelancer/", "/project-ida/", "/trace/", "/privacy/", "/terms/"];
+
+app.get(["/sitemap.xml", "/api/sitemap.xml"], async (_req, res) => {
   try {
-    // Fetching more fields: videoUrl, images, image, content
-    const posts = await Models.Feed.find({ published: true, membersOnly: { $ne: true } }, "_id createdAt caption content images image videoUrl").lean();
-    feedUrls = posts.map(p => {
-      const title = p.caption ? `${p.caption.slice(0, 70)} | Sujan Gautam` : "Professional Post | Sujan1919 Software Developer";
-      return {
-        url: `${SITE}/feed/post/${p._id}`,
-        lastmod: p.createdAt ? new Date(p.createdAt).toISOString().split("T")[0] : today,
-        priority: "0.9",
-        freq: "daily",
-        image: p.images?.[0] || p.image || null,
-        video: p.videoUrl || null,
-        title: title,
-        desc: p.caption || p.content?.replace(/<[^>]+>/g, '').substring(0, 150) || title
-      };
-    });
-  } catch (e) { console.error("Sitemap feed error:", e.message); }
-
-  try {
-    const stories = await Models.Story.find({}, "_id createdAt title mediaUrl type duration").lean();
-    storyUrls = stories.map(s => {
-      const title = s.title ? `${s.title} | Sujan Gautam Story` : "Exclusive Story | Sujan1919 Software Developer";
-      const isVideo = s.type === "video" || (s.mediaUrl && s.mediaUrl.match(/\.(mp4|webm|mov|ogg)$/));
-      return {
-        url: `${SITE}/story/${s._id}`,
-        lastmod: s.createdAt ? new Date(s.createdAt).toISOString().split("T")[0] : today,
-        priority: "0.8",
-        freq: "weekly",
-        image: !isVideo ? s.mediaUrl : null,
-        video: isVideo ? s.mediaUrl : null,
-        title: title,
-        desc: title
-      };
-    });
-  } catch (e) { console.error("Sitemap story error:", e.message); }
-
-  try {
-    const blogs = await Models.BlogPost.find({ status: "Published", membersOnly: { $ne: true } }, "_id title excerpt featuredImage updatedAt createdAt").lean();
-    blogUrls = blogs.map(b => ({
-      url: `${SITE}/post/${b._id}`,
-      lastmod: (b.updatedAt || b.createdAt) ? new Date(b.updatedAt || b.createdAt).toISOString().split("T")[0] : today,
-      priority: "0.8",
-      freq: "weekly",
-      image: b.featuredImage || null,
-      title: b.title,
-      desc: b.excerpt || b.title
-    }));
-  } catch (e) { console.error("Sitemap blog error:", e.message); }
-
-  const escapeXml = (unsafe) => unsafe ? unsafe.replace(/[<>&'"]/g, (c) => {
-      switch (c) {
-          case '<': return '&lt;';
-          case '>': return '&gt;';
-          case '&': return '&amp;';
-          case '\'': return '&apos;';
-          case '"': return '&quot;';
-          default: return c;
-      }
-  }) : "";
-
-  const renderUrl = (entry) => `
-  <url>
-    <loc>${entry.url}</loc>
-    <lastmod>${entry.lastmod || today}</lastmod>
-    <changefreq>${entry.freq}</changefreq>
-    <priority>${entry.priority}</priority>${entry.image ? `
-    <image:image>
-      <image:loc>${entry.image}</image:loc>${entry.title ? `
-      <image:title>${escapeXml(entry.title)}</image:title>` : ""}
-    </image:image>` : ""}${entry.video ? `
-    <video:video>
-      <video:thumbnail_loc>${entry.image || "https://sujan1919.com.np/favicon.png"}</video:thumbnail_loc>
-      <video:title>${escapeXml(entry.title)}</video:title>
-      <video:description>${escapeXml(entry.desc)}</video:description>
-      <video:content_loc>${entry.video}</video:content_loc>
-    </video:video>` : ""}
-  </url>`;
-
-  const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<urlset
-  xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
-  xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
-  xmlns:video="http://www.google.com/schemas/sitemap-video/1.1">
-${staticPages.map(p => renderUrl({ ...p, lastmod: today })).join("")}
-${feedUrls.map(renderUrl).join("")}
-${storyUrls.map(renderUrl).join("")}
-${blogUrls.map(renderUrl).join("")}
-</urlset>`;
-
-  res.setHeader("Content-Type", "application/xml");
-  res.setHeader("Cache-Control", "public, max-age=3600"); // Cache 1 hour
-  res.send(xml);
+    const entries = (await Promise.all(Object.keys(CONTENT_MODELS).map(async (kind) =>
+      (await listPublicContent(kind)).map((item) => describeContent(kind, item))))).flat();
+    res.set("Cache-Control", "public, max-age=300, s-maxage=300");
+    res.type("application/xml").send(sitemapXml([...STATIC_PAGES.map((path) => ({ path })), ...entries]));
+  } catch (error) {
+    console.error("Sitemap could not load:", error.message);
+    res.set("Retry-After", "300").status(503).type("text").send("Sitemap temporarily unavailable");
+  }
 });
 
+function contentRequest(path, query) {
+  const post = path.match(/^\/(?:feed\/)?post\/([^/]+)$/);
+  const blog = path.match(/^\/blog\/([^/]+)$/);
+  const story = path.match(/^\/stor(?:y|ies)\/([^/]+)$/);
+  if (post || (path === "/feed" && typeof query.post === "string")) return { kind: "post", value: post?.[1] || query.post };
+  if (blog) return { kind: "article", value: blog[1] };
+  if (story || (["", "/feed"].includes(path) && typeof query.story === "string")) {
+    return { kind: "story", value: story?.[1] || query.story, standalone: path.startsWith("/stories/") };
+  }
+  return null;
+}
+
+async function findContent({ kind, value }) {
+  if (kind === "article") {
+    let slug;
+    try { slug = decodeURIComponent(value); } catch { return {}; }
+    return { kind, item: await Models.BlogPost.findOne({ slug, status: "Published" }).select(CONTENT_FIELDS).lean() };
+  }
+  if (!/^[a-f0-9]{24}$/i.test(value)) return {};
+  if (kind === "story") return { kind, item: await Models.Story.findOne({ _id: value, active: true }).select(CONTENT_FIELDS).lean() };
+  const post = await Models.Feed.findOne({ _id: value, published: true }).select(CONTENT_FIELDS).lean();
+  if (post) return { kind, item: post };
+  const article = await Models.BlogPost.findOne({ _id: value, status: "Published" }).select(CONTENT_FIELDS).lean();
+  return { kind: "article", item: article };
+}
+
+async function renderPublicListing(path) {
+  if (path === "/feed" || path === "/blog") {
+    const kinds = path === "/feed" ? ["post", "article", "story"] : ["article"];
+    const entries = (await Promise.all(kinds.map(async (kind) =>
+      (await listPublicContent(kind, 12)).map((item) => describeContent(kind, item))))).flat()
+      .sort((a, b) => (b.published || "").localeCompare(a.published || ""));
+    return renderListing(path === "/feed" ? "Feed" : "Articles", entries);
+  }
+  if (["", "/about", "/portfolio", "/contact"].includes(path)) {
+    const profile = path === "/portfolio" ? null : await Models.About.findOne({}).select("name title bio description address email").lean();
+    const projects = path === "" || path === "/portfolio" ? await Models.Portfolio.find({ status: { $ne: false } }).select("title description image link").limit(12).lean() : [];
+    const entries = projects.map((project) => ({
+      title: plainText(project.title), description: plainText(project.description),
+      path: assetUrl(project.link), images: [assetUrl(project.image)].filter(Boolean),
+    }));
+    if (path === "" && profile?.title) entries.unshift({ title: plainText(profile.title), description: plainText(profile.description || profile.bio) });
+    if (path === "/contact" && profile?.email) entries.push({ title: "Email", description: plainText(profile.email) });
+    return renderListing(path === "" ? profile?.name || "Sujan Gautam" : path === "/about" ? "About" : path === "/portfolio" ? "Portfolio" : "Contact",
+      entries, path === "/about" ? plainText(profile?.bio || profile?.description) : path === "/contact" ? plainText(profile?.address) : "");
+  }
+  return "";
+}
 
 // ── Analytics Insights API ────────────────────────────────────────────────────
 app.get("/api/analytics/visitor-count", async (_req, res) => {
@@ -844,7 +812,7 @@ async function getHtmlTemplate(req) {
 
 app.get("*", async (req, res, next) => {
   // If the request is for API or static assets/files, let Vercel/Express static routing handle it
-  if (req.path.startsWith("/api") || req.path.includes(".")) {
+  if (req.path.startsWith("/api") || (req.path.includes(".") && !req.path.startsWith("/blog/"))) {
     return next();
   }
 
@@ -857,9 +825,13 @@ app.get("*", async (req, res, next) => {
     let desc = "Sujan Gautam is a full-stack software engineer and web developer based in Hattiesburg, MS. Building responsive websites and digital solutions for clients worldwide. Available for freelance.";
     let keywords = "Sujan Gautam, full stack developer, web developer Hattiesburg MS, freelance web developer, React developer, Node.js developer, software engineer";
     let ogImage = "https://res.cloudinary.com/dspj4fc14/image/upload/v1782236920/exact-echo/og/og_home.jpg";
-    let canonicalUrl = `https://sujan1919.com.np${req.path}`;
-    let robots = "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1";
+    let canonicalUrl = `https://www.sujan1919.com.np${req.path}`;
+    let robots = INDEX_ROBOTS;
+    let body = "";
+    let standalone = false;
     let schemaData = null;
+    let contentVideo;
+    let ogType;
 
     const pathClean = req.path.replace(/\/$/, ""); // Normalize trailing slashes
 
@@ -867,212 +839,167 @@ app.get("*", async (req, res, next) => {
     const buildBreadcrumb = (crumbs) => ({
       "@type": "BreadcrumbList",
       "itemListElement": [
-        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://sujan1919.com.np/" },
+        { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://www.sujan1919.com.np/" },
         ...crumbs.map((c, i) => ({ "@type": "ListItem", "position": i + 2, "name": c.name, "item": c.url }))
       ]
     });
 
-    if (pathClean === "" || pathClean === "/") {
-      // Home Page
-      let servedStory = null;
-      if (req.query.story) {
-        try {
-          servedStory = await Models.Story.findById(req.query.story).lean();
-        } catch (e) {
-          console.error("SEO: Homepage story query error:", e);
-        }
-      }
-
-      if (servedStory) {
-        const isVideo = servedStory.type === "video";
-        const mediaUrl = servedStory.mediaUrl || servedStory.image || "https://res.cloudinary.com/dspj4fc14/image/upload/v1782236706/exact-echo/og/og_feed.jpg";
-        title = servedStory.title ? `${servedStory.title} — Sujan Gautam` : "Exclusive Story — Sujan Gautam";
-        desc = servedStory.description || servedStory.caption || "View an exclusive story from Sujan Gautam's portfolio.";
-        ogImage = servedStory.thumbnail || (isVideo ? "https://res.cloudinary.com/dspj4fc14/image/upload/v1782236706/exact-echo/og/og_feed.jpg" : mediaUrl);
-        canonicalUrl = `https://sujan1919.com.np/?story=${req.query.story}`;
-
-        if (servedStory.isMembersOnly) robots = "noindex, nofollow";
-
-        const mediaSchema = isVideo ? {
-          "@type": "VideoObject",
-          "@id": canonicalUrl + "#video",
-          "name": servedStory.title || "Exclusive Story — Sujan Gautam",
-          "description": desc,
-          "contentUrl": mediaUrl,
-          "thumbnailUrl": ogImage,
-          "uploadDate": servedStory.createdAt,
-          "duration": servedStory.duration ? `PT${servedStory.duration}S` : undefined,
-          "author": { "@type": "Person", "@id": "https://sujan1919.com.np/#person", "name": "Sujan Gautam", "url": "https://sujan1919.com.np/" },
-          "publisher": {
-            "@type": "Person",
-            "@id": "https://sujan1919.com.np/#person",
-            "name": "Sujan Gautam",
-            "url": "https://sujan1919.com.np/",
-            "logo": { "@type": "ImageObject", "url": "https://res.cloudinary.com/dspj4fc14/image/upload/v1782238482/exact-echo/favicon.jpg" }
-          },
-          "url": canonicalUrl
-        } : {
-          "@type": "ImageObject",
-          "@id": canonicalUrl + "#image",
-          "name": servedStory.title || "Exclusive Story — Sujan Gautam",
-          "description": desc,
-          "contentUrl": mediaUrl,
-          "url": canonicalUrl,
-          "author": { "@type": "Person", "@id": "https://sujan1919.com.np/#person", "name": "Sujan Gautam", "url": "https://sujan1919.com.np/" },
-          "uploadDate": servedStory.createdAt
-        };
-
-        schemaData = {
-          "@context": "https://schema.org",
-          "@graph": [
-            {
-              "@type": "WebPage",
-              "@id": canonicalUrl + "#webpage",
-              "url": canonicalUrl,
-              "name": title,
-              "description": desc,
-              "inLanguage": "en-US",
-              "isPartOf": { "@id": "https://sujan1919.com.np/#website" },
-              "author": { "@id": "https://sujan1919.com.np/#person" },
-              "image": { "@type": "ImageObject", "url": ogImage }
-            },
-            mediaSchema,
-            buildBreadcrumb([
-              { name: "Stories", url: "https://sujan1919.com.np/feed/" },
-              { name: servedStory.title || "Story", url: canonicalUrl }
-            ])
-          ]
-        };
+    const requested = contentRequest(pathClean, req.query);
+    if (requested) {
+      const { kind, item } = await findContent(requested);
+      standalone = Boolean(requested.standalone);
+      if (!item) {
+        res.status(404);
+        title = "Content not found — Sujan Gautam";
+        desc = "This content is unavailable.";
+        robots = PRIVATE_ROBOTS;
+        body = renderListing("Content not found", [{ title: "Back to feed", path: "/feed/" }]);
+      } else if (item.membersOnly || item.isMembersOnly) {
+        title = "Log in to view — Sujan Gautam";
+        desc = "Sign in to view this content.";
+        robots = PRIVATE_ROBOTS;
+        body = renderListing("Log in to view", [{ title: "Open story viewer", path: `/story/${requested.value}` }].filter(() => standalone));
       } else {
-        title = "Sujan Gautam — Full-Stack Software Engineer | Hattiesburg, MS";
-        desc = "Sujan Gautam is a full-stack software engineer and web developer based in Hattiesburg, MS. Building responsive websites and digital solutions for clients worldwide. Available for freelance.";
-        ogImage = "https://res.cloudinary.com/dspj4fc14/image/upload/v1782236920/exact-echo/og/og_home.jpg";
-        
-        // Fetch live home content for rich schema
-        let homeStories = [], homeFeedCount = 0;
-        try {
-          homeStories = await Models.Story.find({ active: true }).sort({ createdAt: -1 }).limit(6).lean();
-          homeFeedCount = await Models.Feed.countDocuments();
-        } catch (e) { /* non-critical */ }
-
-        const storyItems = homeStories.map((s, i) => ({
-          "@type": "ListItem",
-          "position": i + 1,
-          "url": `https://sujan1919.com.np/story/${s._id}`,
-          "name": s.title || "Exclusive Story — Sujan Gautam"
-        }));
-
-        schemaData = {
-          "@context": "https://schema.org",
-          "@graph": [
-            {
-              "@type": "WebPage",
-              "@id": "https://sujan1919.com.np/#webpage",
-              "url": "https://sujan1919.com.np/",
-              "name": "Sujan Gautam — Full-Stack Software Engineer | Hattiesburg, MS",
-              "description": "Sujan Gautam is a full-stack software engineer and web developer based in Hattiesburg, MS. Building responsive websites and digital solutions for clients worldwide. Available for freelance.",
-              "inLanguage": "en-US",
-              "isPartOf": { "@id": "https://sujan1919.com.np/#website" },
-              "about": { "@id": "https://sujan1919.com.np/#person" },
-              "image": {
-                "@type": "ImageObject",
-                "url": "https://res.cloudinary.com/dspj4fc14/image/upload/v1782236920/exact-echo/og/og_home.jpg",
-                "width": 1200,
-                "height": 630
-              },
-              "mainEntity": {
-                "@type": "ItemList",
-                "name": "Featured Content by Sujan Gautam",
-                "description": "Portfolio highlights, stories, posts and media by full-stack developer Sujan Gautam.",
-                "numberOfItems": 5 + storyItems.length,
-                "itemListElement": [
-                  {
-                    "@type": "ListItem", "position": 1,
-                    "name": "Portfolio Projects",
-                    "url": "https://sujan1919.com.np/portfolio/",
-                    "description": "Web apps, POS systems and software tools built by Sujan Gautam"
-                  },
-                  {
-                    "@type": "ListItem", "position": 2,
-                    "name": `Feed — ${homeFeedCount}+ Posts`,
-                    "url": "https://sujan1919.com.np/feed/",
-                    "description": "Personal posts, updates and photos by Sujan Gautam"
-                  },
-                  {
-                    "@type": "ListItem", "position": 3,
-                    "name": "About Sujan Gautam",
-                    "url": "https://sujan1919.com.np/about/",
-                    "description": "Full-stack developer, USM Computer Science student, 4.0 GPA, available for freelance"
-                  },
-                  {
-                    "@type": "ListItem", "position": 4,
-                    "name": "Blog — Technical Articles",
-                    "url": "https://sujan1919.com.np/blog/",
-                    "description": "Coding tutorials and web development insights by Sujan Gautam"
-                  },
-                  {
-                    "@type": "ListItem", "position": 5,
-                    "name": "Contact & Hire",
-                    "url": "https://sujan1919.com.np/contact/",
-                    "description": "Hire Sujan Gautam for freelance web development projects"
-                  },
-                  ...storyItems.map(s => ({ ...s, "position": s.position + 5 }))
-                ]
-              }
-            },
-            {
-              "@type": "Person",
-              "@id": "https://sujan1919.com.np/#person",
-              "name": "Sujan Gautam",
-              "url": "https://sujan1919.com.np/",
-              "image": {
-                "@type": "ImageObject",
-                "url": ogImage,
-                "width": 1200,
-                "height": 630
-              },
-              "jobTitle": "Full-Stack Software Engineer",
-              "description": "Full-stack web developer and software engineer based in Hattiesburg, MS. Available for freelance projects.",
-              "email": "gautamsujan1919@gmail.com",
-              "telephone": "+18179707616",
-              "address": {
-                "@type": "PostalAddress",
-                "addressLocality": "Hattiesburg",
-                "addressRegion": "MS",
-                "addressCountry": "US"
-              },
-              "sameAs": [
-                "https://www.instagram.com/webwithfreelancer"
-              ],
-              "knowsLanguage": ["en", "ne", "hi"],
-              "nationality": "Nepalese",
-              "alumniOf": [
-                {
-                  "@type": "EducationalOrganization",
-                  "name": "University of Southern Mississippi"
-                }
-              ]
-            },
-            {
-              "@type": "WebSite",
-              "@id": "https://sujan1919.com.np/#website",
-              "url": "https://sujan1919.com.np/",
-              "name": "Sujan Gautam Portfolio",
-              "description": "Portfolio and personal site of Sujan Gautam, full-stack software engineer.",
-              "publisher": { "@id": "https://sujan1919.com.np/#person" },
-              "potentialAction": {
-                "@type": "SearchAction",
-                "target": {
-                  "@type": "EntryPoint",
-                  "urlTemplate": "https://sujan1919.com.np/feed/?search={search_term_string}"
-                },
-                "query-input": "required name=search_term_string"
-              }
-            },
-            buildBreadcrumb([])
-          ]
-        };
+        const entry = describeContent(kind, item);
+        canonicalUrl = SITE + entry.path;
+        if (requested.kind === "post" && pathClean !== entry.path) return res.redirect(301, entry.path);
+        title = `${plainText(item.seo?.title || item.seoTitle) || entry.title} — Sujan Gautam`;
+        desc = entry.description;
+        ogImage = entry.video?.thumbnailUrl || entry.images[0] || ogImage;
+        contentVideo = entry.video?.embedUrl || entry.video?.contentUrl;
+        ogType = kind === "story" ? (contentVideo ? "video.other" : "website") : "article";
+        schemaData = contentSchema(entry);
+        body = renderContent(entry, kind === "story" ? `/story/${requested.value}` : undefined);
       }
+    } else if (pathClean === "" || pathClean === "/") {
+      title = "Sujan Gautam — Full-Stack Software Engineer | Hattiesburg, MS";
+      desc = "Sujan Gautam is a full-stack software engineer and web developer based in Hattiesburg, MS. Building responsive websites and digital solutions for clients worldwide. Available for freelance.";
+      ogImage = "https://res.cloudinary.com/dspj4fc14/image/upload/v1782236920/exact-echo/og/og_home.jpg";
+
+      // Fetch live home content for rich schema
+      let homeStories = [], homeFeedCount = 0;
+      try {
+        homeStories = await listPublicContent("story", 6);
+        homeFeedCount = await Models.Feed.countDocuments(PUBLIC_QUERIES.post);
+      } catch (e) { /* non-critical */ }
+
+      const storyItems = homeStories.map((s, i) => ({
+        "@type": "ListItem",
+        "position": i + 1,
+        "url": SITE + canonicalPath("story", s),
+        "name": s.title || "Exclusive Story — Sujan Gautam"
+      }));
+
+      schemaData = {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "WebPage",
+            "@id": "https://www.sujan1919.com.np/#webpage",
+            "url": "https://www.sujan1919.com.np/",
+            "name": "Sujan Gautam — Full-Stack Software Engineer | Hattiesburg, MS",
+            "description": "Sujan Gautam is a full-stack software engineer and web developer based in Hattiesburg, MS. Building responsive websites and digital solutions for clients worldwide. Available for freelance.",
+            "inLanguage": "en-US",
+            "isPartOf": { "@id": "https://www.sujan1919.com.np/#website" },
+            "about": { "@id": "https://www.sujan1919.com.np/#person" },
+            "image": {
+              "@type": "ImageObject",
+              "url": "https://res.cloudinary.com/dspj4fc14/image/upload/v1782236920/exact-echo/og/og_home.jpg",
+              "width": 1200,
+              "height": 630
+            },
+            "mainEntity": {
+              "@type": "ItemList",
+              "name": "Featured Content by Sujan Gautam",
+              "description": "Portfolio highlights, stories, posts and media by full-stack developer Sujan Gautam.",
+              "numberOfItems": 5 + storyItems.length,
+              "itemListElement": [
+                {
+                  "@type": "ListItem", "position": 1,
+                  "name": "Portfolio Projects",
+                  "url": "https://www.sujan1919.com.np/portfolio/",
+                  "description": "Web apps, POS systems and software tools built by Sujan Gautam"
+                },
+                {
+                  "@type": "ListItem", "position": 2,
+                  "name": `Feed — ${homeFeedCount}+ Posts`,
+                  "url": "https://www.sujan1919.com.np/feed/",
+                  "description": "Personal posts, updates and photos by Sujan Gautam"
+                },
+                {
+                  "@type": "ListItem", "position": 3,
+                  "name": "About Sujan Gautam",
+                  "url": "https://www.sujan1919.com.np/about/",
+                  "description": "Full-stack developer, USM Computer Science student, 4.0 GPA, available for freelance"
+                },
+                {
+                  "@type": "ListItem", "position": 4,
+                  "name": "Blog — Technical Articles",
+                  "url": "https://www.sujan1919.com.np/blog/",
+                  "description": "Coding tutorials and web development insights by Sujan Gautam"
+                },
+                {
+                  "@type": "ListItem", "position": 5,
+                  "name": "Contact & Hire",
+                  "url": "https://www.sujan1919.com.np/contact/",
+                  "description": "Hire Sujan Gautam for freelance web development projects"
+                },
+                ...storyItems.map(s => ({ ...s, "position": s.position + 5 }))
+              ]
+            }
+          },
+          {
+            "@type": "Person",
+            "@id": "https://www.sujan1919.com.np/#person",
+            "name": "Sujan Gautam",
+            "url": "https://www.sujan1919.com.np/",
+            "image": {
+              "@type": "ImageObject",
+              "url": ogImage,
+              "width": 1200,
+              "height": 630
+            },
+            "jobTitle": "Full-Stack Software Engineer",
+            "description": "Full-stack web developer and software engineer based in Hattiesburg, MS. Available for freelance projects.",
+            "email": "gautamsujan1919@gmail.com",
+            "telephone": "+18179707616",
+            "address": {
+              "@type": "PostalAddress",
+              "addressLocality": "Hattiesburg",
+              "addressRegion": "MS",
+              "addressCountry": "US"
+            },
+            "sameAs": [
+              "https://www.instagram.com/webwithfreelancer"
+            ],
+            "knowsLanguage": ["en", "ne", "hi"],
+            "nationality": "Nepalese",
+            "alumniOf": [
+              {
+                "@type": "EducationalOrganization",
+                "name": "University of Southern Mississippi"
+              }
+            ]
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://www.sujan1919.com.np/#website",
+            "url": "https://www.sujan1919.com.np/",
+            "name": "Sujan Gautam Portfolio",
+            "description": "Portfolio and personal site of Sujan Gautam, full-stack software engineer.",
+            "publisher": { "@id": "https://www.sujan1919.com.np/#person" },
+            "potentialAction": {
+              "@type": "SearchAction",
+              "target": {
+                "@type": "EntryPoint",
+                "urlTemplate": "https://www.sujan1919.com.np/feed/?search={search_term_string}"
+              },
+              "query-input": "required name=search_term_string"
+            }
+          },
+          buildBreadcrumb([])
+        ]
+      };
     } else if (pathClean === "/about") {
       title = "About Sujan Gautam — Full-Stack Developer | USM Computer Science, 4.0 GPA";
       desc = "Learn about Sujan Gautam — a 20-year-old full-stack developer at the University of Southern Mississippi (4.0 GPA). Fluent in HTML, CSS, JavaScript, React, Node.js, and Python. 1.5+ years experience, 12+ clients, 35+ projects.";
@@ -1084,11 +1011,11 @@ app.get("*", async (req, res, next) => {
         "@graph": [
           {
             "@type": "ProfilePage",
-            "url": "https://sujan1919.com.np/about/",
+            "url": "https://www.sujan1919.com.np/about/",
             "name": "About Sujan Gautam",
             "mainEntity": {
               "@type": "Person",
-              "@id": "https://sujan1919.com.np/#person",
+              "@id": "https://www.sujan1919.com.np/#person",
               "name": "Sujan Gautam",
               "givenName": "Sujan",
               "familyName": "Gautam",
@@ -1118,7 +1045,7 @@ app.get("*", async (req, res, next) => {
               ]
             }
           },
-          buildBreadcrumb([{ name: "About", url: "https://sujan1919.com.np/about/" }])
+          buildBreadcrumb([{ name: "About", url: "https://www.sujan1919.com.np/about/" }])
         ]
       };
     } else if (pathClean === "/portfolio") {
@@ -1135,8 +1062,8 @@ app.get("*", async (req, res, next) => {
           "name": p.title,
           "description": p.description || p.shortDesc || "",
           "applicationCategory": p.category === "pos" ? "BusinessApplication" : p.category === "debugger" ? "DeveloperApplication" : "WebApplication",
-          "url": p.link || `https://sujan1919.com.np/portfolio`,
-          "author": { "@id": "https://sujan1919.com.np/#person" }
+          "url": p.link || `https://www.sujan1919.com.np/portfolio`,
+          "author": { "@id": "https://www.sujan1919.com.np/#person" }
         }));
       } catch (err) {
         console.error("SEO Portfolio query error:", err);
@@ -1149,23 +1076,23 @@ app.get("*", async (req, res, next) => {
             "name": "Golden Deals",
             "description": "A full-stack project built with Node.js backend and React-based frontend.",
             "applicationCategory": "WebApplication",
-            "url": "https://sujan1919.com.np/golden-deals/",
-            "author": { "@id": "https://sujan1919.com.np/#person" }
+            "url": "https://www.sujan1919.com.np/golden-deals/",
+            "author": { "@id": "https://www.sujan1919.com.np/#person" }
           },
           {
             "@type": "SoftwareApplication",
             "name": "Techy POS",
             "description": "A custom POS and inventory management platform developed for a specialized electronics franchise.",
             "applicationCategory": "BusinessApplication",
-            "url": "https://sujan1919.com.np/techy-pos/",
-            "author": { "@id": "https://sujan1919.com.np/#person" }
+            "url": "https://www.sujan1919.com.np/techy-pos/",
+            "author": { "@id": "https://www.sujan1919.com.np/#person" }
           },
           {
             "@type": "WebSite",
             "name": "Mitas Himalayan Kitchen",
             "description": "Fully functional restaurant website designed and developed for Mitas Himalayan Kitchen.",
-            "url": "https://sujan1919.com.np/mitas-kitchen/",
-            "author": { "@id": "https://sujan1919.com.np/#person" }
+            "url": "https://www.sujan1919.com.np/mitas-kitchen/",
+            "author": { "@id": "https://www.sujan1919.com.np/#person" }
           },
           {
             "@type": "SoftwareApplication",
@@ -1173,7 +1100,7 @@ app.get("*", async (req, res, next) => {
             "description": "An advanced interactive tool designed to help developers debug, visualize, and trace code execution.",
             "applicationCategory": "DeveloperApplication",
             "url": "https://trace.sujan1919.com.np",
-            "author": { "@id": "https://sujan1919.com.np/#person" }
+            "author": { "@id": "https://www.sujan1919.com.np/#person" }
           }
         ];
       }
@@ -1184,302 +1111,17 @@ app.get("*", async (req, res, next) => {
           {
             "@type": "CollectionPage",
             "name": "Sujan Gautam — Project Portfolio",
-            "url": "https://sujan1919.com.np/portfolio/",
+            "url": "https://www.sujan1919.com.np/portfolio/",
             "description": "A showcase of full-stack web apps, POS systems, and software tools built by Sujan Gautam.",
-            "creator": { "@id": "https://sujan1919.com.np/#person" },
+            "creator": { "@id": "https://www.sujan1919.com.np/#person" },
             "hasPart": projectsSchema
           },
-          buildBreadcrumb([{ name: "Portfolio", url: "https://sujan1919.com.np/portfolio/" }])
+          buildBreadcrumb([{ name: "Portfolio", url: "https://www.sujan1919.com.np/portfolio/" }])
         ]
       };
     } else if (pathClean === "/feed") {
-      const postId = req.query.post;
-      if (postId) {
-        try {
-          const post = await Models.Feed.findOne({ _id: postId, published: true }).lean();
-          if (post?.membersOnly) {
-            title = "Log in to view — Sujan Gautam";
-            desc = "Sign in to view this post.";
-            robots = "noindex, nofollow";
-          } else if (post) {
-            title = post.seoTitle || (post.caption ? `${post.caption.slice(0, 60)} — Sujan Gautam` : "Feed Post — Sujan Gautam");
-            desc = post.seoDescription || (post.caption ? post.caption.slice(0, 155) : "Sujan Gautam feed update");
-            ogImage = post.images?.[0] || post.image || "https://res.cloudinary.com/dspj4fc14/image/upload/v1782236706/exact-echo/og/og_feed.jpg";
-            canonicalUrl = `https://sujan1919.com.np/feed/?post=${postId}`;
-
-            schemaData = {
-              "@context": "https://schema.org",
-              "@graph": [
-                {
-                  "@type": "BlogPosting",
-                  "@id": canonicalUrl + "#article",
-                  "mainEntityOfPage": { "@type": "WebPage", "@id": canonicalUrl },
-                  "headline": title.slice(0, 110),
-                  "description": desc,
-                  "url": canonicalUrl,
-                  "datePublished": post.createdAt,
-                  "dateModified": post.updatedAt || post.createdAt,
-                  "author": { "@type": "Person", "@id": "https://sujan1919.com.np/#person", "name": "Sujan Gautam", "url": "https://sujan1919.com.np/" },
-                  "publisher": {
-                    "@type": "Person",
-                    "@id": "https://sujan1919.com.np/#person",
-                    "name": "Sujan Gautam",
-                    "url": "https://sujan1919.com.np/",
-                    "logo": { "@type": "ImageObject", "url": "https://res.cloudinary.com/dspj4fc14/image/upload/v1782238482/exact-echo/favicon.jpg" }
-                  },
-                  "image": {
-                    "@type": "ImageObject",
-                    "url": ogImage,
-                    "width": 1200,
-                    "height": 630
-                  },
-                  "interactionStatistic": [
-                    {
-                      "@type": "InteractionCounter",
-                      "interactionType": "https://schema.org/LikeAction",
-                      "userInteractionCount": post.likes || 0
-                    }
-                  ]
-                },
-                buildBreadcrumb([
-                  { name: "Feed", url: "https://sujan1919.com.np/feed/" },
-                  { name: title.slice(0, 60), url: canonicalUrl }
-                ])
-              ]
-            };
-          }
-        } catch (err) {
-          console.error("SEO Feed Post fetch error:", err);
-        }
-      } else {
-        title = "Feed — Sujan Gautam | Posts, Updates & Blog";
-        desc = "Sujan Gautam's personal feed — posts, updates, photos, and blog entries. Follow along for insights into his development journey and daily life.";
-        keywords = "Sujan Gautam feed, sujan1919 blog, developer posts, sujan gautam updates";
-        ogImage = "https://res.cloudinary.com/dspj4fc14/image/upload/v1782236706/exact-echo/og/og_feed.jpg";
-
-        schemaData = {
-          "@context": "https://schema.org",
-          "@graph": [
-            {
-              "@type": "Blog",
-              "name": "Sujan Gautam's Feed",
-              "url": "https://sujan1919.com.np/feed/",
-              "description": "Personal posts, updates and blog entries by Sujan Gautam.",
-              "author": { "@id": "https://sujan1919.com.np/#person" }
-            },
-            buildBreadcrumb([{ name: "Feed", url: "https://sujan1919.com.np/feed/" }])
-          ]
-        };
-      }
-    } else if (pathClean.startsWith("/feed/post/") || pathClean.startsWith("/post/")) {
-      const parts = pathClean.split("/");
-      const postId = parts[parts.length - 1];
-      try {
-        const post = await Models.Feed.findOne({ _id: postId, published: true }).lean();
-        if (post?.membersOnly) {
-          title = "Log in to view — Sujan Gautam";
-          desc = "Sign in to view this post.";
-          robots = "noindex, nofollow";
-        } else if (post) {
-          title = post.seoTitle || (post.caption ? `${post.caption.slice(0, 60)} — Sujan Gautam` : "Feed Post — Sujan Gautam");
-          desc = post.seoDescription || (post.caption ? post.caption.slice(0, 155) : "Sujan Gautam feed update");
-          ogImage = post.images?.[0] || post.image || "https://res.cloudinary.com/dspj4fc14/image/upload/v1782236706/exact-echo/og/og_feed.jpg";
-          canonicalUrl = `https://sujan1919.com.np/feed/?post=${postId}`;
-
-          schemaData = {
-            "@context": "https://schema.org",
-            "@graph": [
-              {
-                "@type": "BlogPosting",
-                "@id": canonicalUrl + "#article",
-                "mainEntityOfPage": { "@type": "WebPage", "@id": canonicalUrl },
-                "headline": title.slice(0, 110),
-                "description": desc,
-                "url": canonicalUrl,
-                "datePublished": post.createdAt,
-                "dateModified": post.updatedAt || post.createdAt,
-                "author": { "@type": "Person", "@id": "https://sujan1919.com.np/#person", "name": "Sujan Gautam", "url": "https://sujan1919.com.np/" },
-                "publisher": {
-                  "@type": "Person",
-                  "@id": "https://sujan1919.com.np/#person",
-                  "name": "Sujan Gautam",
-                  "url": "https://sujan1919.com.np/",
-                  "logo": { "@type": "ImageObject", "url": "https://res.cloudinary.com/dspj4fc14/image/upload/v1782238482/exact-echo/favicon.jpg" }
-                },
-                "image": {
-                  "@type": "ImageObject",
-                  "url": ogImage,
-                  "width": 1200,
-                  "height": 630
-                },
-                "interactionStatistic": [
-                  {
-                    "@type": "InteractionCounter",
-                    "interactionType": "https://schema.org/LikeAction",
-                    "userInteractionCount": post.likes || 0
-                  }
-                ]
-              },
-              buildBreadcrumb([
-                { name: "Feed", url: "https://sujan1919.com.np/feed/" },
-                { name: title.slice(0, 60), url: canonicalUrl }
-              ])
-            ]
-          };
-        }
-      } catch (err) {
-        console.error("SEO Direct Post fetch error:", err);
-      }
-    } else if (pathClean.startsWith("/blog/")) {
-      const parts = pathClean.split("/");
-      const slug = parts[parts.length - 1];
-      try {
-        const blog = await Models.BlogPost.findOne({ slug, status: "Published" }).lean();
-        if (blog?.membersOnly) {
-          title = "Log in to view — Sujan Gautam";
-          desc = "Sign in to read this article.";
-          robots = "noindex, nofollow";
-        } else if (blog) {
-          title = blog.seoTitle || `${blog.title} — Sujan Gautam`;
-          desc = blog.seoDescription || blog.excerpt || blog.title;
-          ogImage = blog.featuredImage || "https://res.cloudinary.com/dspj4fc14/image/upload/v1782236706/exact-echo/og/og_feed.jpg";
-          canonicalUrl = `https://sujan1919.com.np/blog/${slug}`;
-
-          schemaData = {
-            "@context": "https://schema.org",
-            "@graph": [
-              {
-                "@type": "BlogPosting",
-                "@id": canonicalUrl + "#article",
-                "mainEntityOfPage": { "@type": "WebPage", "@id": canonicalUrl },
-                "headline": blog.title,
-                "description": desc,
-                "url": canonicalUrl,
-                "datePublished": blog.createdAt,
-                "dateModified": blog.updatedAt || blog.createdAt,
-                "author": { "@type": "Person", "@id": "https://sujan1919.com.np/#person", "name": "Sujan Gautam", "url": "https://sujan1919.com.np/" },
-                "publisher": {
-                  "@type": "Person",
-                  "@id": "https://sujan1919.com.np/#person",
-                  "name": "Sujan Gautam",
-                  "url": "https://sujan1919.com.np/",
-                  "logo": { "@type": "ImageObject", "url": "https://res.cloudinary.com/dspj4fc14/image/upload/v1782238482/exact-echo/favicon.jpg" }
-                },
-                "image": {
-                  "@type": "ImageObject",
-                  "url": ogImage,
-                  "width": 1200,
-                  "height": 630
-                }
-              },
-              buildBreadcrumb([
-                { name: "Blog", url: "https://sujan1919.com.np/blog/" },
-                { name: blog.title, url: canonicalUrl }
-              ])
-            ]
-          };
-        }
-      } catch (err) {
-        console.error("SEO Blog fetch error:", err);
-      }
-    } else if (pathClean.startsWith("/story/")) {
-      const parts = pathClean.split("/");
-      const storyId = parts[parts.length - 1];
-      try {
-        const story = await Models.Story.findById(storyId).lean();
-        if (story) {
-          const isVideo = story.type === "video";
-          const mediaUrl = story.mediaUrl || story.image || "https://res.cloudinary.com/dspj4fc14/image/upload/v1782236706/exact-echo/og/og_feed.jpg";
-          title = story.title ? `${story.title} — Sujan Gautam` : "Exclusive Story — Sujan Gautam";
-          desc = story.description || story.caption || "View an exclusive story from Sujan Gautam's portfolio.";
-          ogImage = story.thumbnail || (isVideo ? "https://res.cloudinary.com/dspj4fc14/image/upload/v1782236706/exact-echo/og/og_feed.jpg" : mediaUrl);
-          canonicalUrl = `https://sujan1919.com.np/story/${storyId}`;
-
-          if (story.isMembersOnly) robots = "noindex, nofollow";
-
-          // Article schema — Google-supported rich result type (enables image/date in search results)
-          const articleSchema = {
-            "@type": "Article",
-            "@id": canonicalUrl + "#article",
-            "headline": story.title || "Exclusive Story — Sujan Gautam",
-            "description": desc,
-            "image": [
-              {
-                "@type": "ImageObject",
-                "url": ogImage,
-                "width": 1200,
-                "height": 630
-              }
-            ],
-            "datePublished": story.createdAt,
-            "dateModified": story.updatedAt || story.createdAt,
-            "author": {
-              "@type": "Person",
-              "@id": "https://sujan1919.com.np/#person",
-              "name": "Sujan Gautam",
-              "url": "https://sujan1919.com.np/"
-            },
-            "publisher": {
-              "@type": "Person",
-              "@id": "https://sujan1919.com.np/#person",
-              "name": "Sujan Gautam",
-              "url": "https://sujan1919.com.np/",
-              "logo": { "@type": "ImageObject", "url": "https://res.cloudinary.com/dspj4fc14/image/upload/v1782238482/exact-echo/favicon.jpg" }
-            },
-            "url": canonicalUrl,
-            "mainEntityOfPage": { "@type": "WebPage", "@id": canonicalUrl + "#webpage" },
-            "isPartOf": { "@id": "https://sujan1919.com.np/#website" }
-          };
-
-          // VideoObject schema for video stories (adds to video carousel eligibility)
-          const videoSchema = isVideo ? {
-            "@type": "VideoObject",
-            "@id": canonicalUrl + "#video",
-            "name": story.title || "Exclusive Story — Sujan Gautam",
-            "description": desc,
-            "contentUrl": mediaUrl,
-            "thumbnailUrl": ogImage,
-            "uploadDate": story.createdAt,
-            "duration": story.duration ? `PT${story.duration}S` : undefined,
-            "author": { "@type": "Person", "@id": "https://sujan1919.com.np/#person", "name": "Sujan Gautam", "url": "https://sujan1919.com.np/" },
-            "publisher": {
-              "@type": "Person",
-              "@id": "https://sujan1919.com.np/#person",
-              "name": "Sujan Gautam",
-              "url": "https://sujan1919.com.np/",
-              "logo": { "@type": "ImageObject", "url": "https://res.cloudinary.com/dspj4fc14/image/upload/v1782238482/exact-echo/favicon.jpg" }
-            },
-            "url": canonicalUrl
-          } : null;
-
-          const graphItems = [
-            {
-              "@type": "WebPage",
-              "@id": canonicalUrl + "#webpage",
-              "url": canonicalUrl,
-              "name": title,
-              "description": desc,
-              "inLanguage": "en-US",
-              "isPartOf": { "@id": "https://sujan1919.com.np/#website" },
-              "author": { "@id": "https://sujan1919.com.np/#person" },
-              "image": { "@type": "ImageObject", "url": ogImage }
-            },
-            articleSchema,
-            ...(videoSchema ? [videoSchema] : []),
-            buildBreadcrumb([
-              { name: "Stories", url: "https://sujan1919.com.np/" },
-              { name: story.title || "Story", url: canonicalUrl }
-            ])
-          ];
-
-          schemaData = {
-            "@context": "https://schema.org",
-            "@graph": graphItems
-          };
-        }
-      } catch (err) {
-        console.error("SEO Story fetch error:", err);
-      }
+      title = "Feed — Sujan Gautam";
+      desc = "Public posts, photos, videos, and updates from Sujan Gautam.";
     } else if (pathClean === "/contact") {
       title = "Contact Sujan Gautam — Hire a Full-Stack Developer | Hattiesburg, MS";
       desc = "Get in touch with Sujan Gautam for freelance web development, collaborations, or project inquiries. Available via email, phone, or social media. Based in Hattiesburg, MS.";
@@ -1492,11 +1134,11 @@ app.get("*", async (req, res, next) => {
           {
             "@type": "ContactPage",
             "name": "Contact Sujan Gautam",
-            "url": "https://sujan1919.com.np/contact/",
+            "url": "https://www.sujan1919.com.np/contact/",
             "description": "Contact page for hiring or collaborating with Sujan Gautam, full-stack developer.",
             "mainEntity": {
               "@type": "Person",
-              "@id": "https://sujan1919.com.np/#person",
+              "@id": "https://www.sujan1919.com.np/#person",
               "name": "Sujan Gautam",
               "email": "gautamsujan1919@gmail.com",
               "telephone": "+18179707616",
@@ -1508,7 +1150,7 @@ app.get("*", async (req, res, next) => {
               }
             }
           },
-          buildBreadcrumb([{ name: "Contact", url: "https://sujan1919.com.np/contact/" }])
+          buildBreadcrumb([{ name: "Contact", url: "https://www.sujan1919.com.np/contact/" }])
         ]
       };
     } else if (pathClean === "/blog") {
@@ -1523,11 +1165,11 @@ app.get("*", async (req, res, next) => {
           {
             "@type": "Blog",
             "name": "Sujan Gautam's Technical Blog",
-            "url": "https://sujan1919.com.np/blog/",
+            "url": "https://www.sujan1919.com.np/blog/",
             "description": "Read technical articles, tutorials and software engineering insights by Sujan Gautam.",
-            "author": { "@id": "https://sujan1919.com.np/#person" }
+            "author": { "@id": "https://www.sujan1919.com.np/#person" }
           },
-          buildBreadcrumb([{ name: "Blog", url: "https://sujan1919.com.np/blog/" }])
+          buildBreadcrumb([{ name: "Blog", url: "https://www.sujan1919.com.np/blog/" }])
         ]
       };
     } else if (pathClean === "/trace") {
@@ -1545,11 +1187,11 @@ app.get("*", async (req, res, next) => {
             "description": "An advanced interactive tool designed to help developers debug, visualize, and trace code execution.",
             "applicationCategory": "DeveloperApplication",
             "url": "https://trace.sujan1919.com.np",
-            "author": { "@id": "https://sujan1919.com.np/#person" }
+            "author": { "@id": "https://www.sujan1919.com.np/#person" }
           },
           buildBreadcrumb([
-            { name: "Portfolio", url: "https://sujan1919.com.np/portfolio/" },
-            { name: "Trace", url: "https://sujan1919.com.np/trace/" }
+            { name: "Portfolio", url: "https://www.sujan1919.com.np/portfolio/" },
+            { name: "Trace", url: "https://www.sujan1919.com.np/trace/" }
           ])
         ]
       };
@@ -1567,12 +1209,12 @@ app.get("*", async (req, res, next) => {
             "name": "Techy POS",
             "description": "A custom POS and inventory management platform developed for a specialized electronics franchise.",
             "applicationCategory": "BusinessApplication",
-            "url": "https://sujan1919.com.np/techy-pos/",
-            "author": { "@id": "https://sujan1919.com.np/#person" }
+            "url": "https://www.sujan1919.com.np/techy-pos/",
+            "author": { "@id": "https://www.sujan1919.com.np/#person" }
           },
           buildBreadcrumb([
-            { name: "Portfolio", url: "https://sujan1919.com.np/portfolio/" },
-            { name: "Techy POS", url: "https://sujan1919.com.np/techy-pos/" }
+            { name: "Portfolio", url: "https://www.sujan1919.com.np/portfolio/" },
+            { name: "Techy POS", url: "https://www.sujan1919.com.np/techy-pos/" }
           ])
         ]
       };
@@ -1589,12 +1231,12 @@ app.get("*", async (req, res, next) => {
             "@type": "WebSite",
             "name": "Mitas Himalayan Kitchen",
             "description": "Fully functional restaurant website designed and developed for Mitas Himalayan Kitchen.",
-            "url": "https://sujan1919.com.np/mitas-kitchen/",
-            "author": { "@id": "https://sujan1919.com.np/#person" }
+            "url": "https://www.sujan1919.com.np/mitas-kitchen/",
+            "author": { "@id": "https://www.sujan1919.com.np/#person" }
           },
           buildBreadcrumb([
-            { name: "Portfolio", url: "https://sujan1919.com.np/portfolio/" },
-            { name: "Mitas Kitchen", url: "https://sujan1919.com.np/mitas-kitchen/" }
+            { name: "Portfolio", url: "https://www.sujan1919.com.np/portfolio/" },
+            { name: "Mitas Kitchen", url: "https://www.sujan1919.com.np/mitas-kitchen/" }
           ])
         ]
       };
@@ -1612,12 +1254,12 @@ app.get("*", async (req, res, next) => {
             "name": "Golden Deals",
             "description": "A full-stack project built with Node.js backend and React-based frontend.",
             "applicationCategory": "WebApplication",
-            "url": "https://sujan1919.com.np/golden-deals/",
-            "author": { "@id": "https://sujan1919.com.np/#person" }
+            "url": "https://www.sujan1919.com.np/golden-deals/",
+            "author": { "@id": "https://www.sujan1919.com.np/#person" }
           },
           buildBreadcrumb([
-            { name: "Portfolio", url: "https://sujan1919.com.np/portfolio/" },
-            { name: "Golden Deals", url: "https://sujan1919.com.np/golden-deals/" }
+            { name: "Portfolio", url: "https://www.sujan1919.com.np/portfolio/" },
+            { name: "Golden Deals", url: "https://www.sujan1919.com.np/golden-deals/" }
           ])
         ]
       };
@@ -1635,12 +1277,12 @@ app.get("*", async (req, res, next) => {
             "name": "Web With Freelancer",
             "description": "A client portal and booking workspace designed for seamless digital project delivery.",
             "applicationCategory": "BusinessApplication",
-            "url": "https://sujan1919.com.np/webwithfreelancer/",
-            "author": { "@id": "https://sujan1919.com.np/#person" }
+            "url": "https://www.sujan1919.com.np/webwithfreelancer/",
+            "author": { "@id": "https://www.sujan1919.com.np/#person" }
           },
           buildBreadcrumb([
-            { name: "Portfolio", url: "https://sujan1919.com.np/portfolio/" },
-            { name: "Web With Freelancer", url: "https://sujan1919.com.np/webwithfreelancer/" }
+            { name: "Portfolio", url: "https://www.sujan1919.com.np/portfolio/" },
+            { name: "Web With Freelancer", url: "https://www.sujan1919.com.np/webwithfreelancer/" }
           ])
         ]
       };
@@ -1658,12 +1300,12 @@ app.get("*", async (req, res, next) => {
             "name": "Project IDA",
             "description": "A specialized full-stack custom web solution and dashboard designed to streamline internal client workflows.",
             "applicationCategory": "BusinessApplication",
-            "url": "https://sujan1919.com.np/project-ida/",
-            "author": { "@id": "https://sujan1919.com.np/#person" }
+            "url": "https://www.sujan1919.com.np/project-ida/",
+            "author": { "@id": "https://www.sujan1919.com.np/#person" }
           },
           buildBreadcrumb([
-            { name: "Portfolio", url: "https://sujan1919.com.np/portfolio/" },
-            { name: "Project IDA", url: "https://sujan1919.com.np/project-ida/" }
+            { name: "Portfolio", url: "https://www.sujan1919.com.np/portfolio/" },
+            { name: "Project IDA", url: "https://www.sujan1919.com.np/project-ida/" }
           ])
         ]
       };
@@ -1679,14 +1321,26 @@ app.get("*", async (req, res, next) => {
       ogImage = "https://res.cloudinary.com/dspj4fc14/image/upload/v1782236920/exact-echo/og/og_home.jpg";
     }
 
+    if (!requested) {
+      body = await renderPublicListing(pathClean);
+      const normalized = STATIC_PAGES.find((page) => page.replace(/\/$/, "") === pathClean);
+      if (normalized) canonicalUrl = SITE + normalized;
+      else if (!pathClean.startsWith("/admin")) {
+        res.status(404);
+        robots = PRIVATE_ROBOTS;
+      } else {
+        robots = PRIVATE_ROBOTS;
+      }
+    }
+    if (body) $('#root').html(body);
+    if (standalone) $('script[type="module"], link[rel="modulepreload"]').remove();
+    if (robots === PRIVATE_ROBOTS) res.set("X-Robots-Tag", PRIVATE_ROBOTS);
+
     $('title').text(title);
     $('meta[name="description"]').attr('content', desc);
 
-    if ($('link[rel="canonical"]').length > 0) {
-      $('link[rel="canonical"]').attr('href', canonicalUrl);
-    } else {
-      $('head').append(`<link rel="canonical" href="${canonicalUrl}" />`);
-    }
+    $('link[rel="canonical"]').remove();
+    $('head').append(`<link rel="canonical" data-rh="true" href="${escapeMarkup(canonicalUrl)}" />`);
 
     if ($('meta[name="keywords"]').length > 0) {
       $('meta[name="keywords"]').attr('content', keywords);
@@ -1704,6 +1358,8 @@ app.get("*", async (req, res, next) => {
     $('meta[property="og:description"]').attr('content', desc);
     $('meta[property="og:image"]').attr('content', ogImage);
     $('meta[property="og:image:alt"]').attr('content', title);
+    if (ogType) $('meta[property="og:type"]').attr('content', ogType);
+    if (contentVideo) $('head').append(`<meta property="og:video" content="${escapeMarkup(contentVideo)}" />`);
 
     // Twitter meta uses name= not property=
     $('meta[name="twitter:url"]').attr('content', canonicalUrl);
@@ -1714,14 +1370,14 @@ app.get("*", async (req, res, next) => {
     $('script[type="application/ld+json"]').remove();
 
     if (schemaData) {
-      $('head').append(`<script type="application/ld+json">${JSON.stringify(schemaData)}</script>`);
+      $('head').append(`<script type="application/ld+json">${JSON.stringify(schemaData).replace(/</g, "\\u003c")}</script>`);
     }
 
     res.setHeader("Content-Type", "text/html");
     return res.send($.html());
   } catch (err) {
     console.error("Meta injection failed:", err);
-    return next();
+    return res.set("Retry-After", "60").status(503).type("text").send("Page temporarily unavailable");
   }
 });
 
