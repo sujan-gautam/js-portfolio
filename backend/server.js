@@ -236,6 +236,21 @@ ${blogUrls.map(renderUrl).join("")}
 
 
 // ── Analytics Insights API ────────────────────────────────────────────────────
+app.get("/api/analytics/visitor-count", async (_req, res) => {
+  try {
+    const [result] = await Models.VisitorRecord.aggregate([
+      { $match: { sessionID: { $type: "string", $ne: "" } } },
+      { $group: { _id: "$sessionID" } },
+      { $count: "visitorCount" },
+    ]);
+    res.set("Cache-Control", "public, max-age=60, s-maxage=300");
+    res.json({ visitorCount: result?.visitorCount ?? 0 });
+  } catch (error) {
+    console.error("Visitor count failed:", error.message);
+    res.status(503).json({ error: "Visitor count unavailable" });
+  }
+});
+
 app.get("/api/analytics/insights", async (req, res) => {
   try {
     const { period = "30d" } = req.query;

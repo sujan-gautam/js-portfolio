@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, UsersRound } from "lucide-react";
 import { Link, Navigate, useLocation } from "react-router-dom";
 import HeroSection from "@/components/HeroSection";
 import SEO from "@/components/SEO";
@@ -23,6 +23,7 @@ const Index = () => {
 function Home() {
   const [settings, setSettings] = useState<any>(null);
   const [projects, setProjects] = useState<PortfolioItem[] | null>(null);
+  const [visitorCount, setVisitorCount] = useState<number | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -33,6 +34,11 @@ function Home() {
       if (!active) return;
       setProjects(Array.isArray(items) ? items.filter((project) => project.status !== false && project.title?.trim()) : []);
     });
+    axios.get<{ visitorCount: number }>(`${API_BASE}/analytics/visitor-count`).then(({ data }) => {
+      if (active && Number.isSafeInteger(data?.visitorCount) && data.visitorCount >= 0) {
+        setVisitorCount(data.visitorCount);
+      }
+    }).catch(() => {});
     return () => { active = false; };
   }, []);
 
@@ -101,6 +107,13 @@ function Home() {
             </div>
           )}
         </section>
+        {visitorCount !== null && (
+          <footer className="mt-5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground sm:mt-6">
+            <UsersRound size={15} aria-hidden="true" />
+            <span>Visitor sessions</span>
+            <span className="font-medium tabular-nums text-foreground">{visitorCount.toLocaleString()}</span>
+          </footer>
+        )}
       </main>
     </>
   );
