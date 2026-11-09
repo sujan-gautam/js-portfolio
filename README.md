@@ -25,5 +25,7 @@ Use Node.js 22 and install both packages with `npm ci` and `npm --prefix backend
 
 In production, pages without an override use V2. Preview and development deployments default to V1. In **Admin → Settings → Page versions**, change one page or select all V1 or all V2, then save. A saved choice takes precedence over the environment default. To roll back only the layouts, select all V1 and save. To roll back the whole release, use Vercel's deployment rollback.
 
+V1 and V2 page modules load separately. If a V2 module fails to load or render, that page falls back to V1 and the saved switch stays in place. Both versions use the same data, access rules, and analytics.
+
 ## License
 MIT

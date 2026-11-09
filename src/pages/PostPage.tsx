@@ -1,6 +1,7 @@
+import articleStyles from "./article-v2.module.css";
 import { contentTracking } from "@/lib/contentTracking";
 import { useEffect, useState } from "react";
-import { useParams, Link, Navigate } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import axios from "axios";
 import { API_BASE } from "@/config";
 import { ArrowLeft, Calendar, Eye, Heart, Share2, Loader2 } from "lucide-react";
@@ -218,7 +219,7 @@ export const FeedPostPage = () => {
                   )}
 
                   <div
-                    className="article-copy prose prose-invert max-w-none break-words prose-a:text-red-500 prose-img:rounded-md"
+                    className={`${articleStyles.copy} prose prose-invert max-w-none break-words prose-a:text-red-500 prose-img:rounded-md`}
                     dangerouslySetInnerHTML={{ __html: post.articleContent || post.content || "" }} 
                   />
                 </>
@@ -352,21 +353,4 @@ export const FeedPostPage = () => {
     </div>
     </>
   );
-};
-
-/* ─── Story Page ─────────────────────────────────── */
-/**
- * StoryPage — /story/:id
- *
- * SEO behaviour  : The backend SSR handler injects story-specific <title>,
- *                  <meta>, OG tags, and JSON-LD at this URL so Google can
- *                  crawl and index each story independently.
- *
- * User behaviour : As soon as the React app boots, we immediately redirect
- *                  the browser to /feed/?story=:id with the story viewer open.
- */
-export const StoryPage = () => {
-  const { id } = useParams<{ id: string }>();
-
-  return <Navigate to={`/feed/?story=${encodeURIComponent(id ?? "")}`} replace />;
 };

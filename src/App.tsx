@@ -1,24 +1,16 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { lazy, Suspense, type ReactNode } from "react";
+import { lazy } from "react";
 import { BrowserRouter, Route, Routes, useSearchParams } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import BottomNav from "@/components/BottomNav";
-import { usePageVersions, type PageVersionKey } from "@/lib/pageVersions";
+import { StoryRedirect, VersionedPage } from "@/components/VersionedPage";
 import VersionedStories from "@/components/VersionedStories";
 
 // Public pages
-import Index from "./pages/Index.tsx";
-import About from "./pages/About.tsx";
-import Blog from "./pages/Blog";
-import Feed from "./pages/Feed.tsx";
-import Portfolio from "./pages/Portfolio.tsx";
-import Contact from "./pages/Contact.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import Privacy from "./pages/Privacy.tsx";
 import Terms from "./pages/Terms.tsx";
-import { FeedPostPage, StoryPage } from "./pages/PostPage.tsx";
 import TechyPos from "./pages/TechyPos.tsx";
 import MitasKitchen from "./pages/MitasKitchen.tsx";
 import ProjectIda from "./pages/ProjectIda.tsx";
@@ -102,13 +94,14 @@ const LegacyFeedPost = lazy(() => import("@/legacy/PostPage").then((module) => (
 const LegacyBlogPost = lazy(() => import("@/legacy/BlogPostPage"));
 const LegacyBlog = lazy(() => import("@/legacy/Blog"));
 const LegacyBottomNav = lazy(() => import("@/legacy/BottomNav"));
-
-function VersionedPage({ page, v1, v2 }: { page: PageVersionKey; v1: ReactNode; v2: ReactNode }) {
-  const { data, isPending } = usePageVersions();
-  const fallback = page === "navigation" ? null : <p role="status" className="sr-only">Loading page…</p>;
-  if (isPending) return fallback;
-  return <Suspense fallback={fallback}>{data?.[page] === "v2" ? v2 : v1}</Suspense>;
-}
+const Index = lazy(() => import("./pages/Index"));
+const About = lazy(() => import("./pages/About"));
+const Blog = lazy(() => import("./pages/Blog"));
+const Feed = lazy(() => import("./pages/Feed"));
+const Portfolio = lazy(() => import("./pages/Portfolio"));
+const Contact = lazy(() => import("./pages/Contact"));
+const FeedPostPage = lazy(() => import("./pages/PostPage").then((module) => ({ default: module.FeedPostPage })));
+const BottomNav = lazy(() => import("@/components/BottomNav"));
 
 function LegacyFeedRoute() {
   const [params] = useSearchParams();
@@ -145,7 +138,7 @@ const App = () => (
             <Route path="/post/:id" element={<VersionedPage page="feedPost" v1={<LegacyFeedPost />} v2={<FeedPostPage />} />} />
             <Route path="/blog" element={<VersionedPage page="blog" v1={<LegacyBlog />} v2={<Blog />} />} />
             <Route path="/blog/:slug" element={<VersionedPage page="blogPost" v1={<LegacyBlogPost />} v2={<FeedPostPage />} />} />
-            <Route path="/story/:id" element={<StoryPage />} />
+            <Route path="/story/:id" element={<StoryRedirect />} />
 
             {/* ── Admin Login (Unprotected) ──────────────── */}
             <Route path="/admin/login" element={<Login />} />
@@ -244,7 +237,7 @@ const App = () => (
           <Route 
             path="*" 
             element={
-              <VersionedPage page="navigation" v1={<LegacyBottomNav />} v2={<BottomNav />} />
+              <VersionedPage page="navigation" v1={<LegacyBottomNav />} v2={<BottomNav />} quiet />
             } 
           />
         </Routes>

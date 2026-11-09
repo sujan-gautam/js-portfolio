@@ -1,0 +1,22 @@
+.copy {
+  @apply font-inter text-[1.0625rem] leading-[1.75] sm:text-[1.125rem];
+}
+
+/* Normalize pasted fonts and sizes while keeping authored emphasis and markup. */
+.copy :where([style*="font-family" i], font[face]) {
+  font-family: inherit !important;
+}
+
+.copy :where([style*="font-size" i], font[size]) {
+  font-size: inherit !important;
+}
+
+.copy :where(h1, h2, h3, h4, h5, h6) {
+  font-family: Poppins, sans-serif !important;
+  line-height: 1.3;
+}
+
+.copy :where(h1) { font-size: 1.75em !important; }
+.copy :where(h2) { font-size: 1.5em !important; }
+.copy :where(h3) { font-size: 1.25em !important; }
+.copy :where(h4, h5, h6) { font-size: 1.0625em !important; }
