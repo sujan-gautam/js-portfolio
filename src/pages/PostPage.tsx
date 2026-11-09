@@ -13,6 +13,11 @@ import { blogPostsDB, feedAPI } from "@/lib/adminData";
 import { toast } from "sonner";
 
 const SITE = "https://www.sujan1919.com.np";
+const isVideoFile = (source: string) => /\.(mp4|webm|mov|m4v|ogv|ogg)(?:[?#]|$)/i.test(source);
+const playableSource = (source: string) =>
+  /^https:\/\/res\.cloudinary\.com\/[^/]+\/video\/upload\/.*\.mov(?:[?#]|$)/i.test(source)
+    ? source.replace("/video/upload/", "/video/upload/f_mp4/").replace(/\.mov(?=[?#]|$)/i, ".mp4")
+    : source;
 
 import SEO from "@/components/SEO";
 
@@ -106,7 +111,7 @@ export const FeedPostPage = () => {
   const authorName = settings?.authorName || "Sujan Gautam";
   const title = post.seoTitle || (post.articleTitle ? `${post.articleTitle} | ${siteName}` : post.caption ? `${post.caption.slice(0, 60)} | ${siteName}` : `Post by ${siteName} | ${profession}`);
   const desc = post.seoDescription || (isArticle ? (post.articleContent?.replace(/<[^>]+>/g, '').slice(0, 160) || `Article by ${authorName}`) : `${post.content || post.caption || "Creative post"} - Published by ${authorName}, a professional ${profession}.`.slice(0, 160));
-  const image = post.articleCover || images[0] || undefined;
+  const image = post.articleCover || images.find((source: string) => !isVideoFile(source));
   const url = slug ? `${SITE}/blog/${encodeURIComponent(slug)}` : `${SITE}/post/${post._id || post.id}`;
 
   const articleSchema = {
@@ -152,7 +157,7 @@ export const FeedPostPage = () => {
     embedUrl ? (
       <iframe src={embedUrl} title={post.articleTitle || post.caption || "Post video"} className="aspect-video w-full rounded-lg border border-border" allow="fullscreen; picture-in-picture" allowFullScreen />
     ) : (
-      <video src={post.videoUrl} poster={thumbnail} controls playsInline preload="metadata" className="w-full rounded-lg border border-border bg-black" />
+      <video src={playableSource(post.videoUrl)} poster={thumbnail} controls playsInline preload="metadata" className="w-full rounded-lg border border-border bg-black" />
     )
   ) : null;
 
@@ -238,7 +243,9 @@ export const FeedPostPage = () => {
               {!locked && (videoPlayer || images.length > 0) && (
                 <div className="mb-6 space-y-4">
                   {videoPlayer}
-                  {images.map((source: string, index: number) => (
+                  {images.map((source: string, index: number) => source === post.videoUrl ? null : isVideoFile(source) ? (
+                    <video key={`${source}-${index}`} src={playableSource(source)} controls playsInline preload="metadata" className="w-full rounded-lg border border-border bg-black" />
+                  ) : (
                     <img key={`${source}-${index}`} src={source} alt={post.imageCaptions?.[index] || post.caption || "Post image"} className="w-full rounded-lg border border-border object-contain" loading={index === 0 ? "eager" : "lazy"} />
                   ))}
                 </div>

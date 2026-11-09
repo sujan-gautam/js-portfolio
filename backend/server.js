@@ -9,7 +9,7 @@ import nodemailer from "nodemailer";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { SITE, INDEX_ROBOTS, PRIVATE_ROBOTS, PUBLIC_QUERIES, assetUrl, canonicalPath, contentSchema, describeContent, escapeMarkup, plainText, renderContent, renderListing, sitemapXml } from "./utils/publicSeo.js";
+import { SITE, INDEX_ROBOTS, PRIVATE_ROBOTS, PUBLIC_QUERIES, assetUrl, canonicalPath, contentSchema, describeContent, escapeMarkup, plainText, renderContent, renderListing, sitemapXml, watchEntries } from "./utils/publicSeo.js";
 
 import authRoutes from "./routes/authRoutes.js";
 import passport from "passport";
@@ -147,7 +147,7 @@ app.get(["/sitemap.xml", "/api/sitemap.xml"], async (_req, res) => {
     const entries = (await Promise.all(Object.keys(CONTENT_MODELS).map(async (kind) =>
       (await listPublicContent(kind)).map((item) => describeContent(kind, item))))).flat();
     res.set("Cache-Control", "public, max-age=300, s-maxage=300");
-    res.type("application/xml").send(sitemapXml([...STATIC_PAGES.map((path) => ({ path })), ...entries]));
+    res.type("application/xml").send(sitemapXml([...STATIC_PAGES.map((path) => ({ path })), ...entries, ...entries.flatMap(watchEntries)]));
   } catch (error) {
     console.error("Sitemap could not load:", error.message);
     res.set("Retry-After", "300").status(503).type("text").send("Sitemap temporarily unavailable");
@@ -155,6 +155,8 @@ app.get(["/sitemap.xml", "/api/sitemap.xml"], async (_req, res) => {
 });
 
 function contentRequest(path, query) {
+  const watch = path.match(/^\/videos\/(post|article|story)\/([a-f0-9]{24})\/[a-f0-9]{16}$/);
+  if (watch) return { kind: watch[1], value: watch[2], watch: path, standalone: true };
   const post = path.match(/^\/(?:feed\/)?post\/([^/]+)$/);
   const blog = path.match(/^\/blog\/([^/]+)$/);
   const story = path.match(/^\/stor(?:y|ies)\/([^/]+)$/);
@@ -166,7 +168,8 @@ function contentRequest(path, query) {
   return null;
 }
 
-async function findContent({ kind, value }) {
+async function findContent({ kind, value, watch }) {
+  if (watch) return { kind, item: await CONTENT_MODELS[kind].findOne({ _id: value, ...PUBLIC_QUERIES[kind] }).select(CONTENT_FIELDS).lean() };
   if (kind === "article") {
     let slug;
     try { slug = decodeURIComponent(value); } catch { return {}; }
@@ -848,26 +851,31 @@ app.get("*", async (req, res, next) => {
     if (requested) {
       const { kind, item } = await findContent(requested);
       standalone = Boolean(requested.standalone);
-      if (!item) {
+      let entry;
+      if (item && !item.membersOnly && !item.isMembersOnly) {
+        entry = describeContent(kind, item);
+        if (requested.watch) entry = watchEntries(entry).find((video) => video.path === requested.watch);
+      }
+      if (!item || (requested.watch && !entry)) {
         res.status(404);
         title = "Content not found — Sujan Gautam";
         desc = "This content is unavailable.";
         robots = PRIVATE_ROBOTS;
         body = renderListing("Content not found", [{ title: "Back to feed", path: "/feed/" }]);
-      } else if (item.membersOnly || item.isMembersOnly) {
+      } else if (!entry) {
         title = "Log in to view — Sujan Gautam";
         desc = "Sign in to view this content.";
         robots = PRIVATE_ROBOTS;
         body = renderListing("Log in to view", [{ title: "Open story viewer", path: `/story/${requested.value}` }].filter(() => standalone));
       } else {
-        const entry = describeContent(kind, item);
         canonicalUrl = SITE + entry.path;
-        if (requested.kind === "post" && pathClean !== entry.path) return res.redirect(301, entry.path);
-        title = `${plainText(item.seo?.title || item.seoTitle) || entry.title} — Sujan Gautam`;
+        if (!requested.watch && requested.kind === "post" && pathClean !== entry.path) return res.redirect(301, entry.path);
+        title = `${(!requested.watch && plainText(item.seo?.title || item.seoTitle)) || entry.title} — Sujan Gautam`;
         desc = entry.description;
-        ogImage = entry.video?.thumbnailUrl || entry.images[0] || ogImage;
-        contentVideo = entry.video?.embedUrl || entry.video?.contentUrl;
-        ogType = kind === "story" ? (contentVideo ? "video.other" : "website") : "article";
+        const video = entry.videos[0];
+        ogImage = video?.thumbnailUrl || entry.images[0] || ogImage;
+        contentVideo = video?.embedUrl || video?.contentUrl;
+        ogType = requested.watch || (kind === "story" && contentVideo) ? "video.other" : kind === "story" ? "website" : "article";
         schemaData = contentSchema(entry);
         body = renderContent(entry, kind === "story" ? `/story/${requested.value}` : undefined);
       }

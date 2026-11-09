@@ -26,9 +26,11 @@ test("public content is crawlable, canonical, and absent when restricted", async
   try {
     const photo = "https://media.example.com/photo.jpg?a=1&b=2";
     const anotherPhoto = "https://media.example.com/another.jpg";
+    const galleryVideo = "https://res.cloudinary.com/test/video/upload/v1/gallery.mov";
+    const galleryMp4 = "https://res.cloudinary.com/test/video/upload/f_mp4/v1/gallery.mp4";
     const [post, hiddenPost, article, story, hiddenStory, inactiveStory] = await Promise.all([
-      Feed.create({ caption: "Public test post", content: "Original post body", images: [photo, anotherPhoto], videoUrl: "https://youtu.be/dQw4w9WgXcQ", published: true }),
-      Feed.create({ caption: "Private post title", content: "Private post body", membersOnly: true, published: true }),
+      Feed.create({ caption: "Public test post", content: "Original post body", images: [photo, galleryVideo, anotherPhoto], videoUrl: "https://youtu.be/dQw4w9WgXcQ", published: true }),
+      Feed.create({ caption: "Private post title", content: "Private post body", images: [galleryVideo], membersOnly: true, published: true }),
       BlogPost.create({ title: "An article", slug: "an-article", status: "Published", content: `<p>Article text</p><img src="${anotherPhoto}"><script>alert('hidden script')</script>` }),
       Story.create({ title: "Public video story", type: "video", active: true, image: "https://res.cloudinary.com/test/video/upload/v1/story.mp4", createdAt: new Date() }),
       Story.create({ title: "Private story title", type: "image", active: true, isMembersOnly: true, image: "https://media.example.com/private-image.jpg" }),
@@ -47,6 +49,10 @@ test("public content is crawlable, canonical, and absent when restricted", async
     assert.ok(xml.includes("photo.jpg?a=1&amp;b=2"));
     assert.ok(xml.includes("<video:player_loc>https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ"));
     assert.ok(xml.includes("<video:content_loc>https://res.cloudinary.com/test/video/upload/v1/story.mp4"));
+    assert.ok(xml.includes(`<video:content_loc>${galleryMp4}`));
+    assert.ok(!xml.includes("gallery.mov"));
+    const watchUrls = locs.filter((url) => url.includes("/videos/"));
+    assert.equal(watchUrls.length, 3);
 
     const publicPost = await fetch(origin + `/post/${post.id}`);
     assert.equal(publicPost.status, 200);
@@ -56,7 +62,23 @@ test("public content is crawlable, canonical, and absent when restricted", async
     assert.match($("#root").text(), /Original post body/);
     assert.deepEqual($("#root img").map((_, image) => $(image).attr("src")).get(), [photo, anotherPhoto]);
     assert.match($("#root iframe").attr("src"), /youtube-nocookie/);
-    assert.ok(JSON.parse($('script[type="application/ld+json"]').first().text())["@graph"].some((item) => item["@type"] === "VideoObject"));
+    assert.equal($("#root video").attr("src"), galleryMp4);
+    assert.equal($('#root a[href^="/videos/"]').length, 2);
+
+    for (const url of watchUrls) {
+      const watch = await fetch(origin + new URL(url).pathname);
+      assert.equal(watch.status, 200);
+      const page = load(await watch.text());
+      assert.equal(page('link[rel="canonical"]').attr("href"), url);
+      assert.equal(page("#root video, #root iframe").length, 1);
+      assert.equal(page('script[type="module"]').length, 0);
+      assert.ok(JSON.parse(page('script[type="application/ld+json"]').first().text())["@graph"].some((item) => item["@type"] === "VideoObject"));
+    }
+    const galleryWatch = map("url").filter((_, url) => map(url).find("video\\:content_loc").text() === galleryMp4).find("loc").text();
+    const privateWatch = galleryWatch.replace(post.id, hiddenPost.id);
+    const unavailableWatch = await fetch(origin + new URL(privateWatch).pathname);
+    assert.equal(unavailableWatch.status, 404);
+    assert.match(unavailableWatch.headers.get("x-robots-tag"), /noindex/);
 
     const alias = await fetch(origin + `/feed/post/${post.id}`, { redirect: "manual" });
     assert.equal(alias.status, 301);
