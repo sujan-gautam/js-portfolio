@@ -1,14 +1,17 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { ArrowRight, ArrowUpRight, Check, Loader2 } from "lucide-react";
+import { ArrowUpRight, Check, CircleAlert, Facebook, Github, Globe, Instagram, Linkedin, Loader2, Mail, MapPin, MessageCircle, MessageSquare, Phone, Send, Twitter, UserRound, Youtube, type LucideIcon } from "lucide-react";
 import SEO from "@/components/SEO";
 import { SmartText } from "@/components/ui/SmartText";
 import { Skeleton } from "@/components/ui/skeleton";
 import { aboutDB, contactsDB, courtesyDB, settingsDB, type AboutData, type AdminSettings, type CourtesyItem } from "@/lib/adminData";
 
-const inputClass = "w-full rounded-md border border-border bg-card px-3 py-2.5 text-base text-foreground outline-none focus-visible:border-muted-foreground focus-visible:ring-1 focus-visible:ring-muted-foreground sm:text-sm";
+const inputClass = "block min-h-11 w-full rounded-md border border-border bg-background py-2.5 pl-10 pr-3 text-base text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary sm:text-sm";
+const fieldIconClass = "pointer-events-none absolute left-3 top-3.5 text-muted-foreground";
+const detailIconClass = "absolute left-0 top-3 grid size-8 place-items-center rounded-md border border-border bg-card text-muted-foreground";
 const linkClass = "rounded-sm underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring";
 const headingClass = "font-poppins text-lg font-semibold tracking-tight sm:text-xl";
 const socialNames: Record<string, string> = { github: "GitHub", linkedin: "LinkedIn", youtube: "YouTube", whatsapp: "WhatsApp" };
+const socialIcons: Record<string, LucideIcon> = { facebook: Facebook, github: Github, instagram: Instagram, linkedin: Linkedin, twitter: Twitter, youtube: Youtube };
 const pageTitle = "Contact | Sujan Gautam";
 const pageDescription = "Contact Sujan Gautam about a project or send him a message.";
 
@@ -47,6 +50,8 @@ export default function Contact() {
 
     if (!name || !email || !message) {
       setStatus("invalid");
+      const field = !name ? "name" : !email ? "email" : "message";
+      form.querySelector<HTMLElement>(`[name="${field}"]`)?.focus();
       return;
     }
 
@@ -105,40 +110,55 @@ export default function Contact() {
         </header>
 
         <div className="mt-6 grid items-start gap-8 sm:mt-8 md:grid-cols-[minmax(0,1fr)_minmax(0,16rem)] md:gap-9">
-          <section aria-labelledby="contact-form">
+          <section aria-labelledby="contact-form" className="min-w-0 rounded-lg border border-border bg-card p-4 sm:p-6">
             <h2 id="contact-form" className={headingClass}>Send a message</h2>
-            <form onSubmit={send} onInput={() => { if (!sending.current) setStatus("idle"); }} className="mt-4">
+            <p id="contact-form-note" className="mt-1 text-sm leading-relaxed text-muted-foreground">Leave an email so I can reply.</p>
+            <form aria-describedby="contact-form-note" onSubmit={send} onInput={() => { if (!sending.current) setStatus("idle"); }} className="mt-5">
               <fieldset disabled={status === "sending"} className="grid gap-4 disabled:opacity-65">
                 <legend className="sr-only">Your message and contact information</legend>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <label className="block min-w-0 space-y-1.5 text-sm font-medium">
                     <span>Name</span>
-                    <input className={inputClass} name="name" autoComplete="name" required />
+                    <span className="relative block">
+                      <UserRound size={16} className={fieldIconClass} aria-hidden="true" />
+                      <input className={inputClass} name="name" autoComplete="name" required />
+                    </span>
                   </label>
                   <label className="block min-w-0 space-y-1.5 text-sm font-medium">
                     <span>Email</span>
-                    <input className={inputClass} type="email" name="email" autoComplete="email" required />
+                    <span className="relative block">
+                      <Mail size={16} className={fieldIconClass} aria-hidden="true" />
+                      <input className={inputClass} type="email" name="email" autoComplete="email" required />
+                    </span>
                   </label>
                 </div>
                 <label className="block space-y-1.5 text-sm font-medium">
                   <span>Message</span>
-                  <textarea className={`${inputClass} min-h-32 resize-y`} name="message" rows={5} required />
+                  <span className="relative block">
+                    <MessageSquare size={16} className={fieldIconClass} aria-hidden="true" />
+                    <textarea className={`${inputClass} min-h-32 resize-y`} name="message" rows={5} placeholder="What would you like to discuss?" required />
+                  </span>
                 </label>
               </fieldset>
-              <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-3">
-                <button type="submit" disabled={status === "sending"} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/85 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-60">
-                  {status === "sending" ? <><Loader2 size={16} className="animate-spin" aria-hidden="true" /> Sending…</> : <>Send message <ArrowRight size={16} aria-hidden="true" /></>}
+              <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-3 border-t border-border pt-4">
+                <button type="submit" disabled={status === "sending"} className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/85 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:opacity-60 sm:w-auto">
+                  {status === "sending" ? <><Loader2 size={16} className="animate-spin" aria-hidden="true" /> Sending…</> : <><Send size={15} aria-hidden="true" /> Send message</>}
                 </button>
-                <span role="status" className="text-sm text-muted-foreground">
+                <span role="status" className={status === "sent" ? "text-sm text-muted-foreground" : "sr-only"}>
+                  {status === "sending" && "Sending your message."}
                   {status === "sent" && <span className="inline-flex items-center gap-1.5"><Check size={15} aria-hidden="true" /> Message sent.</span>}
                 </span>
               </div>
-              {status === "invalid" && <p role="alert" className="mt-3 text-sm text-red-400">Enter your name, email, and a message.</p>}
-              {status === "error" && <p role="alert" className="mt-3 text-sm text-red-400">Couldn’t send your message. Please try again.</p>}
+              {(status === "invalid" || status === "error") && (
+                <p role="alert" className="mt-3 flex items-start gap-2 text-sm text-red-400">
+                  <CircleAlert size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
+                  {status === "invalid" ? "Enter your name, email, and a message." : "Couldn’t send your message. Please try again."}
+                </p>
+              )}
             </form>
           </section>
 
-          <aside aria-labelledby="contact-direct" className="min-w-0 border-t border-border pt-5 md:border-l md:border-t-0 md:pl-7 md:pt-0">
+          <aside aria-labelledby="contact-direct" className="min-w-0 border-t border-border pt-5 md:border-t-0 md:pt-6">
             <h2 id="contact-direct" className={headingClass}>Direct contact</h2>
             {about === null ? (
               <div aria-busy="true" aria-label="Loading contact details" className="mt-4 space-y-3">
@@ -148,39 +168,43 @@ export default function Contact() {
             ) : (email || dial || location) && (
               <dl className="mt-2 divide-y divide-border border-b border-border text-sm">
                 {email && (
-                  <div className="py-3">
-                    <dt className="mb-1 text-xs text-muted-foreground">Email</dt>
+                  <div className="relative py-3 pl-10">
+                    <dt className="mb-1 text-xs text-muted-foreground"><span className={detailIconClass} aria-hidden="true"><Mail size={16} /></span>Email</dt>
                     <dd className="break-words"><a href={`mailto:${email}`} className={linkClass}>{email}</a></dd>
                   </div>
                 )}
                 {dial && (
-                  <div className="py-3">
-                    <dt className="mb-1 text-xs text-muted-foreground">Phone</dt>
+                  <div className="relative py-3 pl-10">
+                    <dt className="mb-1 text-xs text-muted-foreground"><span className={detailIconClass} aria-hidden="true"><Phone size={16} /></span>Phone</dt>
                     <dd className="break-words"><a href={`tel:${dial}`} className={linkClass}>{phone}</a></dd>
                     <dd className="mt-1.5">
                       <a href={`https://wa.me/${phoneDigits}`} target="_blank" rel="noopener noreferrer" className={`${linkClass} inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground`}>
-                        WhatsApp <ArrowUpRight size={12} aria-hidden="true" />
+                        <MessageCircle size={13} aria-hidden="true" /> WhatsApp <ArrowUpRight size={12} aria-hidden="true" />
                       </a>
                     </dd>
                   </div>
                 )}
                 {location && (
-                  <div className="py-3">
-                    <dt className="mb-1 text-xs text-muted-foreground">Location</dt>
+                  <div className="relative py-3 pl-10">
+                    <dt className="mb-1 text-xs text-muted-foreground"><span className={detailIconClass} aria-hidden="true"><MapPin size={16} /></span>Location</dt>
                     <dd className="break-words">{location}</dd>
                   </div>
                 )}
               </dl>
             )}
             {socials.length > 0 && (
-              <ul aria-label="Social profiles" className="mt-3 flex flex-wrap gap-x-3 gap-y-1">
-                {socials.map(({ platform, url }) => (
-                  <li key={`${platform}:${url}`}>
-                    <a href={url} target="_blank" rel="noopener noreferrer" className={`${linkClass} inline-flex min-h-9 items-center gap-1 text-sm text-muted-foreground hover:text-foreground`}>
-                      {socialName(platform)} <ArrowUpRight size={12} aria-hidden="true" />
-                    </a>
-                  </li>
-                ))}
+              <ul aria-label="Social profiles" className="mt-4 flex flex-wrap gap-2">
+                {socials.map(({ platform, url }) => {
+                  const Icon = socialIcons[platform.toLowerCase()] ?? Globe;
+                  const name = socialName(platform);
+                  return (
+                    <li key={`${platform}:${url}`}>
+                      <a href={url} target="_blank" rel="noopener noreferrer" aria-label={name} title={name} className={`${linkClass} grid size-11 place-items-center rounded-md border border-border bg-card text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground`}>
+                        <Icon size={18} aria-hidden="true" />
+                      </a>
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </aside>
