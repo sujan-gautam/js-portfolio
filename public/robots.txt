@@ -1,7 +1,10 @@
 User-agent: *
 Allow: /
-Disallow: /api/
+Disallow: /api/auth/
+Disallow: /api/analytics/
+Disallow: /api/visitors/
+Disallow: /api/collection/visitors
 Disallow: /admin/
 Disallow: /members-only/
 
-Sitemap: https://sujan1919.com.np/sitemap.xml
+Sitemap: https://www.sujan1919.com.np/sitemap.xml

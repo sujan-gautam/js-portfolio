@@ -51,7 +51,7 @@ const Portfolio = () => {
     const title = `Portfolio | ${siteName}`;
     const desc = "Web apps, websites, and developer tools built by Sujan Gautam.";
     const keywords = "Sujan Gautam Portfolio, Sujan1919 Projects, Full Stack Developer Portfolio, Software Developer Nepal, React Projects, Web Development Portfolio";
-    const url = "https://sujan1919.com.np/portfolio/";
+    const url = "https://www.sujan1919.com.np/portfolio/";
 
     document.title = title;
     setMeta("description", desc);

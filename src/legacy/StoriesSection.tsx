@@ -27,7 +27,7 @@ const storyAnimations = `
 `;
 
 const StoriesSection = ({ showLabel = true }: { showLabel?: boolean }) => {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [stories, setStories] = useState<StoryItem[]>([]);
   const [music, setMusic] = useState<MusicItem[]>([]);
   const [searchParams, setSearchParams] = useSearchParams();
@@ -71,6 +71,7 @@ const StoriesSection = ({ showLabel = true }: { showLabel?: boolean }) => {
     };
     checkIOS();
 
+    if (authLoading) return;
     async function loadResources() {
       setIsLoading(true);
       const activeStories = (await storiesDB.getAll()).filter(s => s.active);
@@ -80,7 +81,7 @@ const StoriesSection = ({ showLabel = true }: { showLabel?: boolean }) => {
       setIsLoading(false);
     }
     loadResources();
-  }, [storyViewerOpen]);
+  }, [storyViewerOpen, authLoading, user?.id]);
 
   useEffect(() => {
     if (!storyViewerOpen) return;
@@ -351,10 +352,10 @@ const StoriesSection = ({ showLabel = true }: { showLabel?: boolean }) => {
           type={currentViewerStory.type === "video" ? "video.other" : "article"}
           image={currentViewerStory.type !== "video" ? getMediaUrl(currentViewerStory.image, currentViewerStory.isMembersOnly || false) : undefined}
           video={currentViewerStory.type === "video" ? getMediaUrl(currentViewerStory.image, currentViewerStory.isMembersOnly || false) : undefined}
-          url={`https://sujan1919.com.np/?story=${currentViewerStory.id}`}
+          url={`https://www.sujan1919.com.np/stories/${encodeURIComponent(currentViewerStory.id)}`}
           publishedTime={currentViewerStory.createdAt}
           structuredData={(() => {
-            const canonicalUrl = `https://sujan1919.com.np/?story=${currentViewerStory.id}`;
+            const canonicalUrl = `https://www.sujan1919.com.np/stories/${encodeURIComponent(currentViewerStory.id)}`;
             const isVideo = currentViewerStory.type === "video";
             const mediaUrl = getMediaUrl(currentViewerStory.image, currentViewerStory.isMembersOnly || false) || "https://res.cloudinary.com/dspj4fc14/image/upload/v1782236706/exact-echo/og/og_feed.jpg";
             const desc = currentViewerStory.description || currentViewerStory.caption || "View an exclusive story from Sujan Gautam's portfolio.";

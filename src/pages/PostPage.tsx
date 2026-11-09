@@ -12,7 +12,7 @@ import { RestrictedPostPrompt } from "@/components/RestrictedPostPrompt";
 import { blogPostsDB, feedAPI } from "@/lib/adminData";
 import { toast } from "sonner";
 
-const SITE = "https://sujan1919.com.np";
+const SITE = "https://www.sujan1919.com.np";
 
 import SEO from "@/components/SEO";
 
@@ -106,7 +106,7 @@ export const FeedPostPage = () => {
   const authorName = settings?.authorName || "Sujan Gautam";
   const title = post.seoTitle || (post.articleTitle ? `${post.articleTitle} | ${siteName}` : post.caption ? `${post.caption.slice(0, 60)} | ${siteName}` : `Post by ${siteName} | ${profession}`);
   const desc = post.seoDescription || (isArticle ? (post.articleContent?.replace(/<[^>]+>/g, '').slice(0, 160) || `Article by ${authorName}`) : `${post.content || post.caption || "Creative post"} - Published by ${authorName}, a professional ${profession}.`.slice(0, 160));
-  const image = post.articleCover || images[0] || post.videoUrl || undefined;
+  const image = post.articleCover || images[0] || undefined;
   const url = slug ? `${SITE}/blog/${encodeURIComponent(slug)}` : `${SITE}/post/${post._id || post.id}`;
 
   const articleSchema = {
@@ -133,21 +133,28 @@ export const FeedPostPage = () => {
     "mainEntityOfPage": { "@type": "WebPage", "@id": url }
   };
 
-  let videoSchema: any = null;
-  const youtubeId = post.videoUrl?.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/)?.[1];
-  if (youtubeId || post.videoUrl?.match(/\.(mp4|webm|mov)$/i)) {
-    videoSchema = {
-      "@context": "https://schema.org",
-      "@type": "VideoObject",
-      "name": post.caption || `Video by ${authorName}`,
-      "description": desc,
-      "thumbnailUrl": youtubeId ? `https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg` : image,
-      "uploadDate": post.createdAt,
-      "contentUrl": post.videoUrl,
-      "embedUrl": youtubeId ? `https://www.youtube.com/embed/${youtubeId}` : post.videoUrl,
-      "author": { "@type": "Person", "name": authorName }
-    };
-  }
+  const youtubeId = post.videoUrl?.match(/(?:youtube\.com\/(?:embed\/|shorts\/|live\/|.*[?&]v=)|youtu\.be\/)([\w-]{11})(?![\w-])/)?.[1];
+  const embedUrl = youtubeId ? `https://www.youtube-nocookie.com/embed/${youtubeId}` : undefined;
+  const cloudinaryPoster = typeof post.videoUrl === "string" && /^https:\/\/res\.cloudinary\.com\/[^/]+\/video\/upload\//.test(post.videoUrl)
+    ? post.videoUrl.split(/[?#]/, 1)[0].replace("/video/upload/", "/video/upload/so_0/").replace(/\.[^/.]+$/, "") + ".jpg"
+    : undefined;
+  const thumbnail = youtubeId ? `https://i.ytimg.com/vi/${youtubeId}/hqdefault.jpg` : post.videoThumbnail || image || cloudinaryPoster;
+  const videoSchema = post.videoUrl && thumbnail && (post.publishedAt || post.createdAt) ? {
+    "@context": "https://schema.org",
+    "@type": "VideoObject",
+    "name": post.articleTitle || post.caption || `Video by ${authorName}`,
+    "description": desc,
+    "thumbnailUrl": thumbnail,
+    "uploadDate": post.publishedAt || post.createdAt,
+    ...(embedUrl ? { embedUrl } : { contentUrl: post.videoUrl }),
+  } : null;
+  const videoPlayer = post.videoUrl ? (
+    embedUrl ? (
+      <iframe src={embedUrl} title={post.articleTitle || post.caption || "Post video"} className="aspect-video w-full rounded-lg border border-border" allow="fullscreen; picture-in-picture" allowFullScreen />
+    ) : (
+      <video src={post.videoUrl} poster={thumbnail} controls playsInline preload="metadata" className="w-full rounded-lg border border-border bg-black" />
+    )
+  ) : null;
 
   const published = new Date(post.publishedAt || post.createdAt);
   const hasPublishedDate = Number.isFinite(published.getTime());
@@ -179,7 +186,7 @@ export const FeedPostPage = () => {
         title={locked ? "Log in to view" : title}
         description={locked ? "Sign in to view this post." : desc}
         type="article" 
-        image={locked ? undefined : image}
+        image={locked ? undefined : thumbnail || image}
         video={locked ? undefined : post.videoUrl}
         url={url} 
         publishedTime={post.createdAt} 
@@ -210,6 +217,7 @@ export const FeedPostPage = () => {
                 <RestrictedPostPrompt />
               ) : (
                 <>
+                  {videoPlayer}
                   {post.articleCover && (
                     <img
                       src={post.articleCover}
@@ -227,21 +235,13 @@ export const FeedPostPage = () => {
             </div>
           ) : (
             <>
-              {/* Media */}
-              {!locked && images[0] && <img src={images[0]} alt={post.caption || "Post image"} className="w-full rounded-2xl object-cover mb-6 max-h-[60vh] border border-white/5" loading="eager" />}
-              {!locked && !images[0] && post.videoUrl && (
-                post.videoUrl.includes("youtube.com") || post.videoUrl.includes("youtu.be") ? (
-                  <div className="aspect-video w-full rounded-2xl overflow-hidden mb-6 bg-black border border-white/5">
-                    <iframe 
-                      src={`https://www.youtube.com/embed/${post.videoUrl.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/)?.[1]}`}
-                      className="w-full h-full border-0"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                      allowFullScreen
-                    />
-                  </div>
-                ) : (
-                  <video src={post.videoUrl} controls className="w-full rounded-2xl mb-6 max-h-[60vh] bg-black border border-white/5" />
-                )
+              {!locked && (videoPlayer || images.length > 0) && (
+                <div className="mb-6 space-y-4">
+                  {videoPlayer}
+                  {images.map((source: string, index: number) => (
+                    <img key={`${source}-${index}`} src={source} alt={post.imageCaptions?.[index] || post.caption || "Post image"} className="w-full rounded-lg border border-border object-contain" loading={index === 0 ? "eager" : "lazy"} />
+                  ))}
+                </div>
               )}
 
               {/* Content */}

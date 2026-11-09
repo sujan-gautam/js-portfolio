@@ -321,11 +321,7 @@ const PostCard = ({
     }
   };
 
-  const getPostUrl = () => {
-    const url = new URL(window.location.pathname, window.location.origin);
-    url.searchParams.set("post", post.id);
-    return url.href;
-  };
+  const getPostUrl = () => new URL(`/post/${encodeURIComponent(post.id)}`, window.location.origin).href;
 
   const handleShare = async () => {
     if (isLocked) return;
@@ -1076,6 +1072,7 @@ const Feed = () => {
       <SEO 
         title="Sujan Gautam | Feed"
         description="Notes on software, design, and recent projects by Sujan Gautam."
+        url="https://www.sujan1919.com.np/feed/"
       />
     <main className="flex h-dvh flex-col pb-[calc(3.5rem_+_env(safe-area-inset-bottom,0px))] font-inter text-foreground sm:pb-[calc(3.25rem_+_env(safe-area-inset-bottom,0px))]">
       {/* System Alert Popup */}

@@ -399,10 +399,17 @@ const collectionMap = {
 
 const protectedCollections = new Set(["feed", "blog_posts", "users"]);
 router.use("/collection/:name", (req, res, next) => {
+  if (req.params.name === "stories" && ["GET", "HEAD"].includes(req.method)) return postAccess(req, res, next);
   if (!protectedCollections.has(req.params.name)) return next();
   const adminOnly = (req.method !== "GET" && req.method !== "HEAD") || req.params.name === "users";
   postAccess(req, res, () => adminOnly ? requirePostAdmin(req, res, next) : next());
 });
+
+function visibleStory(story, req) {
+  return story.isMembersOnly && !req.postRole
+    ? { id: story.id, active: story.active, type: story.type, createdAt: story.createdAt, isMembersOnly: true }
+    : story;
+}
 
 // Generic CRUD endpoints
 router.get("/collection/:name", async (req, res) => {
@@ -410,9 +417,9 @@ router.get("/collection/:name", async (req, res) => {
   if (!Model) return res.status(404).json({ error: "Collection not found" });
   try {
     const isPostCollection = Model === Models.Feed || Model === Models.BlogPost;
-    const query = isPostCollection && req.postRole !== "admin" ? publishedPosts(Model) : {};
+    const query = req.postRole === "admin" ? {} : isPostCollection ? publishedPosts(Model) : Model === Models.Story ? { active: true } : {};
     const data = await Model.find(query);
-    res.json(isPostCollection ? data.map((post) => visiblePost(post, Boolean(req.postRole))) : data);
+    res.json(isPostCollection ? data.map((post) => visiblePost(post, Boolean(req.postRole))) : Model === Models.Story ? data.map((story) => visibleStory(story, req)) : data);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -423,10 +430,10 @@ router.get("/collection/:name/:id", async (req, res) => {
   if (!Model) return res.status(404).json({ error: "Collection not found" });
   try {
     const isPostCollection = Model === Models.Feed || Model === Models.BlogPost;
-    const query = isPostCollection && req.postRole !== "admin" ? publishedPosts(Model) : {};
+    const query = req.postRole === "admin" ? {} : isPostCollection ? publishedPosts(Model) : Model === Models.Story ? { active: true } : {};
     const data = await Model.findOne({ _id: req.params.id, ...query });
     if (!data) return res.status(404).json({ error: "Not found" });
-    res.json(isPostCollection ? visiblePost(data, Boolean(req.postRole)) : data);
+    res.json(isPostCollection ? visiblePost(data, Boolean(req.postRole)) : Model === Models.Story ? visibleStory(data, req) : data);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

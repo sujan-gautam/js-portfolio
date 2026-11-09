@@ -27,7 +27,7 @@ const storyAnimations = `
 `;
 
 const StoriesSection = ({ showLabel = true }: { showLabel?: boolean }) => {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [stories, setStories] = useState<StoryItem[]>([]);
   const [music, setMusic] = useState<MusicItem[]>([]);
   const [searchParams, setSearchParams] = useSearchParams();
@@ -69,6 +69,7 @@ const StoriesSection = ({ showLabel = true }: { showLabel?: boolean }) => {
     };
     checkIOS();
 
+    if (authLoading) return;
     async function loadResources() {
       setIsLoading(true);
       const activeStories = (await storiesDB.getAll()).filter(s => s.active);
@@ -78,7 +79,7 @@ const StoriesSection = ({ showLabel = true }: { showLabel?: boolean }) => {
       setIsLoading(false);
     }
     loadResources();
-  }, [storyViewerOpen]);
+  }, [storyViewerOpen, authLoading, user?.id]);
 
   useEffect(() => {
     if (!storyViewerOpen) return;
@@ -350,10 +351,10 @@ const StoriesSection = ({ showLabel = true }: { showLabel?: boolean }) => {
           type={currentViewerStory.type === "video" ? "video.other" : "article"}
           image={currentViewerStory.type !== "video" ? getMediaUrl(currentViewerStory.image, currentViewerStory.isMembersOnly || false) : undefined}
           video={currentViewerStory.type === "video" ? getMediaUrl(currentViewerStory.image, currentViewerStory.isMembersOnly || false) : undefined}
-          url={`https://sujan1919.com.np/feed/?story=${encodeURIComponent(currentViewerStory.id)}`}
+          url={`https://www.sujan1919.com.np/stories/${encodeURIComponent(currentViewerStory.id)}`}
           publishedTime={currentViewerStory.createdAt}
           structuredData={(() => {
-            const canonicalUrl = `https://sujan1919.com.np/feed/?story=${encodeURIComponent(currentViewerStory.id)}`;
+            const canonicalUrl = `https://www.sujan1919.com.np/stories/${encodeURIComponent(currentViewerStory.id)}`;
             const isVideo = currentViewerStory.type === "video";
             const mediaUrl = getMediaUrl(currentViewerStory.image, currentViewerStory.isMembersOnly || false) || "https://res.cloudinary.com/dspj4fc14/image/upload/v1782236706/exact-echo/og/og_feed.jpg";
             const desc = currentViewerStory.description || currentViewerStory.caption || "View an exclusive story from Sujan Gautam's portfolio.";
@@ -613,6 +614,11 @@ const StoriesSection = ({ showLabel = true }: { showLabel?: boolean }) => {
                   </div>
 
                   <div className="flex items-center gap-2 pointer-events-auto">
+                     {!currentViewerStory.isMembersOnly && (
+                       <a href={`/stories/${encodeURIComponent(currentViewerStory.id)}`} aria-label="Open public story page" className="flex size-10 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white hover:bg-white/10">
+                         <ExternalLink size={16} aria-hidden="true" />
+                       </a>
+                     )}
                      <button onClick={closeStories} className="w-10 h-10 flex items-center justify-center bg-white/5 backdrop-blur-md border border-white/10 rounded-full hover:bg-white/10 transition-colors">
                         <X size={18} className="text-white" />
                      </button>
