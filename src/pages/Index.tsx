@@ -1,3 +1,4 @@
+import { contentTracking } from "@/lib/contentTracking";
 import { useEffect, useState, type ReactNode } from "react";
 import { ArrowRight, UsersRound } from "lucide-react";
 import { Link, Navigate, useLocation } from "react-router-dom";
@@ -9,7 +10,6 @@ import { projectUrl } from "@/lib/projectUrl";
 import axios from "axios";
 import { API_BASE } from "@/config";
 
-const featuredPath = "/mitas-kitchen/";
 const workLink = "rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring";
 
 const Index = () => {
@@ -42,7 +42,7 @@ function Home() {
     return () => { active = false; };
   }, []);
 
-  const featured = projects?.find((project) => projectUrl(project.link) === featuredPath && project.image)
+  const featured = projects?.find((project) => project.featuredOnHome)
     ?? projects?.find((project) => project.image)
     ?? projects?.[0];
   const otherProjects = projects?.filter((project) => project.id !== featured?.id).slice(0, 3) ?? [];
@@ -93,7 +93,7 @@ function Home() {
             <div className="mt-4 sm:mt-6">
               <ul aria-label="More projects" className="divide-y divide-border border-y border-border">
                 {otherProjects.map((project) => (
-                  <li key={project.id}>
+                  <li key={project.id} {...contentTracking("project", project.id, project.title, project.createdAt)}>
                     <ProjectLink project={project} className={`${workLink} group flex min-h-12 items-center justify-between gap-4 py-2 text-sm transition-colors hover:text-foreground`}>
                       <span className="break-words font-medium">{project.title}</span>
                       <span className="flex shrink-0 items-center gap-4 text-muted-foreground">
@@ -122,12 +122,10 @@ function Home() {
 function FeaturedProject({ project }: { project: PortfolioItem }) {
   const [imageFailed, setImageFailed] = useState(false);
   const showImage = project.image && !imageFailed;
-  const description = projectUrl(project.link) === featuredPath
-    ? "Restaurant website with the menu, location, and contact details."
-    : project.description?.trim().split("\n")[0];
+  const description = project.description?.trim().split("\n")[0];
 
   return (
-    <article aria-labelledby="home-feature" className="group relative rounded-lg">
+    <article {...contentTracking("project", project.id, project.title, project.createdAt)} aria-labelledby="home-feature" className="group relative rounded-lg">
       {showImage && (
         <img
           src={project.image}

@@ -31,7 +31,7 @@ function CommentThread({ post, onCommentsChange, inDialog = false }: Omit<Commen
       onCommentsChange(updated.comments ?? []);
       setText("");
       const title = post.articleTitle || post.content?.substring(0, 30) || "Post";
-      (window as any).reportActivity?.("comment_story", `Commented on post: ${title}`, `Comment: ${comment.substring(0, 80)}`);
+      (window as any).reportActivity?.("comment_story", `Commented on post: ${title}`, "Submitted a comment");
     } catch (error) {
       const message = isAxiosError<{ error?: string }>(error) ? error.response?.data?.error : undefined;
       setError(message || "Couldn’t post your comment. Try again.");

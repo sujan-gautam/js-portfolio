@@ -12,7 +12,8 @@ axios.interceptors.request.use((request) => {
   const url = new URL(request.url || "", window.location.href);
   if (url.origin === api.origin && url.pathname.startsWith(`${api.pathname}/`)) {
     const path = url.pathname.slice(api.pathname.length);
-    if (/^\/(feed\/posts|collection\/(feed|blog_posts|users))(\/|$)/.test(path)) {
+    if (/^\/(feed\/posts|collection\/(feed|blog_posts|users|visitors)|analytics\/insights)(\/|$)/.test(path) ||
+      (request.method === "put" && path === "/page-versions")) {
       const token = localStorage.getItem("admin_token");
       if (token) request.headers.set("Authorization", `Bearer ${token}`);
     }

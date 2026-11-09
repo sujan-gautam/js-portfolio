@@ -1,3 +1,4 @@
+import { contentTracking } from "@/lib/contentTracking";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { feedAPI, FeedPost, settingsDB, AdminSettings } from "@/lib/adminData";
@@ -16,7 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { CommentSection } from "@/components/CommentSection";
 import { PollCard } from "@/components/PollCard";
 import SEO from "@/components/SEO";
-import StoriesSection from "@/components/StoriesSection";
+import StoriesSection from "@/components/VersionedStories";
 import { RestrictedPostPrompt } from "@/components/RestrictedPostPrompt";
 
 const postDateFormat = new Intl.DateTimeFormat("en", {
@@ -1052,7 +1053,7 @@ const Feed = () => {
 
   const [firstPost, ...remainingPosts] = posts;
   const renderPost = (post: FeedPost) => (
-    <article id={`post-${post.id}`} className="mx-auto w-full min-w-0 max-w-2xl px-5 sm:px-8">
+    <article id={`post-${post.id}`} {...(!post.locked && (!post.membersOnly || user) ? contentTracking(post.type === "article" ? "article" : "post", post.id, post.articleTitle, post.createdAt) : {})} className="mx-auto w-full min-w-0 max-w-2xl px-5 sm:px-8">
       <div className="border-b border-border py-5 sm:py-6">
         <PostCard
           post={post}

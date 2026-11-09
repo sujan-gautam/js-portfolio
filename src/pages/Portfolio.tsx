@@ -1,3 +1,4 @@
+import { contentTracking } from "@/lib/contentTracking";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { ArrowRight, ArrowUp, ArrowUpRight, LayoutGrid, List, MessageCircle, X } from "lucide-react";
@@ -374,7 +375,7 @@ function ProjectRow({ project, grid, onAsk, onPreview }: {
   }, [grid, expanded, description]);
 
   return (
-    <article className={grid
+    <article {...contentTracking("project", project.id, project.title, project.createdAt)} className={grid
       ? "min-w-0 border-b border-border pb-3"
       : `grid items-center gap-5 py-6 md:gap-9 md:py-8 ${project.image ? "md:grid-cols-2" : ""}`}>
       {project.image && (

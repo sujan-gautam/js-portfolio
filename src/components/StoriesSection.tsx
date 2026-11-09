@@ -1,3 +1,4 @@
+import { contentTracking } from "@/lib/contentTracking";
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import YouTube from "react-youtube";
@@ -126,7 +127,7 @@ const StoriesSection = ({ showLabel = true }: { showLabel?: boolean }) => {
           { replace: true }
         );
       }
-    } else if (!storyViewerOpen && !isLoading && searchParams.has("story")) {
+    } else if (!storyViewerOpen && !isLoading && searchParams.has("story") && !stories.some((story) => story.id === searchParams.get("story"))) {
       setSearchParams(
         (prev) => {
           const next = new URLSearchParams(prev);
@@ -310,7 +311,7 @@ const StoriesSection = ({ showLabel = true }: { showLabel?: boolean }) => {
 
     try {
       await axios.post(`${API_BASE}/collection/stories/${currentViewerStory.id}/comment`, { text: textPayload, device: navigator.userAgent });
-      (window as any).reportActivity?.('comment_story', `Commented on: ${currentViewerStory.title || 'Story'}`, `Comment: ${textPayload.substring(0, 80)}`);
+      (window as any).reportActivity?.('comment_story', `Commented on: ${currentViewerStory.title || 'Story'}`, "Submitted a story comment");
     } catch (err: any) {
       setStories(prev => prev.map(s => s.id === currentViewerStory.id ? { ...s, comments: (s.comments || []).filter(c => c.text !== textPayload) } : s));
       if (err.response?.data?.error) showAlert(err.response.data.error);
@@ -497,7 +498,7 @@ const StoriesSection = ({ showLabel = true }: { showLabel?: boolean }) => {
       </div>
 
       <Dialog open={storyViewerOpen} onOpenChange={(open) => { if (!open) closeStories(); }}>
-        <DialogContent className="max-w-[420px] w-full h-[100dvh] md:h-[85vh] p-0 bg-black md:border md:border-white/10 md:rounded-3xl overflow-hidden shadow-2xl flex flex-col [&>button]:hidden font-inter">
+        <DialogContent {...(storyViewerOpen && currentViewerStory && (!currentViewerStory.isMembersOnly || user) ? contentTracking("story", currentViewerStory.id, currentViewerStory.title, currentViewerStory.createdAt) : {})} className="max-w-[420px] w-full h-[100dvh] md:h-[85vh] p-0 bg-black md:border md:border-white/10 md:rounded-3xl overflow-hidden shadow-2xl flex flex-col [&>button]:hidden font-inter">
           <DialogTitle className="sr-only">Story Viewer</DialogTitle>
           <DialogDescription className="sr-only">Viewing community stories with music and interactions.</DialogDescription>
 

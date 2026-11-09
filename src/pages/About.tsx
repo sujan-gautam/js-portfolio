@@ -286,7 +286,7 @@ Question: ${text}`;
       )}
 
       {details.length > 0 && (
-        <section aria-labelledby="about-details" className="mt-8">
+        <section aria-labelledby="about-details" data-section="About details" className="mt-8">
           <h2 id="about-details" className={sectionHeading}>Details</h2>
           <dl className="mt-3 grid gap-x-8 sm:grid-cols-2">
             {details.map(({ label, value, href }) => (
@@ -302,7 +302,7 @@ Question: ${text}`;
       )}
 
       {skills.length > 0 && (
-        <section aria-labelledby="about-skills" className="mt-8">
+        <section aria-labelledby="about-skills" data-section="Skills" className="mt-8">
           <h2 id="about-skills" className={sectionHeading}>Skills</h2>
           <ul className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
             {skills.map((skill) => (
@@ -316,7 +316,7 @@ Question: ${text}`;
       )}
 
       {education.length > 0 && (
-        <section aria-labelledby="about-education" className="mt-8">
+        <section aria-labelledby="about-education" data-section="Education" className="mt-8">
           <h2 id="about-education" className={sectionHeading}>Education</h2>
           <ol className="mt-3 divide-y divide-border border-y border-border">
             {education.map((entry) => (

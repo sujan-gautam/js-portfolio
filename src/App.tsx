@@ -1,16 +1,17 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { lazy, Suspense, type ReactNode } from "react";
+import { BrowserRouter, Route, Routes, useSearchParams } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import BottomNav from "@/components/BottomNav";
-import Footer from "@/components/Footer";
+import { usePageVersions, type PageVersionKey } from "@/lib/pageVersions";
+import VersionedStories from "@/components/VersionedStories";
 
 // Public pages
 import Index from "./pages/Index.tsx";
 import About from "./pages/About.tsx";
 import Blog from "./pages/Blog";
-import BlogPostPage from "./pages/BlogPostPage";
 import Feed from "./pages/Feed.tsx";
 import Portfolio from "./pages/Portfolio.tsx";
 import Contact from "./pages/Contact.tsx";
@@ -92,6 +93,28 @@ import AuthSuccess from "@/pages/admin/AuthSuccess";
 
 const queryClient = new QueryClient();
 
+const LegacyHome = lazy(() => import("@/legacy/Index"));
+const LegacyAbout = lazy(() => import("@/legacy/About"));
+const LegacyFeed = lazy(() => import("@/legacy/Feed"));
+const LegacyPortfolio = lazy(() => import("@/legacy/Portfolio"));
+const LegacyContact = lazy(() => import("@/legacy/Contact"));
+const LegacyFeedPost = lazy(() => import("@/legacy/PostPage").then((module) => ({ default: module.FeedPostPage })));
+const LegacyBlogPost = lazy(() => import("@/legacy/BlogPostPage"));
+const LegacyBlog = lazy(() => import("@/legacy/Blog"));
+const LegacyBottomNav = lazy(() => import("@/legacy/BottomNav"));
+
+function VersionedPage({ page, v1, v2 }: { page: PageVersionKey; v1: ReactNode; v2: ReactNode }) {
+  const { data, isPending } = usePageVersions();
+  const fallback = page === "navigation" ? null : <p role="status" className="sr-only">Loading page…</p>;
+  if (isPending) return fallback;
+  return <Suspense fallback={fallback}>{data?.[page] === "v2" ? v2 : v1}</Suspense>;
+}
+
+function LegacyFeedRoute() {
+  const [params] = useSearchParams();
+  return <>{params.has("story") && <VersionedStories showLabel={false} />}<LegacyFeed /></>;
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
@@ -103,11 +126,11 @@ const App = () => (
           <AnalyticsTracker />
           <Routes>
             {/* ── Public ────────────────────────────────── */}
-            <Route path="/" element={<Index />} />
-            <Route path="/about/" element={<About />} />
-            <Route path="/feed/" element={<Feed />} />
-            <Route path="/portfolio/" element={<Portfolio />} />
-            <Route path="/contact/" element={<Contact />} />
+            <Route path="/" element={<VersionedPage page="home" v1={<LegacyHome />} v2={<Index />} />} />
+            <Route path="/about/" element={<VersionedPage page="about" v1={<LegacyAbout />} v2={<About />} />} />
+            <Route path="/feed/" element={<VersionedPage page="feed" v1={<LegacyFeedRoute />} v2={<Feed />} />} />
+            <Route path="/portfolio/" element={<VersionedPage page="portfolio" v1={<LegacyPortfolio />} v2={<Portfolio />} />} />
+            <Route path="/contact/" element={<VersionedPage page="contact" v1={<LegacyContact />} v2={<Contact />} />} />
             <Route path="/privacy/" element={<Privacy />} />
             <Route path="/terms/" element={<Terms />} />
             <Route path="/techy-pos/" element={<TechyPos />} />
@@ -118,10 +141,10 @@ const App = () => (
             <Route path="/trace/" element={<Trace />} />
 
             {/* ── SEO: Individual Post & Story Pages (Google indexable) ── */}
-            <Route path="/feed/post/:id" element={<FeedPostPage />} />
-            <Route path="/post/:id" element={<FeedPostPage />} />
-            <Route path="/blog" element={<Blog />} />
-            <Route path="/blog/:slug" element={<BlogPostPage />} />
+            <Route path="/feed/post/:id" element={<VersionedPage page="feedPost" v1={<LegacyFeedPost />} v2={<FeedPostPage />} />} />
+            <Route path="/post/:id" element={<VersionedPage page="feedPost" v1={<LegacyFeedPost />} v2={<FeedPostPage />} />} />
+            <Route path="/blog" element={<VersionedPage page="blog" v1={<LegacyBlog />} v2={<Blog />} />} />
+            <Route path="/blog/:slug" element={<VersionedPage page="blogPost" v1={<LegacyBlogPost />} v2={<FeedPostPage />} />} />
             <Route path="/story/:id" element={<StoryPage />} />
 
             {/* ── Admin Login (Unprotected) ──────────────── */}
@@ -221,7 +244,7 @@ const App = () => (
           <Route 
             path="*" 
             element={
-              <BottomNav />
+              <VersionedPage page="navigation" v1={<LegacyBottomNav />} v2={<BottomNav />} />
             } 
           />
         </Routes>

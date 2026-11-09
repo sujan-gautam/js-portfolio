@@ -1,3 +1,4 @@
+import { contentTracking } from "@/lib/contentTracking";
 import { useEffect, useState } from "react";
 import { useParams, Link, Navigate } from "react-router-dom";
 import axios from "axios";
@@ -7,7 +8,7 @@ import { useAuth } from "@/context/AuthContext";
 import { CommentSection } from "@/components/CommentSection";
 import { ReactionBar } from "@/components/ReactionBar";
 import { RestrictedPostPrompt } from "@/components/RestrictedPostPrompt";
-import { feedAPI } from "@/lib/adminData";
+import { blogPostsDB, feedAPI } from "@/lib/adminData";
 import { toast } from "sonner";
 
 const SITE = "https://sujan1919.com.np";
@@ -17,7 +18,7 @@ import SEO from "@/components/SEO";
 /* ─── Feed Post Page ─────────────────────────────── */
 export const FeedPostPage = () => {
   const { user, loading: authLoading } = useAuth();
-  const { id } = useParams<{ id: string }>();
+  const { id, slug } = useParams<{ id: string; slug: string }>();
   const [post, setPost] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -56,10 +57,19 @@ export const FeedPostPage = () => {
       setLoading(true);
       setPost(null);
       try {
+        if (slug) {
+          const articles = await blogPostsDB.getAll();
+          const article = Array.isArray(articles) ? articles.find((item) => item.slug === slug && item.status === "Published") : undefined;
+          if (article && !controller.signal.aborted) {
+            setPost({ ...article, type: "article", articleTitle: article.title, articleCover: article.featuredImage, articleContent: article.content });
+            if (!article.locked && (!article.membersOnly || user)) void feedAPI.trackView(article.id).catch(() => {});
+          }
+          return;
+        }
         const { data } = await axios.get(`${API_BASE}/collection/feed/${id}`, config);
         if (!controller.signal.aborted) setPost(data);
       } catch {
-        if (controller.signal.aborted) return;
+        if (controller.signal.aborted || slug) return;
         try {
           const { data } = await axios.get(`${API_BASE}/collection/blog_posts/${id}`, config);
           if (!controller.signal.aborted && data) {
@@ -81,10 +91,10 @@ export const FeedPostPage = () => {
 
     loadPost();
     return () => controller.abort();
-  }, [authLoading, id, user?.id]);
+  }, [authLoading, id, slug, user?.id]);
 
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-black"><div className="w-8 h-8 border-2 border-[#CB2729] border-t-transparent rounded-full animate-spin" /></div>;
-  if (!post) return <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-black text-white"><p className="text-white/40">Post not found</p><Link to="/feed/" className="text-[#CB2729] underline">Back to Feed</Link></div>;
+  if (!post) return <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-black text-white"><p className="text-white/40">{slug ? "Article not found" : "Post not found"}</p><Link to={slug ? "/blog" : "/feed/"} className="text-[#CB2729] underline">{slug ? "Back to articles" : "Back to feed"}</Link></div>;
 
   const images = post.images?.length ? post.images : (post.image ? [post.image] : []);
   const isArticle = post.type === "article";
@@ -96,7 +106,7 @@ export const FeedPostPage = () => {
   const title = post.seoTitle || (post.articleTitle ? `${post.articleTitle} | ${siteName}` : post.caption ? `${post.caption.slice(0, 60)} | ${siteName}` : `Post by ${siteName} | ${profession}`);
   const desc = post.seoDescription || (isArticle ? (post.articleContent?.replace(/<[^>]+>/g, '').slice(0, 160) || `Article by ${authorName}`) : `${post.content || post.caption || "Creative post"} - Published by ${authorName}, a professional ${profession}.`.slice(0, 160));
   const image = post.articleCover || images[0] || post.videoUrl || undefined;
-  const url = `${SITE}/post/${post._id || post.id}`;
+  const url = slug ? `${SITE}/blog/${encodeURIComponent(slug)}` : `${SITE}/post/${post._id || post.id}`;
 
   const articleSchema = {
     "@context": "https://schema.org",
@@ -138,7 +148,7 @@ export const FeedPostPage = () => {
     };
   }
 
-  const published = new Date(post.createdAt);
+  const published = new Date(post.publishedAt || post.createdAt);
   const hasPublishedDate = Number.isFinite(published.getTime());
   const dateLabel = hasPublishedDate
     ? published.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })
@@ -176,15 +186,15 @@ export const FeedPostPage = () => {
       />
     <div className="min-h-screen bg-black font-inter text-white selection:bg-primary/30 selection:text-white">
       <div className={`mx-auto px-5 pb-28 pt-8 sm:px-8 sm:pt-12 ${isArticle ? "max-w-2xl" : "max-w-3xl"}`}>
-        <Link to="/feed/" className="group mb-6 inline-flex min-h-11 items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
-          <ArrowLeft size={16} className="transition-transform group-hover:-translate-x-1" /> Back to feed
+        <Link to={slug ? "/blog" : "/feed/"} className="group mb-6 inline-flex min-h-11 items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
+          <ArrowLeft size={16} className="transition-transform group-hover:-translate-x-1" /> {slug ? "Back to articles" : "Back to feed"}
         </Link>
 
-        <article className={isArticle ? undefined : "animate-in fade-in slide-in-from-bottom-4 duration-700"}>
+        <article {...(!locked ? contentTracking(isArticle ? "article" : "post", post.id || post._id, post.articleTitle, post.publishedAt || post.createdAt) : {})} className={isArticle ? undefined : "animate-in fade-in slide-in-from-bottom-4 duration-700"}>
           {isArticle ? (
             <div className="space-y-6">
               <header className="border-b border-border pb-5">
-                <p className="text-sm font-medium text-red-500">{post.category || post.categoryName || "Article"}</p>
+                <p className="text-sm font-medium text-red-500">{post.categoryName || (!slug && post.category) || "Article"}</p>
                 <h1 className="mt-2 break-words font-poppins text-[clamp(1.75rem,5vw,2.75rem)] font-semibold leading-tight tracking-tight text-foreground">
                   {locked ? "Log in to view" : post.articleTitle}
                 </h1>

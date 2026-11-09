@@ -110,7 +110,7 @@ export default function Contact() {
         </header>
 
         <div className="mt-6 grid items-start gap-8 sm:mt-8 md:grid-cols-[minmax(0,1fr)_minmax(0,16rem)] md:gap-9">
-          <section aria-labelledby="contact-form" className="min-w-0 rounded-lg border border-border bg-card p-4 sm:p-6">
+          <section aria-labelledby="contact-form" data-section="Contact form" className="min-w-0 rounded-lg border border-border bg-card p-4 sm:p-6">
             <h2 id="contact-form" className={headingClass}>Send a message</h2>
             <p id="contact-form-note" className="mt-1 text-sm leading-relaxed text-muted-foreground">Leave an email so I can reply.</p>
             <form aria-describedby="contact-form-note" onSubmit={send} onInput={() => { if (!sending.current) setStatus("idle"); }} className="mt-5">

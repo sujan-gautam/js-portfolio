@@ -15,6 +15,7 @@ export const fields: FieldConfig[] = [
   { key: "link",        label: "Project Link",type: "url" },
   { key: "tags",        label: "Tags",        type: "text" },
   { key: "category",   label: "Category",    type: "text" },
+  { key: "featuredOnHome", label: "Feature on Home (V2)", type: "toggle", hideInTable: true },
 ];
 
 export const AdminPortfolioList = () => {
